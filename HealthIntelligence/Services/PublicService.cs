@@ -1,0 +1,522 @@
+﻿using AssessmentPlatform.Common.Implementation;
+using AssessmentPlatform.Common.Interface;
+using AssessmentPlatform.Common.Models;
+using AssessmentPlatform.Data;
+using AssessmentPlatform.Dtos.chatDto;
+using AssessmentPlatform.Dtos.CommonDto;
+using AssessmentPlatform.Dtos.PublicDto;
+using AssessmentPlatform.IServices;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using System.Text.Json;
+
+namespace AssessmentPlatform.Services
+{
+    [AllowAnonymous]
+    public class PublicService : IPublicService
+    {
+        private readonly ApplicationDbContext _context;
+        private readonly IAppLogger _appLogger;
+        private readonly IWebHostEnvironment _env;
+        private readonly IMemoryCache _cache;
+        private readonly ICommonService _commonService;
+        private readonly IAIAnalyzeService _aIAnalyzeService;
+
+        public PublicService(ApplicationDbContext context, IAppLogger appLogger, IWebHostEnvironment env, 
+            IMemoryCache cache, ICommonService commonService, IAIAnalyzeService aIAnalyzeService)
+        {
+            _context = context;
+            _appLogger = appLogger;
+            _env = env;
+            _cache = cache;
+            _commonService = commonService;
+            _aIAnalyzeService = aIAnalyzeService;
+        }
+        public async Task<ResultResponseDto<List<PartnerCityResponseDto>>> GetAllCities()
+        {
+            try
+            {
+                var result = await _context.Cities.Where(c => c.IsActive && !c.IsDeleted).
+                 Select(c => new PartnerCityResponseDto
+                 {
+                     CityID = c.CityID,
+                     State = c.State,
+                     CityName = c.CityName,
+                     PostalCode = c.PostalCode,
+                     Region = c.Region,
+                     Country = c.Country
+                 }).OrderBy(x => x.CityName).ToListAsync();
+
+                return ResultResponseDto<List<PartnerCityResponseDto>>.Success(result, new string[] { "get All Cities successfully" });
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("Error Occure in getAllCities", ex);
+                return ResultResponseDto<List<PartnerCityResponseDto>>.Failure(new string[] { "There is an error please try later" });
+            }
+        }
+        public async Task<ResultResponseDto<PartnerCityFilterResponse>> GetPartnerCitiesFilterRecord()
+        {
+            try
+            {
+                // Fetch all active cities once
+                var activeCities = await _context.Cities
+                    .Where(x => !x.IsDeleted)
+                    .ToListAsync();
+
+                var res = new PartnerCityFilterResponse
+                {
+                    Countries = activeCities
+                        .Select(x => x.Country)
+                        .Distinct()
+                        .ToList(),
+
+                    Cities = activeCities
+                        .Select(x => new PartnerCityDto
+                        {
+                            CityID = x.CityID,
+                            CityName = x.CityName
+                        })
+                        .ToList(),
+
+                    Regions = activeCities
+                        .Select(x => x.Region)
+                        .Where(r => !string.IsNullOrEmpty(r))
+                        .Distinct()
+                        .ToList()
+                };
+
+                return ResultResponseDto<PartnerCityFilterResponse>.Success(
+                    res,
+                    new List<string> { "Get Cities history successfully" }
+                );
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("Error Occured in GetPartnerCitiesFilterRecord", ex);
+                return ResultResponseDto<PartnerCityFilterResponse>.Failure(
+                    new string[] { "Failed to get Partner City filter data" }
+                );
+            }
+        }
+
+        public async Task<ResultResponseDto<List<PillarResponseDto>>> GetAllPillarAsync()
+        {
+            try
+            {
+                var res =  await _context.Pillars
+                .OrderBy(p => p.DisplayOrder)
+                .Select(x => new PillarResponseDto
+                {
+                    DisplayOrder = x.DisplayOrder,
+                    PillarID = x.PillarID,
+                    PillarName = x.PillarName,
+                    ImagePath = x.ImagePath
+                }).ToListAsync();
+                return ResultResponseDto<List<PillarResponseDto>>.Success(res, new List<string> { "Get Cities history successfully" });
+
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("Error Occure in GetAllPillarAsync", ex);
+                return ResultResponseDto<List<PillarResponseDto>>.Failure(new string[] { "Failed to get Piilar detail" });
+            }
+        }
+        public async Task<PaginationResponse<PartnerCityResponseDto>> GetPartnerCities(PartnerCityRequestDto request)
+        {
+            try
+            {
+                var year = DateTime.Now.Year;
+
+
+                var cityQuery =
+                   from c in _context.Cities.Where(x => !request.CityID.HasValue || x.CityID == request.CityID)
+                   join uc in _context.UserCityMappings on c.CityID equals uc.CityID into ucg
+                   from uc in ucg.DefaultIfEmpty()
+                   join a in _context.Assessments on uc.UserCityMappingID equals a.UserCityMappingID into ag
+                   from a in ag.DefaultIfEmpty()
+                   join pa in _context.PillarAssessments.Where(x=> !request.PillarID.HasValue || x.PillarID == request.PillarID) 
+                   on a.AssessmentID equals pa.AssessmentID into pag
+                   from pa in pag.DefaultIfEmpty()
+                   join r in _context.AssessmentResponses on pa.PillarAssessmentID equals r.PillarAssessmentID into rg
+                   from r in rg.DefaultIfEmpty()
+                   where !c.IsDeleted && 
+                    (uc == null || !uc.IsDeleted) &&
+                    (a == null || a.UpdatedAt.Year == year) 
+                   group r by new
+                   {
+                       c.CityID,
+                       c.Country,
+                       c.PostalCode,
+                       c.Image,
+                       c.State,
+                       c.CityName,
+                       c.Region,
+                       EvaluatorCount = _context.UserCityMappings
+                                           .Count(x => x.CityID == c.CityID && !x.IsDeleted)
+                   }
+                   into g
+                   select new PartnerCityResponseDto
+                   {
+                       CityID = g.Key.CityID,
+                       State = g.Key.State,
+                       CityName = g.Key.CityName,
+                       PostalCode = g.Key.PostalCode,
+                       Region = g.Key.Region,
+                       Country = g.Key.Country,
+                       Image = g.Key.Image,
+                       Score = (decimal)g.Sum(x => (int?)x.Score ?? 0) / (g.Key.EvaluatorCount == 0 ? 1 : g.Key.EvaluatorCount),
+                       HighScore = g.Max(x=>(int?)x.Score ?? 0),
+                       LowerScore = g.Min(x => (int?)x.Score ?? 0),
+                       Progress = ((decimal)g.Sum(x => (int?)x.Score ?? 0) * 100) / ((g.Key.EvaluatorCount == 0 ? 1 : g.Key.EvaluatorCount) * 4 * g.Count()),
+                   };
+
+                if (!string.IsNullOrWhiteSpace(request.Country))
+                {
+                    cityQuery = cityQuery.Where(c => c.Country.Contains(request.Country));
+                }
+
+                // Only filter by Region if a value is provided
+                if (!string.IsNullOrWhiteSpace(request.Region))
+                {
+                    cityQuery = cityQuery.Where(c => c.Region != null && c.Region.Contains(request.Region));
+                }
+
+                var response = await cityQuery.ApplyPaginationAsync(request);
+
+                return response;
+
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("Error Occure in GetCitiesProgressByUserId", ex);
+                return new();
+            }
+        }
+
+        public async Task<CountryCityResponse> GetCountriesAndCities_WithStaleSupport()
+        {
+            try
+            {
+                string jsonFilePath = Path.Combine(_env.WebRootPath, "data\\countries_cache.json");
+                if (!File.Exists(jsonFilePath))
+                    return new CountryCityResponse(); // ✅ NEVER return null
+
+                var json = await File.ReadAllTextAsync(jsonFilePath);
+
+                var data = JsonSerializer.Deserialize<CountryCityResponse>(json);
+
+                return data ?? new CountryCityResponse();
+            }
+            catch (Exception ex)
+            {
+                // ✅ Optional: log error
+                // _logger.LogError(ex, "Failed to load country-city file");
+
+                return new CountryCityResponse(); // ✅ Safe fallback
+            }
+        }
+
+        public async Task<ResultResponseDto<List<PromotedPillarsResponseDto>>> GetPromotedCities()
+        {
+            const string cacheKey = "PromotedCities";
+
+            try
+            {
+                // ✅ Try get from cache
+                if (_cache.TryGetValue(cacheKey, out List<PromotedPillarsResponseDto> cachedData))
+                {
+                    return ResultResponseDto<List<PromotedPillarsResponseDto>>.Success(
+                        cachedData,
+                        new List<string> { "Promoted cities fetched successfully" }
+                    );
+                }
+
+                int currentYear = DateTime.Now.Year;
+
+                var admin = await _context.Users.FirstOrDefaultAsync(x => x.Role == Models.UserRole.Admin);
+
+                int role = (int)(admin?.Role ?? Models.UserRole.Admin);
+
+                var pillarScores = await _commonService.GetCitiesProgressAsync(admin?.UserID ?? 0, role, currentYear);
+
+
+                var result = await _context.AIPillarScores
+                    .Include(x => x.City)
+                    .Include(x => x.Pillar)
+                    .Where(x =>
+                        x.Year == currentYear &&
+                        x.City.IsActive &&
+                        !x.City.IsDeleted)
+                    .GroupBy(x => new
+                    {
+                        x.PillarID,
+                        x.Pillar.PillarName,
+                        x.Pillar.DisplayOrder,
+                        x.Pillar.ImagePath
+                    })
+                    .Select(g => new PromotedPillarsResponseDto
+                    {
+                        PillarID = g.Key.PillarID,
+                        PillarName = g.Key.PillarName,
+                        DisplayOrder = g.Key.DisplayOrder,
+                        ImagePath = g.Key.ImagePath,
+                        Cities = g
+                            .OrderByDescending(x => x.AIProgress)
+                            .Take(3)
+                            .Select(c => new PromotedCityResponseDto
+                            {
+                                CityID = c.CityID,
+                                CityName = c.City.CityName,
+                                Country = c.City.Country,
+                                State = c.City.State,
+                                PostalCode = c.City.PostalCode,
+                                Region = c.City.Region,
+                                Image = c.City.Image,
+                                ScoreProgress = c.AIProgress,
+                                Description = c.EvidenceSummary,
+                            }).ToList()
+                    })
+                    .OrderBy(p => p.DisplayOrder)
+                    .ToListAsync();
+
+                foreach (var pillar in result)
+                {
+                    foreach (var city in pillar.Cities)
+                    {
+                        var score = pillarScores
+                            .Where(s => s.CityID == city.CityID && s.PillarID == pillar.PillarID)
+                            .Select(s => s.ScoreProgress)
+                            .FirstOrDefault();
+                        city.ScoreProgress = score;
+                    }
+                    pillar.Cities = pillar.Cities.OrderByDescending(c => c.ScoreProgress).ToList();
+                }
+
+                _cache.Set(cacheKey, result, new MemoryCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10),
+                    SlidingExpiration = TimeSpan.FromMinutes(5),
+                    Priority = CacheItemPriority.High
+                });
+
+                return ResultResponseDto<List<PromotedPillarsResponseDto>>.Success(
+                    result,
+                    new List<string> { "Promoted cities fetched successfully" }
+                );
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("Error Occurred in GetPromotedCities", ex);
+                return ResultResponseDto<List<PromotedPillarsResponseDto>>.Failure(
+                    new[] { "Failed to get promoted cities" }
+                );
+            }
+        }
+
+        public async Task<ResultResponseDto<EmergingTrendsResult>> GetEmergingTrendsAndIssues(int cityCount)
+        {
+            try
+            {
+                var cacheKey = EmergingTrendsCacheKey(cityCount);
+
+                if (_cache.TryGetValue(cacheKey, out EmergingTrendsResult cachedResult)
+                    && cachedResult?.Cities?.Count > 0)
+                {
+                    return ResultResponseDto<EmergingTrendsResult>.Success(
+                        cachedResult,
+                        new List<string>
+                        {
+                            "Emerging trends and issues fetched successfully from cache."
+                        }
+                    );
+                }
+
+                return ResultResponseDto<EmergingTrendsResult>.Failure(
+                    new[]
+                    {
+                        "Emerging trends feed is being updated. Please try again shortly."
+                    }
+                );
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync(
+                    "An error occurred while processing the GetEmergingTrendsAndIssues request.",
+                    ex
+                );
+
+                return ResultResponseDto<EmergingTrendsResult>.Failure(
+                    new[]
+                    {
+                        "An error occurred while processing your request. Please try again later."
+                    }
+                );
+            }
+        }
+
+        public async Task<ResultResponseDto<PillarLiveSignalsResult>> GetPillarLiveSignals()
+        {
+            const string cacheKey = "PillarLiveSignals";
+
+            try
+            {
+                if (_cache.TryGetValue(cacheKey, out PillarLiveSignalsResult cachedResult))
+                {
+                    return ResultResponseDto<PillarLiveSignalsResult>.Success(
+                        cachedResult,
+                        new List<string>
+                        {
+                            "Pillar live signals fetched successfully from cache."
+                        }
+                    );
+                }
+
+                var result = await _aIAnalyzeService.GetPillarLiveSignals();
+
+                if (result == null || result.Success != true)
+                {
+                    return ResultResponseDto<PillarLiveSignalsResult>.Failure(
+                        new[]
+                        {
+                            result?.Message ??
+                            "Failed to fetch pillar live signals."
+                        }
+                    );
+                }
+
+                var pillarLookup = await _context.Pillars
+                    .AsNoTracking()
+                    .Select(p => new
+                    {
+                        p.PillarID,
+                        p.PillarName,
+                        p.ImagePath,
+                        p.DisplayOrder
+                    })
+                    .ToListAsync();
+
+                foreach (var pillarCard in result.Result.Pillars)
+                {
+                    var matched = pillarLookup.FirstOrDefault(p => p.PillarID == pillarCard.PillarId);
+                    pillarCard.PillarName = matched?.PillarName ?? $"Pillar {pillarCard.PillarId}";
+                    pillarCard.ImagePath = matched?.ImagePath ?? "";
+                }
+
+                result.Result.Pillars = result.Result.Pillars
+                    .OrderBy(p =>
+                    {
+                        var order = pillarLookup.FirstOrDefault(x => x.PillarID == p.PillarId)?.DisplayOrder;
+                        return order ?? p.PillarId;
+                    })
+                    .ToList();
+
+                _cache.Set(
+                    cacheKey,
+                    result.Result,
+                    new MemoryCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(12),
+                        SlidingExpiration = TimeSpan.FromHours(10),
+                        Priority = CacheItemPriority.High
+                    }
+                );
+
+                return ResultResponseDto<PillarLiveSignalsResult>.Success(
+                    result.Result,
+                    new List<string>
+                    {
+                        "Pillar live signals fetched successfully."
+                    }
+                );
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync(
+                    "An error occurred while processing the GetPillarLiveSignals request.",
+                    ex
+                );
+
+                return ResultResponseDto<PillarLiveSignalsResult>.Failure(
+                    new[]
+                    {
+                        "An error occurred while processing your request. Please try again later."
+                    }
+                );
+            }
+        }
+
+        public async Task<bool> RefreshEmergingTrendsCacheAsync(
+            int cityCount,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var enriched = await FetchAndEnrichEmergingTrendsAsync(cityCount, cancellationToken);
+
+                if (enriched == null || enriched.Cities == null || enriched.Cities.Count == 0)
+                {
+                    return false;
+                }
+
+                var cacheKey = EmergingTrendsCacheKey(cityCount);
+                _cache.Set(
+                    cacheKey,
+                    enriched,
+                    new MemoryCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(12),
+                        Priority = CacheItemPriority.High
+                    }
+                );
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync(
+                    "An error occurred while refreshing the emerging trends cache.",
+                    ex
+                );
+                return false;
+            }
+        }
+        private static string EmergingTrendsCacheKey(int cityCount) =>
+           $"EmergingTrendsAndIssues_{cityCount }";
+
+        private async Task<EmergingTrendsResult?> FetchAndEnrichEmergingTrendsAsync(
+            int cityCount,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _aIAnalyzeService.GetEmergingTrendsAndIssues(cityCount);
+
+            if (result == null || result.Success != true || result.Result == null)
+            {
+                return null;
+            }
+
+            if (result.Result.Cities == null || result.Result.Cities.Count == 0)
+            {
+                return null;
+            }            
+
+            return result.Result;
+        }
+
+    }
+}
+
+public class CountryCityResponse
+{
+    public bool error { get; set; }
+    public string msg { get; set; }
+    public List<CountryData> data { get; set; }
+}
+
+public class CountryData
+{
+    public string country { get; set; }
+    public List<string> cities { get; set; }
+}
+

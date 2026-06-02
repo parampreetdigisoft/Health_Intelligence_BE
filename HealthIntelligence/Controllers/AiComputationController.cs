@@ -1,0 +1,521 @@
+﻿using AssessmentPlatform.Dtos.AiDto;
+using AssessmentPlatform.IServices;
+using AssessmentPlatform.Models;
+
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+using System.Security.Claims;
+
+namespace AssessmentPlatform.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    [Authorize]
+    public class AiComputationController : ControllerBase
+    {
+
+        private readonly IAIComputationService _aIComputationService;
+        public AiComputationController(IAIComputationService aIComputationService)
+        {
+            _aIComputationService = aIComputationService;
+        }
+
+        private int? GetUserIdFromClaims()
+        {
+            var userIdClaim = User.FindFirst("UserId")?.Value;
+            if (int.TryParse(userIdClaim, out int userId))
+                return userId;
+
+            return null;
+        }
+        private string? GetTierFromClaims()
+        {
+            return User.FindFirst("Tier")?.Value;
+        }
+        private string? GetRoleFromClaims()
+        {
+            return User.FindFirst(ClaimTypes.Role)?.Value;
+        }
+
+        [HttpGet("getAITrustLevels")]
+        public async Task<IActionResult> GetAITrustLevels()
+        {
+            return Ok(await _aIComputationService.GetAITrustLevels());
+        }
+        [HttpGet("getAICities")]
+        public async Task<IActionResult> GetAICities([FromQuery] AiCitySummeryRequestDto request)
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                return Unauthorized("You Don't have access.");
+            }
+
+            return Ok(await _aIComputationService.GetAICities(request, userId.Value, userRole));
+        }
+
+        [HttpGet("getAICityPillars")]
+        public async Task<IActionResult> GetAICityPillars([FromQuery] AiCityPillarRequestDto request)
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                return Unauthorized("You Don't have access.");
+            }
+
+            return Ok(await _aIComputationService.GetAICityPillars(request.CityID, userId.Value, userRole, request.Year));
+        }
+
+        [HttpGet("getAIPillarQuestions")]
+        public async Task<IActionResult> GetAIPillarQuestions([FromQuery] AiCityPillarSummeryRequestDto r)
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                return Unauthorized("You Don't have access.");
+            }
+
+            return Ok(await _aIComputationService.GetAIPillarsQuestion(r, userId.Value, userRole));
+        }
+
+        [HttpGet("aiCityDetailsReport")]
+        public async Task<IActionResult> DownloadCityReport([FromQuery] AiCitySummeryRequestPdfDto request)
+        {
+            try
+            {
+                var userId = GetUserIdFromClaims();
+                if (userId == null)
+                    return Unauthorized("User ID not found in token.");
+
+                var role = GetRoleFromClaims();
+                if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+                    //return Unauthorized("You Don't have access.");
+
+                 if (userRole != UserRole.Admin && userRole != UserRole.CityUser)
+                     return Unauthorized("You don't have access.");
+
+                var cityDetails = await _aIComputationService
+                    .GetCityAiSummeryDetail(userId.Value, userRole, request.CityID, request.Year, request.ReportType);
+
+                string fileName;
+                byte[] fileBytes;
+                string contentType;
+
+                fileBytes = await _aIComputationService.GenerateCityDetailsReport(cityDetails, userRole, userId.Value, request.Format,request.ReportType);
+
+                if (request.Format == Common.Interface.DocumentFormat.Docx)
+                {
+                    contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                    fileName = $"{cityDetails.CityName}_Details_{DateTime.Now:yyyyMMdd}.docx";
+                }
+                else
+                {
+                    contentType = "application/pdf";
+                    fileName = $"{cityDetails.CityName}_Details_{DateTime.Now:yyyyMMdd}.pdf";
+                }
+
+                return File(fileBytes, contentType, fileName);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = "Error generating report",
+                    error = ex.Message
+                });
+            }
+        }
+
+        [HttpGet("aiAllCityDetailsReport")]
+        public async Task<IActionResult> DownloadAllCityReport([FromQuery] DownloadReportDto request)
+        {
+            try
+            {
+                var userId = GetUserIdFromClaims();
+                if (userId == null)
+                    return Unauthorized("User ID not found in token.");
+
+                var role = GetRoleFromClaims();
+                if (role == null)
+                    return Unauthorized("You Don't have access.");
+
+                if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+                {
+                    return Unauthorized("You Don't have access.");
+                }
+                if (userRole != UserRole.Admin && userRole != UserRole.CityUser)
+                    return Unauthorized("You Don't have access.");
+
+                var year = DateTime.Now.Year;
+                var cityDetails = await _aIComputationService.GetAllCityAiSummeryDetail(userId ?? 0, userRole, year);
+
+                if(cityDetails.Count > 0)
+                {
+                    cityDetails = cityDetails.Where(x => request.CityIDs.Contains(x.CityID)).ToList();  
+
+                    if(cityDetails.Count > 0)
+                    {
+                        string fileName;
+                        string contentType;
+                        var pdfBytes = await _aIComputationService.GenerateAllCityDetailsReport(cityDetails, userRole, userId.GetValueOrDefault(), year, request.Format);
+
+                        if (request.Format == Common.Interface.DocumentFormat.Docx)
+                        {
+                            contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                            fileName = $"Cities_Details_{DateTime.Now:yyyyMMdd}.docx";
+                        }
+                        else
+                        {
+                            contentType = "application/pdf";
+                            fileName = $"Cities_Details_{DateTime.Now:yyyyMMdd}.pdf";
+                        }
+
+                        return File(pdfBytes, contentType, fileName);
+                    }
+
+                }
+                return NotFound("No City Found.");
+
+            }
+            catch (Exception ex)
+            {
+                // Log error
+                return StatusCode(500, new
+                {
+                    message = "Error generating PDF",
+                    error = ex.Message
+                });
+            }
+        }
+        [HttpGet("aiPillarDetailsReport")]
+        public async Task<IActionResult> DownloadPillarReport([FromQuery] AiCitySummeryRequestPdfDto request)
+        {
+            try
+            {
+                var userId = GetUserIdFromClaims();
+                if (userId == null)
+                    return Unauthorized("User ID not found in token.");
+
+                var role = GetRoleFromClaims();
+                if (role == null)
+                    return Unauthorized("You Don't have access.");
+
+                if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+                {
+                    return Unauthorized("You Don't have access.");
+                }
+                if (userRole != UserRole.Admin && userRole != UserRole.CityUser)
+                    return Unauthorized("You Don't have access.");
+
+
+                var pillars = await _aIComputationService.GetAICityPillars(request.CityID, userId.Value, userRole, request.Year);
+
+                var pillarDetails =  pillars.Result.Pillars.FirstOrDefault(x=>x.PillarID == request.PillarID);
+                if (pillarDetails != null)
+                {
+                    string contentType;
+                    string fileName;
+
+                    // Generate PDF
+                    var fileBytes = await _aIComputationService.GeneratePillarDetailsReport(pillarDetails, userRole,request.Format);
+
+                    if (request.Format == Common.Interface.DocumentFormat.Docx)
+                    {
+                        contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                        fileName = $"{pillarDetails.PillarName}_Details_{DateTime.Now:yyyyMMdd}.docx";
+                    }
+                    else
+                    {
+                        contentType = "application/pdf";
+                        fileName = $"{pillarDetails.PillarName}_Details_{DateTime.Now:yyyyMMdd}.pdf";
+                    }
+
+                    return File(fileBytes, contentType, fileName);
+                }
+                return StatusCode(500, new
+                {
+                    message = "Error generating PDF"
+                });
+
+            }
+            catch (Exception ex)
+            {
+                // Log error
+                return StatusCode(500, new
+                {
+                    message = "Error generating PDF",
+                    error = ex.Message
+                });
+            }
+        }
+
+        [HttpPost("getAICrossCityPillars")]
+        public async Task<IActionResult> GetAICrossCityPillars([FromBody] AiCityIdsDto aiCityIdsDto)
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                return Unauthorized("You Don't have access.");
+            }
+
+            return Ok(await _aIComputationService.GetAICrossCityPillars(aiCityIdsDto, userId.Value, userRole));
+        }
+
+        [HttpPost("changedAiCityEvaluationStatus")]
+        [Authorize(Policy = "StaffOnly")]
+        public async Task<IActionResult> ChangedAiCityEvaluationStatus([FromBody] ChangedAiCityEvaluationStatusDto aiCityIdsDto)
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                return Unauthorized("You Don't have access.");
+            }
+
+            return Ok(await _aIComputationService.ChangedAiCityEvaluationStatus(aiCityIdsDto, userId.Value, userRole));
+        }
+
+        [HttpPost("regenerateAiSearch")]
+        [Authorize(Policy = "StaffOnly")]
+        public async Task<IActionResult> RegenerateAiSearch([FromBody] RegenerateAiSearchDto aiCityIdsDto)
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                return Unauthorized("You Don't have access.");
+            }
+
+            return Ok(await _aIComputationService.RegenerateAiSearch(aiCityIdsDto, userId.Value, userRole));
+        }
+
+        [HttpPost("addComment")]
+        [Authorize(Policy = "StaffOnly")]
+        public async Task<IActionResult> AddComment([FromBody] AddCommentDto aiCityIdsDto)
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                return Unauthorized("You Don't have access.");
+            }
+
+            return Ok(await _aIComputationService.AddComment(aiCityIdsDto, userId.Value, userRole));
+        }
+        [HttpPost("regeneratePillarAiSearch")]
+        [Authorize(Policy = "StaffOnly")]
+        public async Task<IActionResult> RegeneratePillarAiSearch([FromBody] RegeneratePillarAiSearchDto aiCityIdsDto)
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                return Unauthorized("You Don't have access.");
+            }
+
+            return Ok(await _aIComputationService.RegeneratePillarAiSearch(aiCityIdsDto, userId.Value, userRole));
+        }
+
+        [HttpPost("aiResultTransfer")]
+        [Authorize(Policy = "StaffOnly")]
+        public async Task<IActionResult> AiResultTransfer([FromBody] AITransferAssessmentRequestDto aiCityIdsDto)
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                return Unauthorized("You Don't have access.");
+            }
+
+            return Ok(await _aIComputationService.AITransferAssessment(aiCityIdsDto, userId.Value, userRole));
+        }
+
+        [HttpGet("reCalculateKpis")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ReCalculateKpis()
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                return Unauthorized("You Don't have access.");
+            }
+
+            return Ok(await _aIComputationService.ReCalculateKpis( userId.Value, userRole));
+        }
+
+        [HttpPost("uploadAiDocuments")]
+        [Authorize(Roles = "Admin,Analyst")]
+        public async Task<IActionResult> UploadAiDocuments([FromForm] UploadAiDocumentRequest uploadAiDocumentRequest)
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+            if (uploadAiDocumentRequest.Files == null || !uploadAiDocumentRequest.Files.Any())
+                return BadRequest("No files uploaded.");
+
+
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                return Unauthorized("You Don't have access.");
+            }
+
+            return Ok(await _aIComputationService.UploadAiDocuments(uploadAiDocumentRequest, userId.Value, userRole));
+        }
+
+        [HttpGet("getAICityDocuments")]
+        [Authorize(Roles = "Admin,Analyst")]
+        public async Task<IActionResult> GetAICityDocuments([FromQuery] AiCityDocumentRequestDto  uploadAiDocumentRequest)
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                return Unauthorized("You Don't have access.");
+            }
+
+            return Ok(await _aIComputationService.GetAICityDocuments(uploadAiDocumentRequest, userId.Value, userRole));
+        }
+
+        [HttpGet("getAICityPillarDocuments")]
+        [Authorize(Roles = "Admin,Analyst")]
+        public async Task<IActionResult> GetAICityillarDocuments([FromQuery] AiCityPillarDocumentRequestDto uploadAiDocumentRequest)
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                return Unauthorized("You Don't have access.");
+            }
+
+            return Ok(await _aIComputationService.GetAICityPillarDocuments(uploadAiDocumentRequest, userId.Value, userRole));
+        }
+
+        [HttpPost("deleteDocument")]
+        [Authorize(Roles = "Admin,Analyst")]
+        public async Task<IActionResult> DeleteDocument([FromBody] DeleteCityDocumentRequestDto uploadAiDocumentRequest)
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                return Unauthorized("You Don't have access.");
+            }
+
+            return Ok(await _aIComputationService.DeleteDocument(uploadAiDocumentRequest, userId.Value, userRole));
+        }
+
+        [HttpGet("downloadDocument/{Id}")]
+        [Authorize(Roles = "Admin,Analyst")]
+        public async Task<IActionResult> DownloadDocument(int Id)
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                return Unauthorized("You Don't have access.");
+            }
+
+            var result = await _aIComputationService.DownloadDocument(Id, userId.GetValueOrDefault(), userRole);
+
+            return result;
+        }
+    }
+}

@@ -1,0 +1,20 @@
+﻿using AssessmentPlatform.Dtos.CityDto;
+
+namespace AssessmentPlatform.Common.Interface
+{
+    public interface ICommonService
+    {
+        /// <summary>
+        /// Based on user role it will return pillar wise Manual progress and Ai progress Score
+        /// </summary>
+        /// <param name="userId"></param>
+        /// <param name="role"></param>
+        /// <param name="year"></param>
+        /// <returns></returns>
+        public Task<List<EvaluationCityProgressResultDto>> GetCitiesProgressAsync(int userId,int role, int year);
+        public Task<List<EvaluationCityProgressHistoryResultDto>> GetCitiesProgressHistoryAsync(int userId,int role, int fromYear, int toYear);
+        public Task<List<GetCitiesProgressAdminDto>> GetCitiesProgressForAdmin(int userId, int role, int year);
+        public string ReplacePercentAcross(string input, int score);
+        Task<List<CityRankingResultDto>> GetCitiesRankings(int cityId, int year);
+    }
+}

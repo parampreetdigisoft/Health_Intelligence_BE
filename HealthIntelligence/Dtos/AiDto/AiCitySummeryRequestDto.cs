@@ -1,0 +1,42 @@
+﻿using AssessmentPlatform.Dtos.CommonDto;
+
+namespace AssessmentPlatform.Dtos.AiDto
+{
+    public class AiCitySummeryRequestDto : PaginationRequest
+    {
+        public int? CityID { get; set; }
+        public int Year { get; set; } = DateTime.UtcNow.Year;
+    }
+
+    public class AiCityPillarSummeryRequestDto : AiCitySummeryRequestDto
+    {
+        public int? PillarID { get; set; }
+    }
+
+    public class AiCitySummeryRequestPdfDto : AiCityPillarRequestDto
+    {
+        public int? PillarID { get; set; }
+        public Common.Interface.DocumentFormat Format { get; set; } = Common.Interface.DocumentFormat.Pdf;
+        public string ReportType { get; set; } = "ai";
+    }
+    public class AiCityPillarRequestDto
+    {
+        public int CityID { get; set; }
+        public int Year { get; set; } = DateTime.UtcNow.Year;
+    }
+    public class AiCityDocumentRequestDto : PaginationRequest
+    {
+        public int? CityID { get; set; }
+    }
+
+    public class AiCityPillarDocumentRequestDto : PaginationRequest
+    {
+        public int CityID { get; set; }
+    }
+    public class DeleteCityDocumentRequestDto
+    {
+        public int CityID { get; set; }
+        public int? CityDocumentID  { get; set; }
+        public bool IsAll { get; set; } = false;
+    }
+}

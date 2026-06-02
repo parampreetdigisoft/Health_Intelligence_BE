@@ -1,0 +1,140 @@
+﻿using AssessmentPlatform.Common.Interface;
+using AssessmentPlatform.Data;
+using AssessmentPlatform.Dtos.CityDto;
+using AssessmentPlatform.IServices;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
+
+namespace AssessmentPlatform.Common.Implementation
+{
+    public class CommonService : ICommonService
+    {
+        #region constructor
+
+        private readonly ApplicationDbContext _context;
+        private readonly IAppLogger _appLogger;
+        private readonly IWebHostEnvironment _env;
+        public CommonService(ApplicationDbContext context, IAppLogger appLogger, IWebHostEnvironment env)
+        {
+            _context = context;
+            _appLogger = appLogger;
+            _env = env;
+        }
+        #endregion
+
+        public static string InitailLineOfExecutiveSummery(
+          string evidenceSummary,
+          string? immediateSituationSummary,
+          decimal? progress,
+          string? cityName = "The city", int pillarCount = 14, int kpiCount = 110)
+        {
+            immediateSituationSummary = immediateSituationSummary ?? "";
+
+            var evidenceSummaryStaringLine = $"{cityName ?? "The city"} records an overall VUI score of {progress ?? 0}, reflecting performance across {pillarCount} pillars and {kpiCount} KPIs.";
+
+            return immediateSituationSummary + "\n\n " + evidenceSummaryStaringLine + " " + evidenceSummary;
+        }
+        public async Task<List<EvaluationCityProgressResultDto>> GetCitiesProgressAsync(int userId, int role, int year)
+        {
+            try
+            {
+                return await _context.CityProgressResults
+                 .FromSqlRaw(
+                     "EXEC usp_getCitiesProgressByUserId @userID, @role, @year",
+                     new SqlParameter("@userID", userId),
+                     new SqlParameter("@role", role),
+                     new SqlParameter("@year", year)
+                 )
+                 .AsNoTracking()
+                 .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("Error in Executing usp_getCitiesProgressByUserId", ex);
+                return new List<EvaluationCityProgressResultDto>();
+            }
+        }
+        public async Task<List<EvaluationCityProgressHistoryResultDto>> GetCitiesProgressHistoryAsync(int userId, int role, int fromYear, int toYear)
+        {
+            try
+            {
+                return await _context.CityProgressHistoryResults
+                 .FromSqlRaw(
+                     "EXEC usp_getCitiesProgressByUserIdHistory @userID, @role, @fromYear, @toYear",
+                     new SqlParameter("@userID", userId),
+                     new SqlParameter("@role", role),
+                     new SqlParameter("@fromYear", fromYear),
+                     new SqlParameter("@toYear", toYear)
+                 )
+                 .AsNoTracking()
+                 .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("Error in Executing usp_getCitiesProgressByUserIdHistory", ex);
+                return new List<EvaluationCityProgressHistoryResultDto>();
+            }
+        }
+        public async Task<List<GetCitiesProgressAdminDto>> GetCitiesProgressForAdmin(int userId, int role, int year)
+        {
+            try
+            {
+                return await _context.GetCitiesProgressAdminDto
+                 .FromSqlRaw("EXEC usp_getCitiesProgress_Admin @year",new SqlParameter("@year", year))
+                 .AsNoTracking()
+                 .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("Error in Executing usp_getCitiesProgress_Admin", ex);
+                return new List<GetCitiesProgressAdminDto>();
+            }
+        }
+        public string ReplacePercentAcross(string input, int score)
+        {
+            const string target = " percent across";
+
+            int idx = input.IndexOf(target, StringComparison.OrdinalIgnoreCase);
+            if (idx == -1)
+                return input;
+
+            // Walk backward to find start of number
+            int start = idx - 1;
+            while (start >= 0 && char.IsDigit(input[start]))
+                start--;
+
+            start++; // move to first digit
+
+            // If no digits found, return original
+            if (start >= idx)
+                return input;
+
+            return string.Concat(
+                input.AsSpan(0, start),
+                score.ToString(),
+                input.AsSpan(idx)
+            );
+        }
+
+        public async Task<List<CityRankingResultDto>> GetCitiesRankings(int cityId, int year)
+        {
+            try
+            {
+                return await _context.CityRankingResultDto
+                 .FromSqlRaw(
+                     "EXEC usp_getCityRanking @CityId, @Year",
+                     new SqlParameter("@CityId", cityId),
+                     new SqlParameter("@Year", year)
+                 )
+                 .AsNoTracking()
+                 .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("Error in Executing usp_getCityRanking", ex);
+                return new List<CityRankingResultDto    >();
+            }
+        }
+
+    }
+}
