@@ -1,4 +1,4 @@
-﻿namespace AssessmentPlatform.Dtos.CommonDto
+﻿namespace HealthIntelligence.Dtos.CommonDto
 {
     public class PaginationRequest
     {

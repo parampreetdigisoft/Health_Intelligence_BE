@@ -19,12 +19,12 @@
 //  to Word document structure.  A shared static helper is the cleanest seam.
 // ═══════════════════════════════════════════════════════════════════════════
 
-using AssessmentPlatform.Dtos.AiDto;
-using AssessmentPlatform.Services;
+using HealthIntelligence.Dtos.AiDto;
+using HealthIntelligence.Services;
 using SkiaSharp;
 using QPDF = QuestPDF.Infrastructure;
 
-namespace AssessmentPlatform.Common.Implementation
+namespace HealthIntelligence.Common.Implementation
 {
     // ── Option A (RECOMMENDED): Add thin public wrappers to PdfGeneratorService ──
     //

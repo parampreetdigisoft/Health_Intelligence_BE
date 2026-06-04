@@ -1,13 +1,13 @@
-﻿using AssessmentPlatform.Data;
-using AssessmentPlatform.IServices;
-using AssessmentPlatform.Models;
-using AssessmentPlatform.Services;
+﻿using HealthIntelligence.Data;
+using HealthIntelligence.IServices;
+using HealthIntelligence.Models;
+using HealthIntelligence.Services;
 using DocumentFormat.OpenXml.Bibliography;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Concurrent;
 
-namespace AssessmentPlatform.Backgroundjob
+namespace HealthIntelligence.Backgroundjob
 {
     public class ChannelWorker : BackgroundService
     {

@@ -1,10 +1,10 @@
-using AssessmentPlatform.Common.Models;
-using AssessmentPlatform.Dtos.AssessmentDto;
-using AssessmentPlatform.Dtos.CommonDto;
-using AssessmentPlatform.Dtos.UserDtos;
-using AssessmentPlatform.Models;
+using HealthIntelligence.Common.Models;
+using HealthIntelligence.Dtos.AssessmentDto;
+using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.Dtos.UserDtos;
+using HealthIntelligence.Models;
 
-namespace AssessmentPlatform.IServices
+namespace HealthIntelligence.IServices
 {
     public interface IUserService
     {

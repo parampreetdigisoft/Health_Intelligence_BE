@@ -1,9 +1,9 @@
-﻿using AssessmentPlatform.Common.Models;
-using AssessmentPlatform.Dtos.chatDto;
-using AssessmentPlatform.Dtos.CommonDto;
-using AssessmentPlatform.Dtos.PublicDto;
+﻿using HealthIntelligence.Common.Models;
+using HealthIntelligence.Dtos.chatDto;
+using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.Dtos.PublicDto;
 
-namespace AssessmentPlatform.IServices
+namespace HealthIntelligence.IServices
 {
     public interface IPublicService
     {

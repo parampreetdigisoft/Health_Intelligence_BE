@@ -1,15 +1,15 @@
-﻿using AssessmentPlatform.Common.Implementation;
-using AssessmentPlatform.Common.Models;
-using AssessmentPlatform.Data;
-using AssessmentPlatform.Dtos.AssessmentDto;
-using AssessmentPlatform.Dtos.CommonDto;
-using AssessmentPlatform.Dtos.QuestionDto;
-using AssessmentPlatform.IServices;
-using AssessmentPlatform.Models;
+﻿using HealthIntelligence.Common.Implementation;
+using HealthIntelligence.Common.Models;
+using HealthIntelligence.Data;
+using HealthIntelligence.Dtos.AssessmentDto;
+using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.Dtos.QuestionDto;
+using HealthIntelligence.IServices;
+using HealthIntelligence.Models;
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
-namespace AssessmentPlatform.Services
+namespace HealthIntelligence.Services
 {
     public class QuestionService : IQuestionService
     {

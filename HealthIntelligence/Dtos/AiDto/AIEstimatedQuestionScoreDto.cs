@@ -1,6 +1,6 @@
-﻿using AssessmentPlatform.Models;
+﻿using HealthIntelligence.Models;
 
-namespace AssessmentPlatform.Dtos.AiDto
+namespace HealthIntelligence.Dtos.AiDto
 {
     public class AIEstimatedQuestionScoreDto
     {

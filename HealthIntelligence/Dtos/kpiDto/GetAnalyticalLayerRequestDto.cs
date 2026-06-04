@@ -1,7 +1,7 @@
-﻿using AssessmentPlatform.Dtos.CommonDto;
-using AssessmentPlatform.Models;
+﻿using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.Models;
 
-namespace AssessmentPlatform.Dtos.kpiDto
+namespace HealthIntelligence.Dtos.kpiDto
 {
     public class GetAnalyticalLayerRequestDto : PaginationRequest
     {

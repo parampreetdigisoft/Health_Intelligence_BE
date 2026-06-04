@@ -1,17 +1,17 @@
-using AssessmentPlatform.Common.DI;
-using AssessmentPlatform.Common.Implementation;
-using AssessmentPlatform.Common.Middlware;
-using AssessmentPlatform.Common.Models.settings;
-using AssessmentPlatform.Data;
-using AssessmentPlatform.Enums;
-using AssessmentPlatform.Models;
+using HealthIntelligence.Common.DI;
+using HealthIntelligence.Common.Implementation;
+using HealthIntelligence.Common.Middlware;
+using HealthIntelligence.Common.Models.settings;
+using HealthIntelligence.Data;
+using HealthIntelligence.Enums;
+using HealthIntelligence.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using QuestPDF.Infrastructure;
 using System.Text;
 
-namespace AssessmentPlatform
+namespace HealthIntelligence
 {
     public class Startup
     {
@@ -87,7 +87,7 @@ namespace AssessmentPlatform
             {
                 c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
                 {
-                    Title = "AssessmentPlatformApi",
+                    Title = "HealthIntelligenceApi",
                     Version = "v1"
                 });
 
@@ -181,7 +181,7 @@ namespace AssessmentPlatform
             // Enable middleware to serve Swagger UI (HTML, JS, CSS, etc.)
             app.UseSwaggerUI(c =>
             {
-                c.SwaggerEndpoint("/swagger/v1/swagger.json", "AssessmentPlatformApi v1");
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "HealthIntelligenceApi v1");
                 c.RoutePrefix = string.Empty; // Swagger UI at root URL (e.g. https://localhost:5001/)
             });
             app.UseCors("AllowAngularApp");

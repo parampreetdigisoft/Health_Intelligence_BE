@@ -1,4 +1,4 @@
-﻿namespace AssessmentPlatform.Dtos.AiDto
+﻿namespace HealthIntelligence.Dtos.AiDto
 {
     public class AITransferAssessmentRequestDto
     {

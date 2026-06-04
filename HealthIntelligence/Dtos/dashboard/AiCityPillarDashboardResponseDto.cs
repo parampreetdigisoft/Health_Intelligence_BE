@@ -1,4 +1,4 @@
-﻿namespace AssessmentPlatform.Dtos.dashboard
+﻿namespace HealthIntelligence.Dtos.dashboard
 {
     public class AiCityPillarDashboardResponseDto
     {

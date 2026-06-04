@@ -1,6 +1,6 @@
 ﻿using System.Threading.Channels;
 
-namespace AssessmentPlatform.Backgroundjob
+namespace HealthIntelligence.Backgroundjob
 {
     public class ChannelService
     {

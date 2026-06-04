@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using System.Text.Json;
 
-namespace AssessmentPlatform.Common.Implementation
+namespace HealthIntelligence.Common.Implementation
 {
     public class HttpService
     {

@@ -1,9 +1,9 @@
-﻿using AssessmentPlatform.Dtos.PaymentDto;
-using AssessmentPlatform.IServices;
+﻿using HealthIntelligence.Dtos.PaymentDto;
+using HealthIntelligence.IServices;
 using Microsoft.AspNetCore.Mvc;
 using Stripe;
 
-namespace AssessmentPlatform.Controllers
+namespace HealthIntelligence.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]

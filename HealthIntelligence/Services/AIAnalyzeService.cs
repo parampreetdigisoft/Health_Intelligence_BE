@@ -1,13 +1,13 @@
-﻿using AssessmentPlatform.Common.Implementation;
-using AssessmentPlatform.Common.Models.settings;
-using AssessmentPlatform.Data;
-using AssessmentPlatform.Dtos.chatDto;
-using AssessmentPlatform.Dtos.PublicDto;
-using AssessmentPlatform.IServices;
+﻿using HealthIntelligence.Common.Implementation;
+using HealthIntelligence.Common.Models.settings;
+using HealthIntelligence.Data;
+using HealthIntelligence.Dtos.chatDto;
+using HealthIntelligence.Dtos.PublicDto;
+using HealthIntelligence.IServices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-namespace AssessmentPlatform.Services
+namespace HealthIntelligence.Services
 {
     public class AIAnalyzeService : IAIAnalyzeService
     {

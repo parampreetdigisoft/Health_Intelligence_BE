@@ -1,7 +1,7 @@
-﻿using AssessmentPlatform.Dtos.CommonDto;
+﻿using HealthIntelligence.Dtos.CommonDto;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
-namespace AssessmentPlatform.Common.Implementation
+namespace HealthIntelligence.Common.Implementation
 {
     public static class QueryableExtensions
     {

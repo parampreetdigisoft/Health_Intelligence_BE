@@ -1,12 +1,12 @@
-﻿using AssessmentPlatform.Dtos.CityDto;
-using AssessmentPlatform.Dtos.CommonDto;
-using AssessmentPlatform.IServices;
-using AssessmentPlatform.Models;
+﻿using HealthIntelligence.Dtos.CityDto;
+using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.IServices;
+using HealthIntelligence.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
-namespace AssessmentPlatform.Controllers
+namespace HealthIntelligence.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]

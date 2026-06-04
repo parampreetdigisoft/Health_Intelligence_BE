@@ -1,6 +1,6 @@
-﻿using AssessmentPlatform.Dtos.CityDto;
+﻿using HealthIntelligence.Dtos.CityDto;
 
-namespace AssessmentPlatform.Common.Interface
+namespace HealthIntelligence.Common.Interface
 {
     public interface ICommonService
     {

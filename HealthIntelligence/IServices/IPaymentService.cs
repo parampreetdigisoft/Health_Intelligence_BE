@@ -1,7 +1,7 @@
-﻿using AssessmentPlatform.Common.Models;
-using AssessmentPlatform.Dtos.PaymentDto;
+﻿using HealthIntelligence.Common.Models;
+using HealthIntelligence.Dtos.PaymentDto;
 
-namespace AssessmentPlatform.IServices
+namespace HealthIntelligence.IServices
 {
     public interface IPaymentService
     {

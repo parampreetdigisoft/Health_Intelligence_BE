@@ -1,11 +1,11 @@
-﻿using AssessmentPlatform.Common.Models;
-using AssessmentPlatform.Dtos.CityUserDto;
-using AssessmentPlatform.Dtos.CommonDto;
-using AssessmentPlatform.Dtos.kpiDto;
-using AssessmentPlatform.Enums;
-using AssessmentPlatform.Models;
+﻿using HealthIntelligence.Common.Models;
+using HealthIntelligence.Dtos.CityUserDto;
+using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.Dtos.kpiDto;
+using HealthIntelligence.Enums;
+using HealthIntelligence.Models;
 
-namespace AssessmentPlatform.IServices
+namespace HealthIntelligence.IServices
 {
     public interface IKpiService
     {

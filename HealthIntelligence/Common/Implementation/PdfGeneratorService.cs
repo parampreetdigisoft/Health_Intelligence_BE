@@ -1,8 +1,8 @@
-﻿using AssessmentPlatform.Common.Interface;
-using AssessmentPlatform.Dtos.AiDto;
-using AssessmentPlatform.IServices;
-using AssessmentPlatform.Models;
-using AssessmentPlatform.Services;
+﻿using HealthIntelligence.Common.Interface;
+using HealthIntelligence.Dtos.AiDto;
+using HealthIntelligence.IServices;
+using HealthIntelligence.Models;
+using HealthIntelligence.Services;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -11,7 +11,7 @@ using System.Security.AccessControl;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace AssessmentPlatform.Common.Implementation
+namespace HealthIntelligence.Common.Implementation
 {
     public partial class PdfGeneratorService : IPdfGeneratorService
     {

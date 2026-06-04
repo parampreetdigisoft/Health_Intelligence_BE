@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace AssessmentPlatform.Dtos.UserDtos
+namespace HealthIntelligence.Dtos.UserDtos
 {
     public class ContactUsRequestDto
     {

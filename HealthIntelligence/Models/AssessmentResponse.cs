@@ -1,6 +1,6 @@
 using System;
 
-namespace AssessmentPlatform.Models
+namespace HealthIntelligence.Models
 {
     public enum ScoreValue { Four = 4, Three = 3, Two = 2, One = 1, Zero = 0, NA, Unknown }
     public class AssessmentResponse

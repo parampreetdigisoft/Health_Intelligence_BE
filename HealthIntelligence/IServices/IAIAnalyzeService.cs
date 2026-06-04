@@ -1,8 +1,8 @@
-﻿using AssessmentPlatform.Dtos.chatDto;
-using AssessmentPlatform.Dtos.PublicDto;
-using AssessmentPlatform.Services;
+﻿using HealthIntelligence.Dtos.chatDto;
+using HealthIntelligence.Dtos.PublicDto;
+using HealthIntelligence.Services;
 
-namespace AssessmentPlatform.IServices
+namespace HealthIntelligence.IServices
 {
     public interface IAIAnalyzeService
     {

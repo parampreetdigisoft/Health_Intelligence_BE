@@ -1,11 +1,11 @@
-﻿using AssessmentPlatform.Backgroundjob;
-using AssessmentPlatform.Backgroundjob.logging;
-using AssessmentPlatform.Common.Implementation;
-using AssessmentPlatform.Common.Interface;
-using AssessmentPlatform.IServices;
-using AssessmentPlatform.Services;
+﻿using HealthIntelligence.Backgroundjob;
+using HealthIntelligence.Backgroundjob.logging;
+using HealthIntelligence.Common.Implementation;
+using HealthIntelligence.Common.Interface;
+using HealthIntelligence.IServices;
+using HealthIntelligence.Services;
 
-namespace AssessmentPlatform.Common.DI
+namespace HealthIntelligence.Common.DI
 {
     public static class ServiceRegistration
     {

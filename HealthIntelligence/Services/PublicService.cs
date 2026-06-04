@@ -1,17 +1,17 @@
-﻿using AssessmentPlatform.Common.Implementation;
-using AssessmentPlatform.Common.Interface;
-using AssessmentPlatform.Common.Models;
-using AssessmentPlatform.Data;
-using AssessmentPlatform.Dtos.chatDto;
-using AssessmentPlatform.Dtos.CommonDto;
-using AssessmentPlatform.Dtos.PublicDto;
-using AssessmentPlatform.IServices;
+﻿using HealthIntelligence.Common.Implementation;
+using HealthIntelligence.Common.Interface;
+using HealthIntelligence.Common.Models;
+using HealthIntelligence.Data;
+using HealthIntelligence.Dtos.chatDto;
+using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.Dtos.PublicDto;
+using HealthIntelligence.IServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using System.Text.Json;
 
-namespace AssessmentPlatform.Services
+namespace HealthIntelligence.Services
 {
     [AllowAnonymous]
     public class PublicService : IPublicService

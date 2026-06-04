@@ -1,9 +1,9 @@
-using AssessmentPlatform.Common.Interface;
-using AssessmentPlatform.Dtos.AiDto;
-using AssessmentPlatform.Models;
-using AssessmentPlatform.Services;
+using HealthIntelligence.Common.Interface;
+using HealthIntelligence.Dtos.AiDto;
+using HealthIntelligence.Models;
+using HealthIntelligence.Services;
 
-namespace AssessmentPlatform.Common.Implementation
+namespace HealthIntelligence.Common.Implementation
 {
     /// <summary>
     /// Facade that delegates to <see cref="PdfGeneratorService"/> or

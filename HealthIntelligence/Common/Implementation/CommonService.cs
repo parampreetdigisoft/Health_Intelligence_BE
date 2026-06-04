@@ -1,11 +1,11 @@
-﻿using AssessmentPlatform.Common.Interface;
-using AssessmentPlatform.Data;
-using AssessmentPlatform.Dtos.CityDto;
-using AssessmentPlatform.IServices;
+﻿using HealthIntelligence.Common.Interface;
+using HealthIntelligence.Data;
+using HealthIntelligence.Dtos.CityDto;
+using HealthIntelligence.IServices;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
-namespace AssessmentPlatform.Common.Implementation
+namespace HealthIntelligence.Common.Implementation
 {
     public class CommonService : ICommonService
     {

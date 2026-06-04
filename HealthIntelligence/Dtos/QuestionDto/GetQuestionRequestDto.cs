@@ -1,6 +1,6 @@
-﻿using AssessmentPlatform.Dtos.CommonDto;
+﻿using HealthIntelligence.Dtos.CommonDto;
 
-namespace AssessmentPlatform.Dtos.QuestionDto
+namespace HealthIntelligence.Dtos.QuestionDto
 {
     public class GetQuestionRequestDto : PaginationRequest
     {

@@ -1,12 +1,12 @@
 ﻿
 
-using AssessmentPlatform.Common.Models;
-using AssessmentPlatform.Dtos.chatDto;
-using AssessmentPlatform.Models;
-using AssessmentPlatform.Services;
+using HealthIntelligence.Common.Models;
+using HealthIntelligence.Dtos.chatDto;
+using HealthIntelligence.Models;
+using HealthIntelligence.Services;
 
 
-namespace AssessmentPlatform.IServices
+namespace HealthIntelligence.IServices
 {
     public interface IChatService
     {

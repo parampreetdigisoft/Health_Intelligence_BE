@@ -1,6 +1,6 @@
-﻿using AssessmentPlatform.Data;
-using AssessmentPlatform.Models;
-namespace AssessmentPlatform.Backgroundjob.logging
+﻿using HealthIntelligence.Data;
+using HealthIntelligence.Models;
+namespace HealthIntelligence.Backgroundjob.logging
 {
     public class LogWorker : BackgroundService
     {

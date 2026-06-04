@@ -1,6 +1,6 @@
-﻿using AssessmentPlatform.Models;
+﻿using HealthIntelligence.Models;
 
-namespace AssessmentPlatform.Dtos.CityDto
+namespace HealthIntelligence.Dtos.CityDto
 {
     public class CityResponseDto : City
     {

@@ -1,6 +1,6 @@
-﻿using AssessmentPlatform.Backgroundjob.logging;
-using AssessmentPlatform.IServices;
-namespace AssessmentPlatform.Services
+﻿using HealthIntelligence.Backgroundjob.logging;
+using HealthIntelligence.IServices;
+namespace HealthIntelligence.Services
 {
     public class AppLogger : IAppLogger
     {

@@ -1,6 +1,6 @@
-﻿using AssessmentPlatform.Models;
+﻿using HealthIntelligence.Models;
 
-namespace AssessmentPlatform.Dtos.kpiDto
+namespace HealthIntelligence.Dtos.kpiDto
 {
     public class GetMutiplekpiLayerResultsDto
     {

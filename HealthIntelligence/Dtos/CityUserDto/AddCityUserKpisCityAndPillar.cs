@@ -1,4 +1,4 @@
-﻿namespace AssessmentPlatform.Dtos.CityUserDto
+﻿namespace HealthIntelligence.Dtos.CityUserDto
 {
     public class AddCityUserKpisCityAndPillar
     {

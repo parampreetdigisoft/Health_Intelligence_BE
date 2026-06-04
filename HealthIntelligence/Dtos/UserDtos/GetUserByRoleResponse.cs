@@ -1,6 +1,6 @@
-﻿using AssessmentPlatform.Dtos.CityDto;
+﻿using HealthIntelligence.Dtos.CityDto;
 
-namespace AssessmentPlatform.Dtos.UserDtos
+namespace HealthIntelligence.Dtos.UserDtos
 {
     public class GetUserByRoleResponse : PublicUserResponse
     {

@@ -13,11 +13,11 @@
 //     the DocumentGeneratorService facade can swap them transparently.
 // ═══════════════════════════════════════════════════════════════════════════
 
-using AssessmentPlatform.Common.Interface;
-using AssessmentPlatform.Dtos.AiDto;
-using AssessmentPlatform.IServices;
-using AssessmentPlatform.Models;
-using AssessmentPlatform.Services;
+using HealthIntelligence.Common.Interface;
+using HealthIntelligence.Dtos.AiDto;
+using HealthIntelligence.IServices;
+using HealthIntelligence.Models;
+using HealthIntelligence.Services;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
@@ -29,7 +29,7 @@ using DW   = DocumentFormat.OpenXml.Drawing.Wordprocessing;
 using PIC  = DocumentFormat.OpenXml.Drawing.Pictures;
 using QPDF = QuestPDF.Infrastructure;
 
-namespace AssessmentPlatform.Common.Implementation
+namespace HealthIntelligence.Common.Implementation
 {
     public sealed partial class DocxGeneratorService : IDocxGeneratorService
     {

@@ -1,17 +1,17 @@
-using AssessmentPlatform.Backgroundjob;
-using AssessmentPlatform.Common.Models;
-using AssessmentPlatform.Data;
-using AssessmentPlatform.Dtos.AssessmentDto;
-using AssessmentPlatform.Dtos.CommonDto;
-using AssessmentPlatform.Dtos.PillarDto;
-using AssessmentPlatform.IServices;
-using AssessmentPlatform.Models;
+using HealthIntelligence.Backgroundjob;
+using HealthIntelligence.Common.Models;
+using HealthIntelligence.Data;
+using HealthIntelligence.Dtos.AssessmentDto;
+using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.Dtos.PillarDto;
+using HealthIntelligence.IServices;
+using HealthIntelligence.Models;
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using System.Linq.Expressions;
 
-namespace AssessmentPlatform.Services
+namespace HealthIntelligence.Services
 {
     public class PillarService : IPillarService
     {

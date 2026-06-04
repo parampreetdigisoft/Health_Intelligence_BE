@@ -1,6 +1,6 @@
-﻿using AssessmentPlatform.Models;
+﻿using HealthIntelligence.Models;
 
-namespace AssessmentPlatform.Dtos.PaymentDto
+namespace HealthIntelligence.Dtos.PaymentDto
 {
     public class VerifySessionResponse
     {

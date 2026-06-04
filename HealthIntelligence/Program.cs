@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 
-namespace AssessmentPlatform
+namespace HealthIntelligence
 {
     public class Program
     {

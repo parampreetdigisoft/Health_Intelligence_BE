@@ -1,4 +1,4 @@
-﻿namespace AssessmentPlatform.Dtos.blogDto
+﻿namespace HealthIntelligence.Dtos.blogDto
 {
     public class AddUpdateBlogDto
     {

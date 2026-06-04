@@ -1,4 +1,4 @@
-﻿namespace AssessmentPlatform.Dtos.PillarDto
+﻿namespace HealthIntelligence.Dtos.PillarDto
 {
     public class UpdatePillarDto
     {

@@ -1,7 +1,7 @@
-﻿using AssessmentPlatform.Dtos.CommonDto;
-using AssessmentPlatform.Models;
+﻿using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.Models;
 
-namespace AssessmentPlatform.Dtos.UserDtos
+namespace HealthIntelligence.Dtos.UserDtos
 {
     public class GetUserByRoleRequestDto : PaginationRequest
     {

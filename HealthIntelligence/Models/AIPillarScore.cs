@@ -1,4 +1,4 @@
-﻿namespace AssessmentPlatform.Models
+﻿namespace HealthIntelligence.Models
 {
     public class AIPillarScore
     {

@@ -1,4 +1,4 @@
-﻿namespace AssessmentPlatform.Dtos.AssessmentDto
+﻿namespace HealthIntelligence.Dtos.AssessmentDto
 {
     public class GetCityQuestionHistoryReponseDto : GetCitySubmitionHistoryReponseDto
     {

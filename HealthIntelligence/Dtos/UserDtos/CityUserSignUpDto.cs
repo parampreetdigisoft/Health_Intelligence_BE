@@ -1,6 +1,6 @@
-﻿using AssessmentPlatform.Models;
+﻿using HealthIntelligence.Models;
 
-namespace AssessmentPlatform.Dtos.UserDtos
+namespace HealthIntelligence.Dtos.UserDtos
 {
     public class CityUserSignUpDto
     {

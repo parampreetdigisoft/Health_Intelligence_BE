@@ -1,6 +1,6 @@
-﻿using AssessmentPlatform.Enums;
+﻿using HealthIntelligence.Enums;
 
-namespace AssessmentPlatform.Dtos.CityUserDto
+namespace HealthIntelligence.Dtos.CityUserDto
 {
     public class UserCityGetPillarInfoRequstDto
     {

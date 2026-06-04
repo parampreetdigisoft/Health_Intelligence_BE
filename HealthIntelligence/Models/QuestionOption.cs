@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace AssessmentPlatform.Models
+namespace HealthIntelligence.Models
 {
     public class QuestionOption
     {

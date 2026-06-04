@@ -1,8 +1,8 @@
-using AssessmentPlatform.Dtos.AiDto;
-using AssessmentPlatform.Models;
-using AssessmentPlatform.Services;
+using HealthIntelligence.Dtos.AiDto;
+using HealthIntelligence.Models;
+using HealthIntelligence.Services;
 
-namespace AssessmentPlatform.Common.Interface
+namespace HealthIntelligence.Common.Interface
 {
     /// <summary>
     /// Low-level Word document generation contract.

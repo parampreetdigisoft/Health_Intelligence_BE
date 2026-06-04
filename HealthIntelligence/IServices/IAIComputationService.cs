@@ -1,11 +1,11 @@
-﻿using AssessmentPlatform.Common.Models;
-using AssessmentPlatform.Dtos.AiDto;
-using AssessmentPlatform.Dtos.CommonDto;
-using AssessmentPlatform.Models;
+﻿using HealthIntelligence.Common.Models;
+using HealthIntelligence.Dtos.AiDto;
+using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.Models;
 using Microsoft.AspNetCore.Mvc;
 
 
-namespace AssessmentPlatform.IServices
+namespace HealthIntelligence.IServices
 {
     public interface IAIComputationService
     {

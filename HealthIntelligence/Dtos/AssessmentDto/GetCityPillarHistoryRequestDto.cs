@@ -1,8 +1,8 @@
-﻿using AssessmentPlatform.Dtos.CommonDto;
-using AssessmentPlatform.Enums;
-using AssessmentPlatform.Models;
+﻿using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.Enums;
+using HealthIntelligence.Models;
 
-namespace AssessmentPlatform.Dtos.AssessmentDto
+namespace HealthIntelligence.Dtos.AssessmentDto
 {
 
     public class GetPillarResponseHistoryRequestNewDto : PaginationRequest

@@ -1,21 +1,21 @@
-﻿using AssessmentPlatform.Backgroundjob;
-using AssessmentPlatform.Common.Implementation;
-using AssessmentPlatform.Common.Interface;
-using AssessmentPlatform.Common.Models;
-using AssessmentPlatform.Common.Models.settings;
-using AssessmentPlatform.Data;
-using AssessmentPlatform.Dtos.AssessmentDto;
-using AssessmentPlatform.Dtos.CityDto;
-using AssessmentPlatform.Dtos.CommonDto;
-using AssessmentPlatform.IServices;
-using AssessmentPlatform.Models;
+﻿using HealthIntelligence.Backgroundjob;
+using HealthIntelligence.Common.Implementation;
+using HealthIntelligence.Common.Interface;
+using HealthIntelligence.Common.Models;
+using HealthIntelligence.Common.Models.settings;
+using HealthIntelligence.Data;
+using HealthIntelligence.Dtos.AssessmentDto;
+using HealthIntelligence.Dtos.CityDto;
+using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.IServices;
+using HealthIntelligence.Models;
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using System.Data;
 using System.Linq.Expressions;
 
-namespace AssessmentPlatform.Services
+namespace HealthIntelligence.Services
 {
     public class CityService : ICityService
     {

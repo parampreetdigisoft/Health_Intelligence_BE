@@ -1,6 +1,6 @@
-﻿using AssessmentPlatform.Dtos.CommonDto;
+﻿using HealthIntelligence.Dtos.CommonDto;
 
-namespace AssessmentPlatform.Dtos.PublicDto
+namespace HealthIntelligence.Dtos.PublicDto
 {
     public class PartnerCityRequestDto : PaginationRequest
     {

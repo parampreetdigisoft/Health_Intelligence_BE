@@ -1,7 +1,7 @@
-using AssessmentPlatform.Enums;
+using HealthIntelligence.Enums;
 using System;
 
-namespace AssessmentPlatform.Models
+namespace HealthIntelligence.Models
 {
     public enum UserRole { Admin = 1, Analyst = 2, Evaluator = 3, CityUser = 4 }
     public class User

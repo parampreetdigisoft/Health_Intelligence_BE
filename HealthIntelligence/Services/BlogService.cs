@@ -1,14 +1,14 @@
-﻿using AssessmentPlatform.Common.Implementation;
-using AssessmentPlatform.Common.Models;
-using AssessmentPlatform.Data;
-using AssessmentPlatform.Dtos.blogDto;
-using AssessmentPlatform.Dtos.CommonDto;
-using AssessmentPlatform.IServices; 
-using AssessmentPlatform.Models;
+﻿using HealthIntelligence.Common.Implementation;
+using HealthIntelligence.Common.Models;
+using HealthIntelligence.Data;
+using HealthIntelligence.Dtos.blogDto;
+using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.IServices; 
+using HealthIntelligence.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
-namespace AssessmentPlatform.Services
+namespace HealthIntelligence.Services
 {
     public class BlogService : IBlogService
     {

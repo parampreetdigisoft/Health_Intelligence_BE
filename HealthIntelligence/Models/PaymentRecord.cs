@@ -1,7 +1,7 @@
-﻿using AssessmentPlatform.Enums;
+﻿using HealthIntelligence.Enums;
 
 
-namespace AssessmentPlatform.Models
+namespace HealthIntelligence.Models
 {
     public enum PaymentStatus:byte { Pending = 0, Succeeded = 1, Failed = 2 }
 

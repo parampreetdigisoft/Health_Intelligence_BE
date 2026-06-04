@@ -1,6 +1,6 @@
-﻿using AssessmentPlatform.Dtos.CommonDto;
+﻿using HealthIntelligence.Dtos.CommonDto;
 
-namespace AssessmentPlatform.Dtos.AiDto
+namespace HealthIntelligence.Dtos.AiDto
 {
     public class AiCitySummeryRequestDto : PaginationRequest
     {

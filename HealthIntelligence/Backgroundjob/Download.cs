@@ -1,7 +1,7 @@
-﻿using AssessmentPlatform.Models;
+﻿using HealthIntelligence.Models;
 using DocumentFormat.OpenXml.Office2010.Excel;
 
-namespace AssessmentPlatform.Backgroundjob
+namespace HealthIntelligence.Backgroundjob
 {
     public class Download
     {

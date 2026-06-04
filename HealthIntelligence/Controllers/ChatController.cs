@@ -1,13 +1,13 @@
 ﻿
-using AssessmentPlatform.Dtos.chatDto;
-using AssessmentPlatform.IServices;
-using AssessmentPlatform.Models;
+using HealthIntelligence.Dtos.chatDto;
+using HealthIntelligence.IServices;
+using HealthIntelligence.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 using System.Security.Claims;
 
-namespace AssessmentPlatform.Controllers
+namespace HealthIntelligence.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]

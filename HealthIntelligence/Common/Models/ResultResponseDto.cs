@@ -1,4 +1,4 @@
-﻿namespace AssessmentPlatform.Common.Models
+﻿namespace HealthIntelligence.Common.Models
 {
     public class ResultResponseDto<T> 
     {

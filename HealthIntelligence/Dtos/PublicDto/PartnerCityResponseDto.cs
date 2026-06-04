@@ -1,6 +1,6 @@
 ﻿
 
-namespace AssessmentPlatform.Dtos.PublicDto
+namespace HealthIntelligence.Dtos.PublicDto
 {
     public class PartnerCityResponseDto : PartnerCityHistoryResponseDto
     {

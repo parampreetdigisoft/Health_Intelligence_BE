@@ -1,6 +1,6 @@
 ﻿using DocumentFormat.OpenXml.Bibliography;
 
-namespace AssessmentPlatform.Models
+namespace HealthIntelligence.Models
 {
     public class CityDocument
     {

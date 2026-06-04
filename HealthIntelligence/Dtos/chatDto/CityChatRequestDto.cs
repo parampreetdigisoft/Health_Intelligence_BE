@@ -1,4 +1,4 @@
-﻿namespace AssessmentPlatform.Dtos.chatDto
+﻿namespace HealthIntelligence.Dtos.chatDto
 {
     public class CityChatRequestDto : ChatGlobalAskQuestionRequestDto
     {

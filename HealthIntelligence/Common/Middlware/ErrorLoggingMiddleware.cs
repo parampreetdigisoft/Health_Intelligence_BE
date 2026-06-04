@@ -1,6 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 
-namespace AssessmentPlatform.Common.Middlware
+namespace HealthIntelligence.Common.Middlware
 {
     public class ErrorLoggingMiddleware
     {

@@ -1,7 +1,7 @@
-﻿using AssessmentPlatform.Enums;
-using AssessmentPlatform.Models;
+﻿using HealthIntelligence.Enums;
+using HealthIntelligence.Models;
 
-namespace AssessmentPlatform.Dtos.UserDtos
+namespace HealthIntelligence.Dtos.UserDtos
 {
     public class UpdateUserDto
     {

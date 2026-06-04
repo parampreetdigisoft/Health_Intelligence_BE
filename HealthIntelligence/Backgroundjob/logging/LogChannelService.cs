@@ -1,6 +1,6 @@
 ﻿using System.Threading.Channels;
 
-namespace AssessmentPlatform.Backgroundjob.logging
+namespace HealthIntelligence.Backgroundjob.logging
 {
     public class LogChannelService
     {

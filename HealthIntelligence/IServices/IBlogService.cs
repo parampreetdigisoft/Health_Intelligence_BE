@@ -1,8 +1,8 @@
-﻿using AssessmentPlatform.Dtos.blogDto;
-using AssessmentPlatform.Common.Models;
-using AssessmentPlatform.Dtos.CommonDto;
+﻿using HealthIntelligence.Dtos.blogDto;
+using HealthIntelligence.Common.Models;
+using HealthIntelligence.Dtos.CommonDto;
 
-namespace AssessmentPlatform.IServices
+namespace HealthIntelligence.IServices
 {
     public interface IBlogService
     {

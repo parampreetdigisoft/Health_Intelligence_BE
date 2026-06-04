@@ -1,4 +1,4 @@
-﻿namespace AssessmentPlatform.Dtos.QuestionDto
+﻿namespace HealthIntelligence.Dtos.QuestionDto
 {
     public class CityPillerRequestDto
     {

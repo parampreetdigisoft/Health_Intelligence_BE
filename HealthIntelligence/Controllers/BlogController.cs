@@ -1,11 +1,11 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
-using AssessmentPlatform.IServices;
-using AssessmentPlatform.Dtos.blogDto;
-using AssessmentPlatform.Dtos.CommonDto;
+using HealthIntelligence.IServices;
+using HealthIntelligence.Dtos.blogDto;
+using HealthIntelligence.Dtos.CommonDto;
 using Microsoft.AspNetCore.Authorization;
 
-namespace AssessmentPlatform.Controllers
+namespace HealthIntelligence.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]

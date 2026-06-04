@@ -1,4 +1,4 @@
-﻿namespace AssessmentPlatform.Enums
+﻿namespace HealthIntelligence.Enums
 {
     public enum TieredAccessPlan : byte  // maps well to SQL tinyint
     {

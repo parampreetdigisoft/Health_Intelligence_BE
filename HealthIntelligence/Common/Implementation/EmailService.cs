@@ -1,5 +1,5 @@
-﻿using AssessmentPlatform.Common.Interface;
-using AssessmentPlatform.Common.Models.settings;
+﻿using HealthIntelligence.Common.Interface;
+using HealthIntelligence.Common.Models.settings;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
@@ -10,7 +10,7 @@ using Microsoft.Extensions.Options;
 using System.Net;
 using System.Net.Mail;
 
-namespace AssessmentPlatform.Common.Implementation
+namespace HealthIntelligence.Common.Implementation
 {
     public class EmailService : IEmailService
     {

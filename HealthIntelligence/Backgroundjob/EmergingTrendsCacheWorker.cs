@@ -1,8 +1,8 @@
-using AssessmentPlatform.IServices;
+using HealthIntelligence.IServices;
 using Microsoft.Extensions.Configuration;
-using AssessmentPlatform.IServices;
+using HealthIntelligence.IServices;
 
-namespace AssessmentPlatform.Backgroundjob
+namespace HealthIntelligence.Backgroundjob
 {
     /// <summary>
     /// Refreshes emerging trends in memory on a schedule. Retries every 10s until success (no cache on failure).

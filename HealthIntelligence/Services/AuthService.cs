@@ -1,12 +1,12 @@
-﻿using AssessmentPlatform.Common.Interface;
-using AssessmentPlatform.Common.Models;
-using AssessmentPlatform.Common.Models.settings;
-using AssessmentPlatform.Data;
-using AssessmentPlatform.Dtos.CityDto;
-using AssessmentPlatform.Dtos.UserDtos;
-using AssessmentPlatform.IServices;
-using AssessmentPlatform.Models;
-using AssessmentPlatform.Views.EmailModels;
+﻿using HealthIntelligence.Common.Interface;
+using HealthIntelligence.Common.Models;
+using HealthIntelligence.Common.Models.settings;
+using HealthIntelligence.Data;
+using HealthIntelligence.Dtos.CityDto;
+using HealthIntelligence.Dtos.UserDtos;
+using HealthIntelligence.IServices;
+using HealthIntelligence.Models;
+using HealthIntelligence.Views.EmailModels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -15,7 +15,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
-namespace AssessmentPlatform.Services
+namespace HealthIntelligence.Services
 {
     public class AuthService : IAuthService
     {

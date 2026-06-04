@@ -1,6 +1,6 @@
-﻿using AssessmentPlatform.Enums;
+﻿using HealthIntelligence.Enums;
 
-namespace AssessmentPlatform.Dtos.PaymentDto
+namespace HealthIntelligence.Dtos.PaymentDto
 {
     public class CreateCheckoutSessionDto
     {

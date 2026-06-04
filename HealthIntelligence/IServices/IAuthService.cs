@@ -1,9 +1,9 @@
-﻿using AssessmentPlatform.Common.Models;
-using AssessmentPlatform.Dtos.CityDto;
-using AssessmentPlatform.Dtos.UserDtos;
-using AssessmentPlatform.Models;
+﻿using HealthIntelligence.Common.Models;
+using HealthIntelligence.Dtos.CityDto;
+using HealthIntelligence.Dtos.UserDtos;
+using HealthIntelligence.Models;
 
-namespace AssessmentPlatform.IServices
+namespace HealthIntelligence.IServices
 {
     public interface IAuthService
     {

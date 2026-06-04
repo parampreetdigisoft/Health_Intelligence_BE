@@ -1,12 +1,12 @@
-using AssessmentPlatform.Common.Models;
-using AssessmentPlatform.Dtos.AssessmentDto;
-using AssessmentPlatform.Dtos.CommonDto;
-using AssessmentPlatform.Dtos.QuestionDto;
-using AssessmentPlatform.Models;
+using HealthIntelligence.Common.Models;
+using HealthIntelligence.Dtos.AssessmentDto;
+using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.Dtos.QuestionDto;
+using HealthIntelligence.Models;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace AssessmentPlatform.IServices
+namespace HealthIntelligence.IServices
 {
     public interface IQuestionService
     {

@@ -1,6 +1,6 @@
-﻿using AssessmentPlatform.Models;
+﻿using HealthIntelligence.Models;
 
-namespace AssessmentPlatform.Dtos.QuestionDto
+namespace HealthIntelligence.Dtos.QuestionDto
 {
     public class GetQuestionHistoryResponseDto
     {

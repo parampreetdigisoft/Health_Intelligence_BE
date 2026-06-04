@@ -1,6 +1,6 @@
-﻿using AssessmentPlatform.Dtos.CommonDto;
+﻿using HealthIntelligence.Dtos.CommonDto;
 
-namespace AssessmentPlatform.Dtos.CityUserDto
+namespace HealthIntelligence.Dtos.CityUserDto
 {
     public class CompareKpiCityRequest
     {

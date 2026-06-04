@@ -1,7 +1,7 @@
-﻿using AssessmentPlatform.Models;
+﻿using HealthIntelligence.Models;
 using System.Text.Json.Serialization;
 
-namespace AssessmentPlatform.Dtos.QuestionDto
+namespace HealthIntelligence.Dtos.QuestionDto
 {
     public class AddUpdateQuestionDto
     {

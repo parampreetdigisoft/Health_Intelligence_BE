@@ -1,6 +1,6 @@
-﻿using AssessmentPlatform.IServices;
+﻿using HealthIntelligence.IServices;
 
-namespace AssessmentPlatform.Backgroundjob
+namespace HealthIntelligence.Backgroundjob
 {
     public class AiJobService : BackgroundService
     {

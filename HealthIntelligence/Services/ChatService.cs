@@ -1,19 +1,19 @@
 ﻿
 
-using AssessmentPlatform.Common.Interface;
-using AssessmentPlatform.Common.Models;
-using AssessmentPlatform.Data;
-using AssessmentPlatform.Dtos.chatDto;
-using AssessmentPlatform.Dtos.PillarDto;
-using AssessmentPlatform.IServices;
-using AssessmentPlatform.Models;
+using HealthIntelligence.Common.Interface;
+using HealthIntelligence.Common.Models;
+using HealthIntelligence.Data;
+using HealthIntelligence.Dtos.chatDto;
+using HealthIntelligence.Dtos.PillarDto;
+using HealthIntelligence.IServices;
+using HealthIntelligence.Models;
 using DocumentFormat.OpenXml.Spreadsheet;
 using Microsoft.Extensions.Caching.Memory;
 using System.Diagnostics.Metrics;
 
 
 
-namespace AssessmentPlatform.Services
+namespace HealthIntelligence.Services
 {
     public class ChatService : IChatService
     {

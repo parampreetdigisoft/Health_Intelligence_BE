@@ -1,4 +1,4 @@
-﻿namespace AssessmentPlatform.Dtos.CityDto
+﻿namespace HealthIntelligence.Dtos.CityDto
 {
     public class EvaluationCityProgressResultDto
     {

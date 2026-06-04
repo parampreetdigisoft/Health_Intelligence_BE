@@ -1,4 +1,4 @@
-﻿namespace AssessmentPlatform.Dtos.kpiDto
+﻿namespace HealthIntelligence.Dtos.kpiDto
 {
     public class GetMutiplekpiLayerRequestDto
     {

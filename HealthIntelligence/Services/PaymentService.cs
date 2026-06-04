@@ -1,14 +1,14 @@
-﻿using AssessmentPlatform.Common.Models;
-using AssessmentPlatform.Common.Models.settings;
-using AssessmentPlatform.Data;
-using AssessmentPlatform.Dtos.PaymentDto;
-using AssessmentPlatform.IServices;
-using AssessmentPlatform.Models;
+﻿using HealthIntelligence.Common.Models;
+using HealthIntelligence.Common.Models.settings;
+using HealthIntelligence.Data;
+using HealthIntelligence.Dtos.PaymentDto;
+using HealthIntelligence.IServices;
+using HealthIntelligence.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Stripe;
 using Stripe.Checkout;
-namespace AssessmentPlatform.Services
+namespace HealthIntelligence.Services
 {
     public class PaymentService : IPaymentService
     {

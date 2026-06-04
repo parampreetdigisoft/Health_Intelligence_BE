@@ -1,8 +1,8 @@
-using AssessmentPlatform.Dtos.CityDto;
-using AssessmentPlatform.Models;
+using HealthIntelligence.Dtos.CityDto;
+using HealthIntelligence.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace AssessmentPlatform.Data
+namespace HealthIntelligence.Data
 {
     public class ApplicationDbContext : DbContext
     {
