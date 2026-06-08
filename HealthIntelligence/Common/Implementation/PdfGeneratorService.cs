@@ -1773,7 +1773,7 @@ namespace HealthIntelligence.Common.Implementation
         {
             var logoPath = Path.Combine(
                 Directory.GetCurrentDirectory(),
-                "wwwroot/assets/images/veridian-urban-index.png");
+                "wwwroot/assets/images/Logo-health.png");
 
             container.Column(column =>
             {
@@ -1819,7 +1819,7 @@ namespace HealthIntelligence.Common.Implementation
         {
             var logoPath = Path.Combine(
                 Directory.GetCurrentDirectory(),
-                "wwwroot/assets/images/veridian-urban-index.png");
+                "wwwroot/assets/images/Logo-health.png");
 
             container.Column(column =>
             {

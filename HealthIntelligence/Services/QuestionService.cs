@@ -501,7 +501,7 @@ namespace HealthIntelligence.Services
 
                 // ── Row 1 : Title ─────────────────────────────────────
                 var title = ws.Range("A1:D1").Merge();
-                title.Value = "VERIDIAN URBAN INDEX — COUNTRY ASSESSMENT";
+                title.Value = "Africa Health Systems Intelligence Platform (AHSIP) — COUNTRY ASSESSMENT";
                 title.Style.Font.Bold = true;
                 title.Style.Font.FontSize = 13;
                 title.Style.Font.FontColor = XLColor.White;

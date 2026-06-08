@@ -1054,7 +1054,7 @@ namespace HealthIntelligence.Common.Implementation
 
             string logoPath = Path.Combine(
                 Directory.GetCurrentDirectory(),
-                "wwwroot/assets/images/veridian-urban-index.png");
+                "wwwroot/assets/images/Logo-health.png");
 
             int logoColW = 2600;   // ⬆️ from 2000
             int leftColW = ContentDxa - logoColW;

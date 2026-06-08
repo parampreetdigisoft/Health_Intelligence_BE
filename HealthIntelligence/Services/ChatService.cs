@@ -75,7 +75,7 @@ namespace HealthIntelligence.Services
                 if (resutl == null || resutl.Success != true)
                 {
                     return ResultResponseDto<ChatResponseDto>.Failure(
-                        new[] { resutl?.Message ?? "Failed to query request from VUI Aevum." }
+                        new[] { resutl?.Message ?? "Failed to query request from AHSIP Aevum." }
                     );
                 }
 
@@ -234,7 +234,7 @@ namespace HealthIntelligence.Services
                 if (result == null || result.Success != true)
                 {
                     return ResultResponseDto<ChatResponseDto>.Failure(
-                        new[] { result?.Message ?? "Failed to query request from VUI Aevum." }
+                        new[] { result?.Message ?? "Failed to query request from AHSIP Aevum." }
                     );
                 }
 
@@ -268,7 +268,7 @@ namespace HealthIntelligence.Services
                 if (resutl == null || resutl.Success != true)
                 {
                     return ResultResponseDto<ChatResponseDto>.Failure(
-                        new[] { resutl?.Message ?? "Failed to query request from VUI Aevum." }
+                        new[] { resutl?.Message ?? "Failed to query request from AHSIP Aevum." }
                     );
                 }
 
