@@ -58,8 +58,8 @@ namespace HealthIntelligence.Controllers
             return Ok(resp);
         }
 
-        [HttpPost("askAboutCity")]
-        public async Task<IActionResult> AskAboutCity([FromBody] CityChatRequestDto request)
+        [HttpPost("askAboutCountry")]
+        public async Task<IActionResult> AskAboutCountry([FromBody] CountryChatRequestDto request)
         {
             var userId = GetUserIdFromClaims();
             if (userId == null)
@@ -74,11 +74,11 @@ namespace HealthIntelligence.Controllers
                 return Unauthorized("You Don't have access.");
             }
 
-            return Ok(await _chatService.AskAboutCity(request));
+            return Ok(await _chatService.AskAboutCountry(request));
         }
 
-        [HttpPost("citySlides")]
-        public async Task<IActionResult> GetCitySlides([FromBody] int cityId)
+        [HttpPost("countrySlides")]
+        public async Task<IActionResult> GetCountrySlides([FromBody] int countryId)
         {
             var userId = GetUserIdFromClaims();
             if (userId == null)
@@ -93,7 +93,7 @@ namespace HealthIntelligence.Controllers
                 return Unauthorized("You Don't have access.");
             }
 
-            return Ok(await _chatService.GetCitySlides(cityId, userId.GetValueOrDefault(), userRole));
+            return Ok(await _chatService.GetCountrySlides(countryId, userId.GetValueOrDefault(), userRole));
         }
 
         [HttpPost("askGlobalQuestion")]

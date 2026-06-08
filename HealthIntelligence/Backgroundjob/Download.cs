@@ -12,31 +12,31 @@ namespace HealthIntelligence.Backgroundjob
         }
         public string Type { get; set; } = string.Empty;
         public int? UserID { get; set; }
-        public int? CityID { get; set; }
-        public bool CityEnable { get; set; }
+        public int? CountryID { get; set; }
+        public bool CountryEnable { get; set; }
         public bool PillarEnable { get; set; }
         public bool QuestionEnable { get; set; }
         public bool ImmediateSummaryEnable { get; set; }
         public bool RegenerateMissingQuestionsEnable { get; set; }
 
         public int? PillarId { get; set; }
-        public string InsertAnalyticalLayerResults(int cityID = 0)
+        public string InsertAnalyticalLayerResults(int countryID = 0)
         {
-            CityID = cityID;
+            CountryID = countryID;
             Type = "InsertAnalyticalLayerResults";
             channelService.Write(this);
             return "Execution has been started";
         }
 
-        public Task AiResearchByCityId(int cityID , bool cityEnable,bool pillarEnable, bool questionEnable, bool immediateSummaryEnable = false, bool regenerateMissingQuestionsEnable = false)
+        public Task AiResearchByCountryId(int countryId , bool CountryEnable,bool pillarEnable, bool questionEnable, bool immediateSummaryEnable = false, bool regenerateMissingQuestionsEnable = false)
         {
-            this.CityID = cityID;
-            this.CityEnable = cityEnable;
+            this.CountryID = countryId;
+            this.CountryEnable = CountryEnable;
             this.PillarEnable = pillarEnable;
             this.QuestionEnable = questionEnable;
             this.ImmediateSummaryEnable = immediateSummaryEnable;
             this.RegenerateMissingQuestionsEnable = regenerateMissingQuestionsEnable;
-            Type = "AiResearchByCityId";
+            Type = "AiResearchByCountryId";
             channelService.Write(this);
             return Task.CompletedTask;
         }

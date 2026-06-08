@@ -114,7 +114,7 @@ namespace HealthIntelligence.Services
 
         }
 
-        public async Task<ResultResponseDto<List<PillarWithQuestionsDto>>> GetPillarsWithQuestions(GetCityPillarHistoryRequestDto request)
+        public async Task<ResultResponseDto<List<PillarWithQuestionsDto>>> GetPillarsWithQuestions(GetCountryPillarHistoryRequestDto request)
         {
             try
             {
@@ -129,24 +129,24 @@ namespace HealthIntelligence.Services
                     return ResultResponseDto<List<PillarWithQuestionsDto>>.Failure(new[] { "Invalid user" });
 
                 // 2. Role-based mapping filter
-                Expression<Func<UserCityMapping, bool>> predicate = user.Role switch
+                Expression<Func<UserCountryMapping, bool>> predicate = user.Role switch
                 {
-                    UserRole.Analyst => x => !x.IsDeleted && x.CityID == request.CityID && x.AssignedByUserId == request.UserID || x.UserID == request.UserID,
-                    UserRole.Evaluator => x => !x.IsDeleted && x.CityID == request.CityID && x.UserID == request.UserID,
-                    _ => x => !x.IsDeleted && x.CityID == request.CityID
+                    UserRole.Analyst => x => !x.IsDeleted && x.CountryID == request.CountryID && x.AssignedByUserId == request.UserID || x.UserID == request.UserID,
+                    UserRole.Evaluator => x => !x.IsDeleted && x.CountryID == request.CountryID && x.UserID == request.UserID,
+                    _ => x => !x.IsDeleted && x.CountryID == request.CountryID
                 };
 
-                var mappingIds = await _context.UserCityMappings
+                var mappingIds = await _context.UserCountryMappings
                     .Where(predicate)
-                    .Select(x => x.UserCityMappingID)
+                    .Select(x => x.UserCountryMappingID)
                     .ToListAsync();
 
                 // 3. Load assessments
                 var assessments = await _context.Assessments
-                    .Include(a => a.UserCityMapping)
+                    .Include(a => a.UserCountryMapping)
                     .Include(a => a.PillarAssessments)
                         .ThenInclude(pa => pa.Responses)
-                    .Where(a => mappingIds.Contains(a.UserCityMappingID)
+                    .Where(a => mappingIds.Contains(a.UserCountryMappingID)
                                 && a.IsActive
                                 && a.UpdatedAt.Year == year
                                 && (a.AssessmentPhase == AssessmentPhase.Completed
@@ -165,7 +165,7 @@ namespace HealthIntelligence.Services
                     .ToListAsync();
 
                 // 5. Users dictionary
-                var userIds = assessments.Select(a => a.UserCityMapping.UserID).Distinct().ToList();
+                var userIds = assessments.Select(a => a.UserCountryMapping.UserID).Distinct().ToList();
 
                 var usersDict = await _context.Users
                     .Where(u => userIds.Contains(u.UserID))
@@ -180,7 +180,7 @@ namespace HealthIntelligence.Services
                     {
                         Response = r,
                         x.pa.PillarID,
-                        UserID = x.a.UserCityMapping.UserID
+                        UserID = x.a.UserCountryMapping.UserID
                     }))
                     .GroupBy(x => (x.Response.QuestionID, x.PillarID, x.UserID))
                     .ToDictionary(g => g.Key, g => g.First().Response);
@@ -189,7 +189,7 @@ namespace HealthIntelligence.Services
                 // ? AI DATA FIXED
                 // =========================================
                 var aiRaw = await _context.AIEstimatedQuestionScores
-                    .Where(x => x.CityID == request.CityID
+                    .Where(x => x.CountryID == request.CountryID
                                 && (!request.PillarID.HasValue || x.PillarID == request.PillarID)
                                 && x.Year == year)
                     .ToListAsync();
@@ -276,12 +276,12 @@ namespace HealthIntelligence.Services
             }
         }
 
-        public async Task<Tuple<string, byte[]>> ExportPillarsHistoryByUserId(GetCityPillarHistoryRequestDto requestDto)
+        public async Task<Tuple<string, byte[]>> ExportPillarsHistoryByUserId(GetCountryPillarHistoryRequestDto requestDto)
         {
             try
             {
                 var response = await GetPillarsWithQuestions(requestDto);
-                var city = await _context.Cities.FirstOrDefaultAsync(x => x.CityID == requestDto.CityID);
+                var country = await _context.Countries.FirstOrDefaultAsync(x => x.CountryID == requestDto.CountryID);
 
                 if (!response.Succeeded)
                 {
@@ -294,18 +294,18 @@ namespace HealthIntelligence.Services
                 if (requestDto.ExportType?.ToLower() == "pdf")
                 {
                     // ? Use structured data directly (NO flattening)
-                    fileBytes = GeneratePdf(response.Result, city, requestDto.UpdatedAt.Year);
+                    fileBytes = GeneratePdf(response.Result, country, requestDto.UpdatedAt.Year);
 
-                    fileName = $"ExportPillarsHistory_{requestDto.CityID}_{requestDto.PillarID}.pdf";
+                    fileName = $"ExportPillarsHistory_{requestDto.CountryID}_{requestDto.PillarID}.pdf";
                 }
                 else
                 {
                     // ? Excel (existing)
-                    fileBytes = MakePillarSheet(response.Result, city);
-                    fileName = $"ExportPillarsHistory_{requestDto.CityID}_{requestDto.PillarID}.xlsx";
+                    fileBytes = MakePillarSheet(response.Result, country);
+                    fileName = $"ExportPillarsHistory_{requestDto.CountryID}_{requestDto.PillarID}.xlsx";
                 }
 
-                return new("ExportPillarsHistory"+ requestDto.CityID+""+requestDto.PillarID, fileBytes);
+                return new("ExportPillarsHistory"+ requestDto.CountryID+""+requestDto.PillarID, fileBytes);
             }
             catch (Exception ex)
             {
@@ -313,7 +313,7 @@ namespace HealthIntelligence.Services
                 return new Tuple<string, byte[]>("", Array.Empty<byte>());
             }
         }
-        public byte[] GeneratePdf(List<PillarWithQuestionsDto> data, City city, int year)
+        public byte[] GeneratePdf(List<PillarWithQuestionsDto> data, Country country, int year)
         {
             var logoPath = Path.Combine(
                 Directory.GetCurrentDirectory(),
@@ -344,7 +344,7 @@ namespace HealthIntelligence.Services
                                             .Bold()
                                             .FontColor("#ffffff");
 
-                                        left.Item().Text($"{city?.CityName}, {city?.State}, USA | Data Year: {year}")
+                                        left.Item().Text($"{country?.CountryName}, {country?.Continent}, USA | Data Year: {year}")
                                             .FontSize(10)
                                             .FontColor("#cfe7df");
 
@@ -453,11 +453,11 @@ namespace HealthIntelligence.Services
                 });
             }).GeneratePdf();
         }
-        private byte[] MakePillarSheet(List<PillarWithQuestionsDto> pillars, Models.City? city)
+        private byte[] MakePillarSheet(List<PillarWithQuestionsDto> pillars, Models.Country? country)
         {
             using (var workbook = new XLWorkbook())
             {
-                var name = city == null ? $"{pillars.Count}-Pillars-Result" : city?.CityName+"-"+city?.State+ $"-{pillars.Count}-Pillars-Result";
+                var name = country == null ? $"{pillars.Count}-Pillars-Result" : country?.CountryName+"-"+country?.Continent+ $"-{pillars.Count}-Pillars-Result";
                 var shortName = name.Length > 30 ? name.Substring(0, 30) : name;
 
                 var ws = workbook.Worksheets.Add(shortName);
@@ -596,23 +596,23 @@ namespace HealthIntelligence.Services
                 var endDate = new DateTime(year + 1, 1, 1);
 
                 // Role based filter
-                IQueryable<UserCityMapping> userCityMappings = _context.UserCityMappings
+                IQueryable<UserCountryMapping> userCountryMappings = _context.UserCountryMappings
                     .AsNoTracking()
-                    .Where(x => !x.IsDeleted && x.CityID == request.CityID);
+                    .Where(x => !x.IsDeleted && x.CountryID == request.CountryID);
 
-                userCityMappings = userRole switch
+                userCountryMappings = userRole switch
                 {
-                    UserRole.Analyst => userCityMappings.Where(x => x.AssignedByUserId == request.UserId || x.UserID == request.UserId),
-                    UserRole.Evaluator => userCityMappings.Where(x => x.UserID == request.UserId),
-                    _ => userCityMappings
+                    UserRole.Analyst => userCountryMappings.Where(x => x.AssignedByUserId == request.UserId || x.UserID == request.UserId),
+                    UserRole.Evaluator => userCountryMappings.Where(x => x.UserID == request.UserId),
+                    _ => userCountryMappings
                 };
 
                 // =========================
                 // 1. USER DATA
                 // =========================
                 var rawData = await (
-                    from ucm in userCityMappings
-                    join a in _context.Assessments on ucm.UserCityMappingID equals a.UserCityMappingID
+                    from ucm in userCountryMappings
+                    join a in _context.Assessments on ucm.UserCountryMappingID equals a.UserCountryMappingID
                     where a.IsActive &&
                           (a.UpdatedAt >= startDate && a.UpdatedAt <= endDate &&
                            (a.AssessmentPhase == AssessmentPhase.Completed
@@ -639,7 +639,7 @@ namespace HealthIntelligence.Services
                 // 2. AI DATA
                 // =========================
                 var aiDataList = await _context.AIPillarScores
-                    .Where(x => x.CityID == request.CityID
+                    .Where(x => x.CountryID == request.CountryID
                         && (!request.PillarID.HasValue || x.PillarID == request.PillarID)
                         && x.Year == year)
                     .GroupBy(x => x.PillarID)

@@ -1,5 +1,5 @@
 
-using HealthIntelligence.Dtos.CityDto;
+using HealthIntelligence.Dtos.CountryDto;
 using HealthIntelligence.Dtos.UserDtos;
 using HealthIntelligence.IServices;
 using Microsoft.AspNetCore.Authorization;
@@ -65,10 +65,10 @@ namespace HealthIntelligence.Controllers
             return Ok(response);
         }
 
-        [HttpPost("CityUserSignUp")]
-        public async Task<IActionResult> CityUserSignUp([FromBody] CityUserSignUpDto request)
+        [HttpPost("CountryUserSignUp")]
+        public async Task<IActionResult> CountryUserSignUp([FromBody] CountryUserSignUpDto request)
         {
-            var user = await _authService.CityUserSignUp(request);
+            var user = await _authService.CountryUserSignUp(request);
             return Ok(user);
         }
 
@@ -147,7 +147,7 @@ namespace HealthIntelligence.Controllers
 
         [HttpPost("sendMailForEditAssessment")]
         [Authorize]
-        public async Task<IActionResult> SendMailForEditAssessment([FromBody] SendRequestMailToUpdateCity request)
+        public async Task<IActionResult> SendMailForEditAssessment([FromBody] SendRequestMailToUpdateCountry request)
         {
             var user = await _authService.SendMailForEditAssessment(request);
             if (user == null)

@@ -4,11 +4,11 @@
     {
         public string ChunkID { get; set; } = string.Empty;
 
-        public int CityDocumentID { get; set; }
+        public int CountryDocumentID { get; set; }
 
         public int TOCID { get; set; }
 
-        public int? CityID { get; set; }
+        public int? CountryID { get; set; }
 
         public int? PillarID { get; set; }
 

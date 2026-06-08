@@ -1,6 +1,6 @@
 ﻿using HealthIntelligence.Common.Interface;
 using HealthIntelligence.Data;
-using HealthIntelligence.Dtos.CityDto;
+using HealthIntelligence.Dtos.CountryDto;
 using HealthIntelligence.IServices;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -26,21 +26,21 @@ namespace HealthIntelligence.Common.Implementation
           string evidenceSummary,
           string? immediateSituationSummary,
           decimal? progress,
-          string? cityName = "The city", int pillarCount = 14, int kpiCount = 110)
+          string? countryName = "The country", int pillarCount = 14, int kpiCount = 110)
         {
             immediateSituationSummary = immediateSituationSummary ?? "";
 
-            var evidenceSummaryStaringLine = $"{cityName ?? "The city"} records an overall VUI score of {progress ?? 0}, reflecting performance across {pillarCount} pillars and {kpiCount} KPIs.";
+            var evidenceSummaryStaringLine = $"{countryName ?? "The country"} records an overall VUI score of {progress ?? 0}, reflecting performance across {pillarCount} pillars and {kpiCount} KPIs.";
 
             return immediateSituationSummary + "\n\n " + evidenceSummaryStaringLine + " " + evidenceSummary;
         }
-        public async Task<List<EvaluationCityProgressResultDto>> GetCitiesProgressAsync(int userId, int role, int year)
+        public async Task<List<EvaluationCountryProgressResultDto>> GetCountriesProgressAsync(int userId, int role, int year)
         {
             try
             {
-                return await _context.CityProgressResults
+                return await _context.CountryProgressResults
                  .FromSqlRaw(
-                     "EXEC usp_getCitiesProgressByUserId @userID, @role, @year",
+                     "EXEC usp_getCountriesProgressByUserId @userID, @role, @year",
                      new SqlParameter("@userID", userId),
                      new SqlParameter("@role", role),
                      new SqlParameter("@year", year)
@@ -50,17 +50,17 @@ namespace HealthIntelligence.Common.Implementation
             }
             catch (Exception ex)
             {
-                await _appLogger.LogAsync("Error in Executing usp_getCitiesProgressByUserId", ex);
-                return new List<EvaluationCityProgressResultDto>();
+                await _appLogger.LogAsync("Error in Executing usp_getCountriesProgressByUserId", ex);
+                return new List<EvaluationCountryProgressResultDto>();
             }
         }
-        public async Task<List<EvaluationCityProgressHistoryResultDto>> GetCitiesProgressHistoryAsync(int userId, int role, int fromYear, int toYear)
+        public async Task<List<EvaluationCountryProgressHistoryResultDto>> GetCountriesProgressHistoryAsync(int userId, int role, int fromYear, int toYear)
         {
             try
             {
-                return await _context.CityProgressHistoryResults
+                return await _context.CountryProgressHistoryResults
                  .FromSqlRaw(
-                     "EXEC usp_getCitiesProgressByUserIdHistory @userID, @role, @fromYear, @toYear",
+                     "EXEC usp_getCountriesProgressByUserIdHistory @userID, @role, @fromYear, @toYear",
                      new SqlParameter("@userID", userId),
                      new SqlParameter("@role", role),
                      new SqlParameter("@fromYear", fromYear),
@@ -71,23 +71,23 @@ namespace HealthIntelligence.Common.Implementation
             }
             catch (Exception ex)
             {
-                await _appLogger.LogAsync("Error in Executing usp_getCitiesProgressByUserIdHistory", ex);
-                return new List<EvaluationCityProgressHistoryResultDto>();
+                await _appLogger.LogAsync("Error in Executing usp_getCountriesProgressByUserIdHistory", ex);
+                return new List<EvaluationCountryProgressHistoryResultDto>();
             }
         }
-        public async Task<List<GetCitiesProgressAdminDto>> GetCitiesProgressForAdmin(int userId, int role, int year)
+        public async Task<List<GetCountriesProgressAdminDto>> GetCountriesProgressForAdmin(int userId, int role, int year)
         {
             try
             {
-                return await _context.GetCitiesProgressAdminDto
-                 .FromSqlRaw("EXEC usp_getCitiesProgress_Admin @year",new SqlParameter("@year", year))
+                return await _context.GetCountriesProgressAdminDto
+                 .FromSqlRaw("EXEC usp_getCountriesProgress_Admin @year",new SqlParameter("@year", year))
                  .AsNoTracking()
                  .ToListAsync();
             }
             catch (Exception ex)
             {
-                await _appLogger.LogAsync("Error in Executing usp_getCitiesProgress_Admin", ex);
-                return new List<GetCitiesProgressAdminDto>();
+                await _appLogger.LogAsync("Error in Executing usp_getCountriesProgress_Admin", ex);
+                return new List<GetCountriesProgressAdminDto>();
             }
         }
         public string ReplacePercentAcross(string input, int score)
@@ -116,14 +116,14 @@ namespace HealthIntelligence.Common.Implementation
             );
         }
 
-        public async Task<List<CityRankingResultDto>> GetCitiesRankings(int cityId, int year)
+        public async Task<List<CountryRankingResultDto>> GetCountriesRankings(int countryId, int year)
         {
             try
             {
-                return await _context.CityRankingResultDto
+                return await _context.CountryRankingResultDto
                  .FromSqlRaw(
-                     "EXEC usp_getCityRanking @CityId, @Year",
-                     new SqlParameter("@CityId", cityId),
+                     "EXEC usp_getCountryRanking @CountryId, @Year",
+                     new SqlParameter("@CountryId", countryId),
                      new SqlParameter("@Year", year)
                  )
                  .AsNoTracking()
@@ -131,8 +131,8 @@ namespace HealthIntelligence.Common.Implementation
             }
             catch (Exception ex)
             {
-                await _appLogger.LogAsync("Error in Executing usp_getCityRanking", ex);
-                return new List<CityRankingResultDto    >();
+                await _appLogger.LogAsync("Error in Executing usp_getCountryRanking", ex);
+                return new List<CountryRankingResultDto    >();
             }
         }
 

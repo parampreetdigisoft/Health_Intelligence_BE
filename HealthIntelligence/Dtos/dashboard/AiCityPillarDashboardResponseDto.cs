@@ -1,15 +1,15 @@
 ﻿namespace HealthIntelligence.Dtos.dashboard
 {
-    public class AiCityPillarDashboardResponseDto
+    public class AiCountryPillarDashboardResponseDto
     {
-        public int CityID { get; set; }
-        public string CityName { get; set; }
+        public int CountryID { get; set; }
+        public string CountryName { get; set; }
         public decimal EvaluationValue { get; set; }
         public decimal AiValue { get; set; }
-        public List<CityPillarDashboardPillarValueDto> Pillars { get; set; } = new List<CityPillarDashboardPillarValueDto>();
+        public List<CountryPillarDashboardPillarValueDto> Pillars { get; set; } = new List<CountryPillarDashboardPillarValueDto>();
     }
 
-    public class CityPillarDashboardPillarValueDto
+    public class CountryPillarDashboardPillarValueDto
     {
         public int PillarID { get; set; }
         public string PillarName { get; set; }

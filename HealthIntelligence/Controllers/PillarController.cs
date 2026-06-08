@@ -77,7 +77,7 @@ namespace HealthIntelligence.Controllers
 
         [HttpGet("ExportPillarsHistoryByUserId")]
         [Authorize]
-        public async Task<IActionResult> ExportPillarsHistoryByUserId([FromQuery] GetCityPillarHistoryRequestDto requestDto)
+        public async Task<IActionResult> ExportPillarsHistoryByUserId([FromQuery] GetCountryPillarHistoryRequestDto requestDto)
         {
             var claimUserId = GetUserIdFromClaims();
             if (claimUserId == null || claimUserId != requestDto.UserID)

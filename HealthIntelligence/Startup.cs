@@ -143,10 +143,10 @@ namespace HealthIntelligence
 
             services.AddAuthorization(options =>
             {
-                // CityUser with Standard or higher
-                options.AddPolicy("PaidCityUserOnly", policy =>
+                // CountryUser with Standard or higher
+                options.AddPolicy("PaidCountryUserOnly", policy =>
                 {
-                    policy.RequireRole("CityUser");
+                    policy.RequireRole("CountryUser");
                     policy.RequireAssertion(context =>
                     {
                         var tier = context.User.FindFirst("Tier")?.Value;

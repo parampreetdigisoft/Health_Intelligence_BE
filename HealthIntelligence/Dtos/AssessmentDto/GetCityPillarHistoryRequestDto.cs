@@ -7,26 +7,26 @@ namespace HealthIntelligence.Dtos.AssessmentDto
 
     public class GetPillarResponseHistoryRequestNewDto : PaginationRequest
     {
-        public int CityID { get; set; }
+        public int CountryID { get; set; }
         public int? PillarID { get; set; }
         public DateTime UpdatedAt { get; set; } = new DateTime(DateTime.Now.Year, 1, 1);
     }
-    public class GetCityPillarHistoryRequestDto
+    public class GetCountryPillarHistoryRequestDto
     {
         public int UserID { get; set; }
-        public int CityID { get; set; }
+        public int CountryID { get; set; }
         public int? PillarID { get; set; }
         public DateTime UpdatedAt { get; set; } = new DateTime(DateTime.Now.Year, 1, 1);
         public string? ExportType { get; set; } = "pdf";
     }
-    public class UserCityRequstDto : UserCityDashBoardRequstDto
+    public class UserCountryRequstDto : UserCountryDashBoardRequstDto
     {
         public int UserID { get; set; }
         public TieredAccessPlan Tiered { get; set; } = TieredAccessPlan.Pending;
     }
-    public class UserCityDashBoardRequstDto
+    public class UserCountryDashBoardRequstDto
     {
-        public int CityID { get; set; }
+        public int CountryID { get; set; }
         public DateTime UpdatedAt { get; set; } = new DateTime(DateTime.Now.Year, 1, 1);
     }
 

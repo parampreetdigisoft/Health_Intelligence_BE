@@ -1,5 +1,5 @@
 ﻿using HealthIntelligence.Common.Models;
-using HealthIntelligence.Dtos.CityUserDto;
+using HealthIntelligence.Dtos.CountryUserDto;
 using HealthIntelligence.Dtos.CommonDto;
 using HealthIntelligence.Dtos.kpiDto;
 using HealthIntelligence.Enums;
@@ -11,9 +11,9 @@ namespace HealthIntelligence.IServices
     {
         Task<PaginationResponse<GetAnalyticalLayerResultDto>> GetAnalyticalLayerResults(GetAnalyticalLayerRequestDto request, int userId, UserRole role, TieredAccessPlan userPlan = TieredAccessPlan.Pending);
         Task<ResultResponseDto<List<AnalyticalLayer>>> GetAllKpi(int userId, UserRole role);
-        Task<ResultResponseDto<CompareCityResponseDto>> CompareCities(CompareCityRequestDto c, int userId, UserRole role, bool applyPagination = true);
+        Task<ResultResponseDto<CompareCountryResponseDto>> CompareCountries(CompareCountryRequestDto c, int userId, UserRole role, bool applyPagination = true);
         Task<ResultResponseDto<GetMutiplekpiLayerResultsDto>> GetMutiplekpiLayerResults(GetMutiplekpiLayerRequestDto request, int userId, UserRole role, TieredAccessPlan userPlan = TieredAccessPlan.Pending);
-        Task<Tuple<string, byte[]>> ExportCompareCities(CompareKpiCityRequest request, int userId, UserRole role);
+        Task<Tuple<string, byte[]>> ExportCompareCountries(CompareKpiCountryRequest request, int userId, UserRole role);
 
     }
 }

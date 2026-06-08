@@ -4,7 +4,7 @@
     {
         public int LayerResultID { get; set; }
         public int LayerID { get; set; }
-        public int CityID { get; set; }
+        public int CountryID { get; set; }
         public int? InterpretationID { get; set; }
         public decimal? NormalizeValue { get; set; }
         public decimal? CalValue1 { get; set; }
@@ -22,6 +22,6 @@
         public decimal? AiCalValue5 { get; set; }
         public DateTime? AiLastUpdated { get; set; }
         public AnalyticalLayer AnalyticalLayer { get; set; } = new();
-        public City? City { get; set; }
+        public Country? Country { get; set; }
     }
 }

@@ -35,11 +35,11 @@
         public string ImpactLevel { get; set; } = string.Empty;
     }
 
-    public class CityExecutiveSlidesResult
+    public class CountryExecutiveSlidesResult
     {
-        public CityRankingResponseDto City { get; set; }
+        public CountryRankingResponseDto Country { get; set; }
 
-        public string CityName { get; set; } = string.Empty;
+        public string CountryName { get; set; } = string.Empty;
 
         public PerformanceSummary RecentPerformance { get; set; } = new();
 
@@ -48,32 +48,31 @@
         public List<EarlyWarningItem> EarlyWarnings { get; set; } = new();
     }
 
-    public class ChatCityExecutiveSlidesResponse
+    public class ChatCountryExecutiveSlidesResponse
     {
         public bool Success { get; set; }
 
         public string Message { get; set; } = string.Empty;
 
-        public CityExecutiveSlidesResult Result { get; set; } = new();
+        public CountryExecutiveSlidesResult Result { get; set; } = new();
     }
 
-    public class CitySlidesRequest
+    public class CountrySlidesRequest
     {
-        public int CityId { get; set; }
+        public int CountryId { get; set; }
     }
 
-    public class CityRankingResponseDto
+    public class CountryRankingResponseDto
     {
-        public int CityID { get; set; }
-        public string CityName { get; set; }
-        public string State { get; set; }
-        public string Country { get; set; }
+        public int CountryID { get; set; }
+        public string CountryName { get; set; }
+        public string Continent { get; set; }       
         public string Region { get; set; }
-        public int TotalCity { get; set; }
-        public int CityRank { get; set; }
-        public int TotalCityInCountry { get; set; }
+        public int TotalCountry { get; set; }
         public int CountryRank { get; set; }
-        public decimal? CityAIScore { get; set; }
+        public int TotalCountryInRegion { get; set; }
+        public int RegionRank { get; set; }
+        public decimal? CountryAIScore { get; set; }
         public int? DataYear { get; set; }
         public List<PillarsUserHistoryResponseDto> Pillars { get; set; }
     }

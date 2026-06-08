@@ -1,5 +1,5 @@
 ﻿using HealthIntelligence.Common.Models;
-using HealthIntelligence.Dtos.CityDto;
+using HealthIntelligence.Dtos.CountryDto;
 using HealthIntelligence.Dtos.UserDtos;
 using HealthIntelligence.Models;
 
@@ -19,8 +19,8 @@ namespace HealthIntelligence.IServices
         Task<ResultResponseDto<object>> UpdateInviteUser(UpdateInviteUserDto inviteUser);
         Task<ResultResponseDto<object>> DeleteUser(int userId);
         Task<ResultResponseDto<UserResponseDto>> RefreshToken(int userId);
-        Task<ResultResponseDto<string>> SendMailForEditAssessment(SendRequestMailToUpdateCity request);
-        Task<ResultResponseDto<UserResponseDto>> CityUserSignUp(CityUserSignUpDto request);
+        Task<ResultResponseDto<string>> SendMailForEditAssessment(SendRequestMailToUpdateCountry request);
+        Task<ResultResponseDto<UserResponseDto>> CountryUserSignUp(CountryUserSignUpDto request);
         Task<ResultResponseDto<object>> ConfirmMail(string passwordToken);
         Task<ResultResponseDto<object>> ContactUs(ContactUsRequestDto passwordToken);
         Task<ResultResponseDto<UserResponseDto>> TwofaVerification(string email, int otp);

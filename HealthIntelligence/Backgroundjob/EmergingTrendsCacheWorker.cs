@@ -25,21 +25,21 @@ namespace HealthIntelligence.Backgroundjob
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var cityCount = _configuration.GetValue("EmergingTrendsCache:CityCount", 8);
+            var countryCount = _configuration.GetValue("EmergingTrendsCache:CountryCount", 8);
             var refreshInterval = TimeSpan.FromMinutes(
                 _configuration.GetValue("EmergingTrendsCache:RefreshIntervalMinutes", 10));
             var retryDelay = TimeSpan.FromSeconds(
                 _configuration.GetValue("EmergingTrendsCache:RetryDelaySeconds", 10));
 
             _logger.LogInformation(
-                "Emerging trends cache worker started (cityCount={CityCount}, refresh={RefreshMinutes}m, retry={RetrySeconds}s)",
-                cityCount,
+                "Emerging trends cache worker started (countryCount={CountryCount}, refresh={RefreshMinutes}m, retry={RetrySeconds}s)",
+                countryCount,
                 refreshInterval.TotalMinutes,
                 retryDelay.TotalSeconds);
 
             while (!stoppingToken.IsCancellationRequested)
             {
-                await RefreshUntilSuccessAsync(cityCount, retryDelay, stoppingToken);
+                await RefreshUntilSuccessAsync(countryCount, retryDelay, stoppingToken);
 
                 try
                 {
@@ -53,7 +53,7 @@ namespace HealthIntelligence.Backgroundjob
         }
 
         private async Task RefreshUntilSuccessAsync(
-            int cityCount,
+            int countryCount,
             TimeSpan retryDelay,
             CancellationToken stoppingToken)
         {
@@ -65,28 +65,28 @@ namespace HealthIntelligence.Backgroundjob
                     var publicService = scope.ServiceProvider.GetRequiredService<IPublicService>();
 
                     var cached = await publicService.RefreshEmergingTrendsCacheAsync(
-                        cityCount,
+                        countryCount,
                         stoppingToken);
 
                     if (cached)
                     {
                         _logger.LogInformation(
-                            "Emerging trends cache refreshed successfully (cityCount={CityCount})",
-                            cityCount);
+                            "Emerging trends cache refreshed successfully (countryCount={CountryCount})",
+                            countryCount);
                         return;
                     }
 
                     _logger.LogWarning(
-                        "Emerging trends refresh returned no data (cityCount={CityCount}); retry in {RetrySeconds}s",
-                        cityCount,
+                        "Emerging trends refresh returned no data (countryCount={CountryCount}); retry in {RetrySeconds}s",
+                        countryCount,
                         retryDelay.TotalSeconds);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     _logger.LogError(
                         ex,
-                        "Emerging trends cache refresh failed (cityCount={CityCount}); retry in {RetrySeconds}s",
-                        cityCount,
+                        "Emerging trends cache refresh failed (countryCount={CountryCount}); retry in {RetrySeconds}s",
+                        countryCount,
                         retryDelay.TotalSeconds);
                 }
 

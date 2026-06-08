@@ -2,7 +2,7 @@
 using HealthIntelligence.Common.Models;
 using HealthIntelligence.Common.Models.settings;
 using HealthIntelligence.Data;
-using HealthIntelligence.Dtos.CityDto;
+using HealthIntelligence.Dtos.CountryDto;
 using HealthIntelligence.Dtos.UserDtos;
 using HealthIntelligence.IServices;
 using HealthIntelligence.Models;
@@ -52,7 +52,7 @@ namespace HealthIntelligence.Services
                 Role = role,
                 IsEmailConfirmed = false,
                 TemporaryMail = email,
-                Tier = role == UserRole.CityUser ? Enums.TieredAccessPlan.Pending : null
+                Tier = role == UserRole.CountryUser ? Enums.TieredAccessPlan.Pending : null
             };
             _context.Users.Add(user);
             _context.SaveChanges();
@@ -94,7 +94,7 @@ namespace HealthIntelligence.Services
                     var passwordToken = hash;
                     var token = passwordToken.Replace("+", " ");
 
-                    var url = user.Role != UserRole.CityUser ? _appSettings.ApplicationUrl : _appSettings.PublicApplicationUrl;
+                    var url = user.Role != UserRole.CountryUser ? _appSettings.ApplicationUrl : _appSettings.PublicApplicationUrl;
                     string passwordResetLink = url + "/auth/reset-password?PasswordToken=" + token;
 
                     var sub = "Password Update Link – Veridian Urban Index Platform";
@@ -203,7 +203,7 @@ namespace HealthIntelligence.Services
             {
                 string message = string.Empty;
 
-                if (user.Role != UserRole.CityUser)
+                if (user.Role != UserRole.CountryUser)
                 {
                     message = $"Your mail is not confirmed or de-activated by super {(user.Role == UserRole.Analyst ? "Admin" : "Analyst")}";
                 }
@@ -285,10 +285,10 @@ namespace HealthIntelligence.Services
                 var url = _appSettings.ApplicationUrl; 
                 string passwordResetLink = url + "/auth/reset-password?PasswordToken=" + token;
 
-                var cityName = string.Join(", ",
-                                         _context.Cities
-                                         .Where(c => inviteUser.CityID.Contains(c.CityID))
-                                         .Select(c => c.CityName));
+                var countryName = string.Join(", ",
+                                         _context.Countries
+                                         .Where(c => inviteUser.CountryID.Contains(c.CountryID))
+                                         .Select(c => c.CountryName));
                 var invitedUser = _context.Users.FirstOrDefault(x => x.UserID == inviteUser.InvitedUserID);
 
                 var model = new EmailInvitationSendRequestDto
@@ -307,16 +307,16 @@ namespace HealthIntelligence.Services
                 user.IsDeleted = false;
                 _context.Users.Update(user);
 
-                foreach (var id in inviteUser.CityID)
+                foreach (var id in inviteUser.CountryID)
                 {
-                    var mapping = new UserCityMapping
+                    var mapping = new UserCountryMapping
                     {
                         UserID = user.UserID,
-                        CityID = id,
+                        CountryID = id,
                         AssignedByUserId = inviteUser.InvitedUserID,
                         Role = user.Role
                     };
-                    _context.UserCityMappings.Add(mapping);
+                    _context.UserCountryMappings.Add(mapping);
                 }
                 await _context.SaveChangesAsync();
 
@@ -326,11 +326,11 @@ namespace HealthIntelligence.Services
 
                     if (isExistingUser)
                     {
-                        msg = "This user already exists. An invitation has been sent to confirm their email and access the assigned city.";
+                        msg = "This user already exists. An invitation has been sent to confirm their email and access the assigned country.";
                     }
                     else
                     {
-                        msg = "User added successfully. An invitation has been sent to access the assigned city.";
+                        msg = "User added successfully. An invitation has been sent to access the assigned country.";
                     }
                     return ResultResponseDto<object>.Success(new { }, new string[] { msg });
                 }
@@ -369,36 +369,36 @@ namespace HealthIntelligence.Services
                 user.CreatedBy = inviteUser.InvitedUserID;
                 _context.Users.Update(user);
 
-                var existingMappings = _context.UserCityMappings
+                var existingMappings = _context.UserCountryMappings
                     .Where(m => m.UserID == user.UserID && m.AssignedByUserId == inviteUser.InvitedUserID && !m.IsDeleted)
                     .ToList();
 
-                var existingCityIds = existingMappings.Select(m => m.CityID).ToList();
+                var existingCountryIds = existingMappings.Select(m => m.CountryID).ToList();
 
-                var newCityIds = inviteUser.CityID;
+                var newCountryIds = inviteUser.CountryID;
 
-                // Add missing cities
-                var citiesToAdd = newCityIds.Except(existingCityIds).ToList();
-                foreach (var cityId in citiesToAdd)
+                // Add missing countries
+                var countriesToAdd = newCountryIds.Except(existingCountryIds).ToList();
+                foreach (var countryId in countriesToAdd)
                 {
-                    var newMapping = new UserCityMapping
+                    var newMapping = new UserCountryMapping
                     {
                         UserID = user.UserID,
-                        CityID = cityId,
+                        CountryID = countryId,
                         AssignedByUserId = inviteUser.InvitedUserID,
                         Role = user.Role
                     };
-                    _context.UserCityMappings.Add(newMapping);
+                    _context.UserCountryMappings.Add(newMapping);
                 }
 
-                //Delete cities no longer in the new list
-                var citiesToDelete = existingMappings
-                    .Where(m => !newCityIds.Contains(m.CityID))
+                //Delete countries no longer in the new list
+                var countriesToDelete = existingMappings
+                    .Where(m => !newCountryIds.Contains(m.CountryID))
                     .ToList();
-                foreach (var c in citiesToDelete)
+                foreach (var c in countriesToDelete)
                 {
                     c.IsDeleted = true;
-                    _context.UserCityMappings.Update(c);
+                    _context.UserCountryMappings.Update(c);
                 }
 
                 // Save all changes
@@ -410,34 +410,34 @@ namespace HealthIntelligence.Services
 
                 var invitedUser = userList.FirstOrDefault(x => x.UserID == inviteUser.InvitedUserID);
 
-                List<int> merged = inviteUser.CityID.Concat(citiesToDelete.Select(x => x.CityID)).ToList();
+                List<int> merged = inviteUser.CountryID.Concat(countriesToDelete.Select(x => x.CountryID)).ToList();
 
-                var cities = await _context.Cities
-                    .Where(c => merged.Contains(c.CityID))
+                var countries = await _context.Countries
+                    .Where(c => merged.Contains(c.CountryID))
                     .ToListAsync();
 
-                if (citiesToAdd.Count > 0)
+                if (countriesToAdd.Count > 0)
                 {
                     isMailSent = true;
-                    var invitedCityNames = string.Join(", ",
-                        cities.Where(c => citiesToAdd.Contains(c.CityID)).Select(c => c.CityName));
+                    var invitedCountryNames = string.Join(", ",
+                        countries.Where(c => countriesToAdd.Contains(c.CountryID)).Select(c => c.CountryName));
 
-                    msgText = $"You are receiving this email because {invitedUser?.FullName} recently requested city assignment ({invitedCityNames}) for your USVI account.";
+                    msgText = $"You are receiving this email because {invitedUser?.FullName} recently requested country assignment ({invitedCountryNames}) for your USVI account.";
                 }
 
-                if (citiesToDelete.Count > 0)
+                if (countriesToDelete.Count > 0)
                 {
-                    var deleteName = cities
-                    .Where(c => citiesToDelete.Select(x => x.CityID).Contains(c.CityID)).Select(c => c.CityName);
-                    var deleteCityNames = string.Join(", ", deleteName);
+                    var deleteName = countries
+                    .Where(c => countriesToDelete.Select(x => x.CountryID).Contains(c.CountryID)).Select(c => c.CountryName);
+                    var deleteCountryNames = string.Join(", ", deleteName);
 
                     if (isMailSent)
                     {
-                        msgText += $" Additionally, you no longer have access to the cities ({deleteCityNames}) for your USVI account.";
+                        msgText += $" Additionally, you no longer have access to the countries ({deleteCountryNames}) for your USVI account.";
                     }
                     else
                     {
-                        msgText = $"You are receiving this email because {invitedUser?.FullName} recently removed your access to the following cities ({deleteCityNames}) for your USVI account.";
+                        msgText = $"You are receiving this email because {invitedUser?.FullName} recently removed your access to the following countries ({deleteCountryNames}) for your USVI account.";
                     }
                     isMailSent = true;
                 }
@@ -447,7 +447,7 @@ namespace HealthIntelligence.Services
                     var passwordToken = hash;
                     var token = passwordToken.Replace("+", " ");
                     string sub = $"{inviteUser.Role.ToString()} Access Granted – Veridian Urban Index Platform";
-                    var url = user.Role != UserRole.CityUser ? _appSettings.ApplicationUrl : _appSettings.PublicApplicationUrl;
+                    var url = user.Role != UserRole.CountryUser ? _appSettings.ApplicationUrl : _appSettings.PublicApplicationUrl;
                     string passwordResetLink = url + "/auth/reset-password?PasswordToken=" + token;
 
                     var model = new EmailInvitationSendRequestDto
@@ -490,11 +490,11 @@ namespace HealthIntelligence.Services
                 user.IsDeleted = true;
                 _context.Users.Update(user);
 
-                var userMapping = _context.UserCityMappings.Where(x => x.UserID == userId).ToList();
+                var userMapping = _context.UserCountryMappings.Where(x => x.UserID == userId).ToList();
                 foreach (var m in userMapping)
                 {
                     m.IsDeleted = true;
-                    _context.UserCityMappings.Update(m);
+                    _context.UserCountryMappings.Update(m);
                 }
 
                 await _context.SaveChangesAsync();
@@ -543,9 +543,9 @@ namespace HealthIntelligence.Services
                     .Where(u => emails.Contains(u.Email))
                     .ToDictionaryAsync(u => u.Email, u => u);
 
-                // Collect new users & city mappings
+                // Collect new users & country mappings
                 var newUsers = new List<User>();
-                var newMappings = new List<UserCityMapping>();
+                var newMappings = new List<UserCountryMapping>();
                 var emailTasks = new List<Task>();
 
                 foreach (var inviteUser in inviteUserList.users)
@@ -581,35 +581,35 @@ namespace HealthIntelligence.Services
                         return ResultResponseDto<object>.Failure(new[] { $"User {inviteUser.Email} already has a different role." });
                     }
 
-                    var existingCityIds = _context.UserCityMappings
+                    var existingCountryIds = _context.UserCountryMappings
                         .Where(m => m.UserID == user.UserID && m.AssignedByUserId == inviteUser.InvitedUserID && !m.IsDeleted)
-                        .Select(m => m.CityID)
+                        .Select(m => m.CountryID)
                         .ToList();
 
-                    var citiesToAdd = inviteUser.CityID.Except(existingCityIds).ToList();
-                    foreach (var cityId in citiesToAdd)
+                    var countriesToAdd = inviteUser.CountryID.Except(existingCountryIds).ToList();
+                    foreach (var countryId in countriesToAdd)
                     {
-                        newMappings.Add(new UserCityMapping
+                        newMappings.Add(new UserCountryMapping
                         {
                             UserID = user.UserID,
-                            CityID = cityId,
+                            CountryID = countryId,
                             AssignedByUserId = inviteUser.InvitedUserID,
                             Role = user.Role
                         });
                     }
 
-                    if (citiesToAdd.Count() > 0)
+                    if (countriesToAdd.Count() > 0)
                     {
                         // 5. Handle email invitation
                         var token = BCrypt.Net.BCrypt.HashPassword(inviteUser.Email).Replace("+", " ");
-                        var url = user.Role != UserRole.CityUser ? _appSettings.ApplicationUrl : _appSettings.PublicApplicationUrl;
+                        var url = user.Role != UserRole.CountryUser ? _appSettings.ApplicationUrl : _appSettings.PublicApplicationUrl;
 
                         string resetLink = $"{url}/auth/reset-password?PasswordToken={token}";
 
-                        var cityName = string.Join(", ",
-                         _context.Cities
-                         .Where(c => citiesToAdd.Contains(c.CityID))
-                         .Select(c => c.CityName));
+                        var countryName = string.Join(", ",
+                         _context.Countries
+                         .Where(c => countriesToAdd.Contains(c.CountryID))
+                         .Select(c => c.CountryName));
                         var invitedUser = _context.Users.FirstOrDefault(x => x.UserID == inviteUser.InvitedUserID);
 
                         string sub = $"{inviteUser.Role.ToString()} Access Granted – Veridian Urban Index Platform";
@@ -638,13 +638,13 @@ namespace HealthIntelligence.Services
                 }
 
 
-                if (newMappings.Any()) await _context.UserCityMappings.AddRangeAsync(newMappings);
+                if (newMappings.Any()) await _context.UserCountryMappings.AddRangeAsync(newMappings);
                 await _context.SaveChangesAsync();
 
                 // 8. Send all emails in parallel
                 if (emailTasks.Any()) await Task.WhenAll(emailTasks);
 
-                return ResultResponseDto<object>.Success(new { }, new[] { "Users will get invitation link to see assigned cities." });
+                return ResultResponseDto<object>.Success(new { }, new[] { "Users will get invitation link to see assigned countries." });
             }
             catch (Exception ex)
             {
@@ -653,7 +653,7 @@ namespace HealthIntelligence.Services
             }
         }
 
-        public async Task<ResultResponseDto<string>> SendMailForEditAssessment(SendRequestMailToUpdateCity request)
+        public async Task<ResultResponseDto<string>> SendMailForEditAssessment(SendRequestMailToUpdateCountry request)
         {
             try
             {
@@ -668,33 +668,33 @@ namespace HealthIntelligence.Services
                 {
                     var user = users.FirstOrDefault(x => x.UserID == request.UserID);
                     var year = DateTime.Now.Year;
-                    var assessment = await _context.Assessments.Include(x => x.UserCityMapping).FirstOrDefaultAsync(x => x.UserCityMappingID == request.UserCityMappingID && x.CreatedAt.Year== year);
+                    var assessment = await _context.Assessments.Include(x => x.UserCountryMapping).FirstOrDefaultAsync(x => x.UserCountryMappingID == request.UserCountryMappingID && x.CreatedAt.Year== year);
                     if (assessment != null)
                     {
-                        var city = _context.Cities.FirstOrDefault(x => x.CityID == assessment.UserCityMapping.CityID);
+                        var country = _context.Countries.FirstOrDefault(x => x.CountryID == assessment.UserCountryMapping.CountryID);
 
                         var url = string.Empty;
                         if (mailToUser.Role == UserRole.Admin)
                         {
-                            url = $"admin/assesment/2/{assessment.UserCityMapping.CityID}";
+                            url = $"admin/assesment/2/{assessment.UserCountryMapping.CountryID}";
                         }
                         else
                         {
-                            url = $"analyst/evaluator-response/{request.UserID}/{assessment.UserCityMapping.CityID}";
+                            url = $"analyst/evaluator-response/{request.UserID}/{assessment.UserCountryMapping.CountryID}";
                         }
 
                         string passwordResetLink = _appSettings.ApplicationUrl + url;
                         var model = new EmailInvitationSendRequestDto
                         {
                             ResetPasswordUrl = passwordResetLink,
-                            Title = "Request to update city",
+                            Title = "Request to update country",
                             ApiUrl = _appSettings.ApiUrl,
                             ApplicationUrl = _appSettings.ApplicationUrl,
-                            MsgText = $"You are receiving this email because user {user?.FullName} recently requested to update city {city?.CityName} from their USVI account.",
+                            MsgText = $"You are receiving this email because user {user?.FullName} recently requested to update country {country?.CountryName} from their USVI account.",
                             BtnText = "Give Access",
                             Mail = _appSettings.AdminMail
                         };
-                        var isMailSent = await _emailService.SendEmailAsync(mailToUser.Email, "Request to update city", "~/Views/EmailTemplates/ChangePassword.cshtml", model);
+                        var isMailSent = await _emailService.SendEmailAsync(mailToUser.Email, "Request to update country", "~/Views/EmailTemplates/ChangePassword.cshtml", model);
                         if (isMailSent)
                         {
                             assessment.AssessmentPhase = AssessmentPhase.EditRequested;
@@ -712,7 +712,7 @@ namespace HealthIntelligence.Services
                 return ResultResponseDto<string>.Failure(new string[] { "There is an error please try later" });
             }
         }
-        public async Task<ResultResponseDto<UserResponseDto>> CityUserSignUp(CityUserSignUpDto request)
+        public async Task<ResultResponseDto<UserResponseDto>> CountryUserSignUp(CountryUserSignUpDto request)
         {
             try
             {
@@ -841,7 +841,7 @@ namespace HealthIntelligence.Services
                     ApplicationUrl = _appSettings.PublicApplicationUrl,
                     MsgText = requestDto.Message,
                     DescriptionAboutBtnText
-                        = $"This email was sent by {requestDto.Name} from {requestDto.City}, {requestDto.Country}. You can reach them at: {requestDto.Email}.",
+                        = $"This email was sent by {requestDto.Name} from {requestDto.Country}, {requestDto.Country}. You can reach them at: {requestDto.Email}.",
                     IsLoginBtn = false,
                     IsShowBtnText = false,
                     Mail = _appSettings.AdminMail
@@ -890,7 +890,7 @@ namespace HealthIntelligence.Services
                 _context.Users.Update(user);
                 await _context.SaveChangesAsync();
 
-                var url = user.Role != UserRole.CityUser ? _appSettings.ApplicationUrl : _appSettings.PublicApplicationUrl;
+                var url = user.Role != UserRole.CountryUser ? _appSettings.ApplicationUrl : _appSettings.PublicApplicationUrl;
                 // 4️⃣ Send the OTP via email
                 var model = new EmailInvitationSendRequestDto
                 {
@@ -1020,7 +1020,7 @@ namespace HealthIntelligence.Services
                             .Failure(new List<string> { "Email already exists." });
                     }
 
-                    var url = user.Role != UserRole.CityUser ? _appSettings.ApplicationUrl : _appSettings.PublicApplicationUrl;
+                    var url = user.Role != UserRole.CountryUser ? _appSettings.ApplicationUrl : _appSettings.PublicApplicationUrl;
                     var hash = BCrypt.Net.BCrypt.HashPassword(requestDto.Email);
                     var token = hash.Replace("+", " "); 
                     var passwordResetLink = $"{url}/auth/confirm-mail?PasswordToken={token}";

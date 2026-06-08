@@ -7,8 +7,8 @@ namespace HealthIntelligence.Common.Interface
     public interface IPdfGeneratorService
     {
 
-        Task<byte[]> GenerateCityDetailsPdf(AiCitySummeryDto city, List<AiCityPillarReponse> pillars, List<KpiChartItem> kpis, List<PeerCityHistoryReportDto> peerCity, UserRole userRole);
-        Task<byte[]> GeneratePillarDetailsPdf(AiCityPillarReponse cityDetails, UserRole userRole);
-        Task<byte[]> GenerateAllCitiesDetailsPdf(List<AiCitySummeryDto> cities, Dictionary<int, List<AiCityPillarReponse>> pillars, List<KpiChartItem> kpis, UserRole userRole);
+        Task<byte[]> GenerateCountryDetailsPdf(AiCountrySummeryDto country, List<AiCountryPillarReponse> pillars, List<KpiChartItem> kpis, List<PeerCountryHistoryReportDto> peerCountry, UserRole userRole);
+        Task<byte[]> GeneratePillarDetailsPdf(AiCountryPillarReponse countryDetails, UserRole userRole);
+        Task<byte[]> GenerateAllCountriesDetailsPdf(List<AiCountrySummeryDto> countries, Dictionary<int, List<AiCountryPillarReponse>> pillars, List<KpiChartItem> kpis, UserRole userRole);
     }
 }

@@ -17,7 +17,7 @@ namespace HealthIntelligence.Backgroundjob
         private readonly IServiceProvider _serviceProvider;
         private readonly Dictionary<string, Func<Download, Task>> _actionHandlers;
         private readonly ConcurrentDictionary<int, CancellationTokenSource> _debounceTokens = new();
-        private static readonly ConcurrentDictionary<int, SemaphoreSlim> _cityLocks = new();
+        private static readonly ConcurrentDictionary<int, SemaphoreSlim> _countryLocks = new();
         private readonly TimeSpan _debounceInterval = TimeSpan.FromMinutes(2);
 
         public ChannelWorker(ChannelService channelService, IServiceProvider serviceProvider)
@@ -28,7 +28,7 @@ namespace HealthIntelligence.Backgroundjob
             _actionHandlers = new Dictionary<string, Func<Download, Task>>
             {
                 { "InsertAnalyticalLayerResults", InsertAnalyticalLayerResults },
-                { "AiResearchByCityId", AiResearchByCityId },
+                { "AiResearchByCountryId", AiResearchByCountryId },
             };
         }
         #endregion
@@ -45,7 +45,7 @@ namespace HealthIntelligence.Backgroundjob
                     {
                         if (queueItem.Type == "InsertAnalyticalLayerResults")
                         {
-                            await DebounceAsync(queueItem.CityID ?? 0,
+                            await DebounceAsync(queueItem.CountryID ?? 0,
                                 () => action(queueItem));
                         }
                         else
@@ -65,9 +65,9 @@ namespace HealthIntelligence.Backgroundjob
 
         #region Debounce
 
-        private async Task DebounceAsync(int cityId, Func<Task> action)
+        private async Task DebounceAsync(int countryId, Func<Task> action)
         {
-            var cts = _debounceTokens.AddOrUpdate(cityId, _ => new CancellationTokenSource(), (_, existing) =>
+            var cts = _debounceTokens.AddOrUpdate(countryId, _ => new CancellationTokenSource(), (_, existing) =>
             {
                 existing.Cancel();
                 existing.Dispose();
@@ -78,7 +78,7 @@ namespace HealthIntelligence.Backgroundjob
             {
                 await Task.Delay(_debounceInterval, cts.Token);
 
-                var semaphore = _cityLocks.GetOrAdd(cityId, _ => new SemaphoreSlim(1, 1));
+                var semaphore = _countryLocks.GetOrAdd(countryId, _ => new SemaphoreSlim(1, 1));
                 await semaphore.WaitAsync(cts.Token);
 
                 try
@@ -96,7 +96,7 @@ namespace HealthIntelligence.Backgroundjob
             }
             finally
             {
-                _debounceTokens.TryRemove(cityId, out _);
+                _debounceTokens.TryRemove(countryId, out _);
             }
         }
 
@@ -110,14 +110,14 @@ namespace HealthIntelligence.Backgroundjob
             var _appLogger = scope.ServiceProvider.GetRequiredService<IAppLogger>();
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            var cityIdParam = new SqlParameter("@CityID", channel.CityID ?? 0);
+            var countryIdParam = new SqlParameter("@CountryID", channel.CountryID ?? 0);
 
             try
             {
                 await ExecuteWithRetry(
                     async () =>
                     {
-                        await dbContext.Database.ExecuteSqlRawAsync("EXEC sp_InsertAnalyticalLayerResults @CityID", cityIdParam);
+                        await dbContext.Database.ExecuteSqlRawAsync("EXEC sp_InsertAnalyticalLayerResults @CountryID", countryIdParam);
                     },
                     onFinalFailure: ex =>
                     {
@@ -128,7 +128,7 @@ namespace HealthIntelligence.Backgroundjob
                 await ExecuteWithRetry(
                     async () =>
                     {
-                        await dbContext.Database.ExecuteSqlRawAsync("EXEC sp_AiRecalculateCityScore @CityID", cityIdParam);
+                        await dbContext.Database.ExecuteSqlRawAsync("EXEC sp_AiRecalculateCountryScore @CountryID", countryIdParam);
                     },
                     onFinalFailure: ex =>
                     {
@@ -139,7 +139,7 @@ namespace HealthIntelligence.Backgroundjob
                 await ExecuteWithRetry(
                     async () =>
                     {
-                        await dbContext.Database.ExecuteSqlRawAsync("EXEC sp_AiInsertAnalyticalLayerResults @CityID",cityIdParam);
+                        await dbContext.Database.ExecuteSqlRawAsync("EXEC sp_AiInsertAnalyticalLayerResults @CountryID",countryIdParam);
                     },
                     onFinalFailure: ex =>
                     {
@@ -180,34 +180,34 @@ namespace HealthIntelligence.Backgroundjob
 
         #endregion
         
-        #region AiResearchByCityId
+        #region AiResearchByCountryId
 
-        private async Task AiResearchByCityId(Download channel)
+        private async Task AiResearchByCountryId(Download channel)
         {
             try
             {
                 using var scope = _serviceProvider.CreateScope();
                 var aiService = scope.ServiceProvider.GetRequiredService<IAIAnalyzeService>();
-                if(channel.CityID > 0)
+                if(channel.CountryID > 0)
                 {
                     if (channel.QuestionEnable)
-                        await aiService.AnalyzeQuestionsOfCity(channel.CityID.Value);
+                        await aiService.AnalyzeQuestionsOfCountry(channel.CountryID.Value);
 
                     if (channel.PillarEnable)
-                        await aiService.AnalyzeCityPillars(channel.CityID.Value);
+                        await aiService.AnalyzeCountryPillars(channel.CountryID.Value);
 
-                    if (channel.CityEnable)
-                        await aiService.AnalyzeSingleCity(channel.CityID.Value);
-                    if (!channel.CityEnable && channel.ImmediateSummaryEnable)
-                        await aiService.AnalyzeCityImmediateSituation(channel.CityID.Value);
+                    if (channel.CountryEnable)
+                        await aiService.AnalyzeSingleCountry(channel.CountryID.Value);
+                    if (!channel.CountryEnable && channel.ImmediateSummaryEnable)
+                        await aiService.AnalyzeCountryImmediateSituation(channel.CountryID.Value);
                     if (channel.RegenerateMissingQuestionsEnable && !channel.QuestionEnable)
                     {
-                        var request = new MissingCityQuestionRequest
+                        var request = new MissingCountryQuestionRequest
                         {
-                            CityID = channel.CityID.Value,
+                            CountryID = channel.CountryID.Value,
                             PillarID = channel.PillarId
                         };
-                        await aiService.AnalyzeCityMissingQuestions(request);
+                        await aiService.AnalyzeCountryMissingQuestions(request);
                     }
                 }
 
@@ -217,7 +217,7 @@ namespace HealthIntelligence.Backgroundjob
             {
                 using var scope = _serviceProvider.CreateScope();
                 var _appLogger = scope.ServiceProvider.GetRequiredService<IAppLogger>();
-                await _appLogger.LogAsync("AiResearchByCityId", ex);
+                await _appLogger.LogAsync("AiResearchByCountryId", ex);
             }
         }
         #endregion

@@ -6,7 +6,7 @@ namespace HealthIntelligence.Dtos.kpiDto
     {
         public int LayerResultID { get; set; }
         public int LayerID { get; set; }
-        public int CityID { get; set; }
+        public int CountryID { get; set; }
         public int? InterpretationID { get; set; }
         public decimal? NormalizeValue { get; set; }
         public decimal? CalValue1 { get; set; }
@@ -34,6 +34,6 @@ namespace HealthIntelligence.Dtos.kpiDto
         public string? CalText5 { get; set; }
         public string? Definition { get; set; }
         public ICollection<FiveLevelInterpretation> FiveLevelInterpretations { get; set; } = new List<FiveLevelInterpretation>();
-        public City? City { get; set; }
+        public Country? Country { get; set; }
     }
 }

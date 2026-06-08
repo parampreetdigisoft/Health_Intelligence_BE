@@ -59,11 +59,11 @@ namespace HealthIntelligence.Common.Implementation
         //  ENTRY POINTS
         // ════════════════════════════════════════════════════════════════════
 
-        public async Task<byte[]> GenerateCityDetailsDocx(
-            AiCitySummeryDto cityDetails,
-            List<AiCityPillarReponse> pillars,
+        public async Task<byte[]> GenerateCountryDetailsDocx(
+            AiCountrySummeryDto countryDetails,
+            List<AiCountryPillarReponse> pillars,
             List<KpiChartItem> kpis,
-            List<PeerCityHistoryReportDto> peerCities,
+            List<PeerCountryHistoryReportDto> peerCountries,
             UserRole userRole)
         {
             try
@@ -72,26 +72,25 @@ namespace HealthIntelligence.Common.Implementation
                 {
                     var body = mainPart.Document.Body!;
                     _imgId = 1;
-                    AddCityDetailsSections(body, mainPart, cityDetails, pillars, kpis, peerCities, userRole);
+                    AddCountryDetailsSections(body, mainPart, countryDetails, pillars, kpis, peerCountries, userRole);
                 });
             }
             catch (Exception ex)
             {
-                await _appLogger.LogAsync("Error in GenerateCityDetailsDocx", ex);
+                await _appLogger.LogAsync("Error in GenerateCountryDetailsDocx", ex);
                 return Array.Empty<byte>();
             }
         }
 
-        public async Task<byte[]> GeneratePillarDetailsDocx(AiCityPillarReponse pillarData, UserRole userRole)
+        public async Task<byte[]> GeneratePillarDetailsDocx(AiCountryPillarReponse pillarData, UserRole userRole)
         {
             try
             {
-                var cityDetails = new AiCitySummeryDto
+                var countryDetails = new AiCountrySummeryDto
                 {
-                    CityID = pillarData.CityID,
-                    CityName = pillarData.CityName,
-                    State = pillarData.State,
-                    Country = pillarData.Country,
+                    CountryID = pillarData.CountryID,
+                    CountryName = pillarData.CountryName,
+                    Continent = pillarData.Continent,                   
                     ScoringYear = pillarData.AIDataYear,
                     AIProgress = pillarData.AIProgress
 
@@ -101,7 +100,7 @@ namespace HealthIntelligence.Common.Implementation
                 {
                     var body = mainPart.Document.Body!;
                     _imgId = 1;
-                    AppendCityHeader(mainPart, cityDetails, pillarData.PillarName);
+                    AppendCountryHeader(mainPart, countryDetails, pillarData.PillarName);
                     AddPillarSection(body, mainPart, pillarData, userRole);
                     FinalizeLastSection(mainPart);
                 });
@@ -113,9 +112,9 @@ namespace HealthIntelligence.Common.Implementation
             }
         }
 
-        public async Task<byte[]> GenerateAllCitiesDetailsDocx(
-            List<AiCitySummeryDto> cities,
-            Dictionary<int, List<AiCityPillarReponse>> pillarsDict,
+        public async Task<byte[]> GenerateAllCountriesDetailsDocx(
+            List<AiCountrySummeryDto> countries,
+            Dictionary<int, List<AiCountryPillarReponse>> pillarsDict,
             List<KpiChartItem> kpis,
             UserRole userRole)
         {
@@ -126,25 +125,25 @@ namespace HealthIntelligence.Common.Implementation
                     var body = mainPart.Document.Body!;
                     _imgId = 1;
                     bool first = true;
-                    foreach (var city in cities)
+                    foreach (var country in countries)
                     {
-                        if (!pillarsDict.TryGetValue(city.CityID, out var pillars) || !pillars.Any())
+                        if (!pillarsDict.TryGetValue(country.CountryID, out var pillars) || !pillars.Any())
                             continue;
 
-                        var cityKpis = kpis?.Where(k => k.CityID == city.CityID).ToList()
+                        var countryKpis = kpis?.Where(k => k.CountryID == country.CountryID).ToList()
                                        ?? new List<KpiChartItem>();
 
                         if (!first) body.AppendChild(PageBreak());
                         first = false;
 
-                        AddCityDetailsSections(body, mainPart, city, pillars, cityKpis,
-                                               new List<PeerCityHistoryReportDto>(), userRole, isAllCities: true);
+                        AddCountryDetailsSections(body, mainPart, country, pillars, countryKpis,
+                                               new List<PeerCountryHistoryReportDto>(), userRole, isAllCountries: true);
                     }
                 });
             }
             catch (Exception ex)
             {
-                await _appLogger.LogAsync("Error in GenerateAllCitiesDetailsDocx", ex);
+                await _appLogger.LogAsync("Error in GenerateAllCountriesDetailsDocx", ex);
                 return Array.Empty<byte>();
             }
         }
@@ -176,16 +175,16 @@ namespace HealthIntelligence.Common.Implementation
         }
 
         // ════════════════════════════════════════════════════════════════════
-        //  CITY REPORT  –  SECTION COMPOSITION
+        //  Country REPORT  –  SECTION COMPOSITION
         // ════════════════════════════════════════════════════════════════════
-        private void AddCityDetailsSections(
+        private void AddCountryDetailsSections(
             Body body, MainDocumentPart mainPart,
-            AiCitySummeryDto cityDetails,
-            List<AiCityPillarReponse> pillars,
+            AiCountrySummeryDto countryDetails,
+            List<AiCountryPillarReponse> pillars,
             List<KpiChartItem> kpis,
-            List<PeerCityHistoryReportDto> peerCities,
+            List<PeerCountryHistoryReportDto> peerCountries,
             UserRole userRole,
-            bool isAllCities = false)
+            bool isAllCountries = false)
         {
             // Reset pending header state for this document
             ResetSectionState();
@@ -199,44 +198,44 @@ namespace HealthIntelligence.Common.Implementation
                 .ToList();
 
             // ── 1. Global Dashboard ──────────────────────────────────────────────────
-            if (!isAllCities)
+            if (!isAllCountries)
             {
-                AppendCityHeader(mainPart, cityDetails, "City Performance Dashboard");
-                AddDashboardSection(body, mainPart, cityDetails, pillarChartItems, kpiChartItems);
+                AppendCountryHeader(mainPart, countryDetails, "Country Performance Dashboard");
+                AddDashboardSection(body, mainPart, countryDetails, pillarChartItems, kpiChartItems);
             }
 
-            // ── 2. City Summary ──────────────────────────────────────────────────────
-            AppendCityHeader(mainPart, cityDetails, null);          
-            AddCitySummarySection(body, mainPart, cityDetails, userRole);
+            // ── 2. Country Summary ──────────────────────────────────────────────────────
+            AppendCountryHeader(mainPart, countryDetails, null);          
+            AddCountrySummarySection(body, mainPart, countryDetails, userRole);
 
             // ── 3. Pillar Radial Overview ────────────────────────────────────────────
             if (pillars.Any())
             {
-                AppendCityHeader(mainPart, cityDetails, "Pillar Performance Overview");
+                AppendCountryHeader(mainPart, countryDetails, "Pillar Performance Overview");
                 AddPillarOverviewSection(body, mainPart, pillarChartItems);
             }
 
             // ── 4. Peer Comparison & Trends ─────────────────────────────────────────
-            if (!isAllCities && peerCities.Any())
+            if (!isAllCountries && peerCountries.Any())
             {
-                AddPeerComparisonSections(body, mainPart, peerCities, cityDetails, userRole);
-                AddPerformanceTrendSections(body, mainPart, peerCities, cityDetails, userRole);
+                AddPeerComparisonSections(body, mainPart, peerCountries, countryDetails, userRole);
+                AddPerformanceTrendSections(body, mainPart, peerCountries, countryDetails, userRole);
             }
 
             // ── 5. Per-Pillar Detail ─────────────────────────────────────────────────
             var accessiblePillars = pillars.Where(x =>
-                (x.IsAccess && userRole == UserRole.CityUser) || userRole != UserRole.CityUser).ToList();
+                (x.IsAccess && userRole == UserRole.CountryUser) || userRole != UserRole.CountryUser).ToList();
 
             foreach (var pillar in accessiblePillars)
             {
-                AppendCityHeader(mainPart, cityDetails, pillar.PillarName);
+                AppendCountryHeader(mainPart, countryDetails, pillar.PillarName);
                 AddPillarSection(body, mainPart, pillar, userRole);
             }
 
             // ── 6. KPI Dashboard (LAST section) ─────────────────────────────────────
             if (kpiChartItems.Any())
             {
-                AppendCityHeader(mainPart, cityDetails, "KPI Dashboard");
+                AppendCountryHeader(mainPart, countryDetails, "KPI Dashboard");
                 AddKpiDashboardSection(body, mainPart, kpiChartItems);
             }
 
@@ -249,11 +248,11 @@ namespace HealthIntelligence.Common.Implementation
 
         private void AddDashboardSection(
             Body body, MainDocumentPart mainPart,
-            AiCitySummeryDto city,
+            AiCountrySummeryDto country,
             List<PillarChartItem> pillars,
             List<KpiChartItem> kpis)
         {
-            float overall = (float)city.AIProgress.GetValueOrDefault();
+            float overall = (float)country.AIProgress.GetValueOrDefault();
             var validPillars = pillars.Where(p => p.Value.HasValue).ToList();
             // ── Call site ────────────────────────────────────────────────────────────────
             var donutPng = RenderPng((c, s) => PaintDonut(c, s, overall), 320, 220);
@@ -265,7 +264,7 @@ namespace HealthIntelligence.Common.Implementation
                 CreateScoreAndRadarRow(
                     mainPart,
                     donutPng, radarPng,
-                    city,
+                    country,
                     pillars.Count(), kpis.Count(),
                     best, worst,
                     validPillars));
@@ -364,15 +363,15 @@ namespace HealthIntelligence.Common.Implementation
             MainDocumentPart mainPart,
             byte[] donutPng,
             byte[] radarPng,
-            AiCitySummeryDto city,
+            AiCountrySummeryDto country,
             int pillarCount,
             int kpiCount,
             PillarChartItem? best,
             PillarChartItem? worst,
             List<PillarChartItem> pillars)
         {
-            float overallScore = (float)city.AIProgress.GetValueOrDefault();
-            var leftCell = BuildDonutCell(mainPart, donutPng, city, pillarCount, kpiCount, best, worst);
+            float overallScore = (float)country.AIProgress.GetValueOrDefault();
+            var leftCell = BuildDonutCell(mainPart, donutPng, country, pillarCount, kpiCount, best, worst);
             var rightCell = BuildRadarCell(mainPart, radarPng, pillars);
 
             return new Table(
@@ -392,7 +391,7 @@ namespace HealthIntelligence.Common.Implementation
         private TableCell BuildDonutCell(
     MainDocumentPart mainPart,
     byte[] donutPng,
-    AiCitySummeryDto city,
+    AiCountrySummeryDto country,
     int pillarCount,
     int kpiCount,
     PillarChartItem? best,
@@ -444,28 +443,28 @@ namespace HealthIntelligence.Common.Implementation
             // Heading
             cell.Append(
                 CenteredBoldPara(
-                    "Overall City Score",
+                    "Overall Country Score",
                     "12352f",
                     "20"));
 
             // Rank Labels
             var globalRankLabel =
-                city.Rank.HasValue &&
-                city.TotalCity.HasValue &&
-                city.TotalCity >= 1
-                    ? $"Global Rank: {city.Rank} / {city.TotalCity}"
+                country.Rank.HasValue &&
+                country.TotalCountry.HasValue &&
+                country.TotalCountry >= 1
+                    ? $"Global Rank: {country.Rank} / {country.TotalCountry}"
                     : "Global Rank: N/A";
 
             var regionName =
-                string.IsNullOrWhiteSpace(city.Region)
+                string.IsNullOrWhiteSpace(country.Region)
                     ? "Region"
-                    : city.Region;
+                    : country.Region;
 
             var regionRankLabel =
-                city.RegionRank.HasValue &&
-                city.RegionTotalCity.HasValue &&
-                city.RegionTotalCity >= 1
-                    ? $"{regionName}: {city.RegionRank} / {city.RegionTotalCity}"
+                country.RegionRank.HasValue &&
+                country.RegionTotalCountry.HasValue &&
+                country.RegionTotalCountry >= 1
+                    ? $"{regionName}: {country.RegionRank} / {country.RegionTotalCountry}"
                     : $"{regionName}: N/A";
             // Donut Image
             cell.Append(
@@ -790,12 +789,12 @@ namespace HealthIntelligence.Common.Implementation
         }
 
         // ════════════════════════════════════════════════════════════════════
-        //  CITY SUMMARY SECTION
+        //  Country SUMMARY SECTION
         // ════════════════════════════════════════════════════════════════════
 
-        private void AddCitySummarySection(
+        private void AddCountrySummarySection(
             Body body, MainDocumentPart mainPart,
-            AiCitySummeryDto data, UserRole userRole)
+            AiCountrySummeryDto data, UserRole userRole)
         {
             // Progress metric
             body.AppendChild(SectionHeading("Total", DarkGreen));
@@ -804,10 +803,10 @@ namespace HealthIntelligence.Common.Implementation
             body.AppendChild(CreateRankingHeader("Rankings"));
 
             body.AppendChild(CreateRankRow("Global Rank",
-                data.Rank, data.TotalCity, "16A34A"));
+                data.Rank, data.TotalCountry, "16A34A"));
 
             body.AppendChild(CreateRankRow("Region Rank",
-                data.RegionRank, data.RegionTotalCity, "2563EB"));
+                data.RegionRank, data.RegionTotalCountry, "2563EB"));
             body.AppendChild(Gap(160));
 
             // Text sections
@@ -892,7 +891,7 @@ namespace HealthIntelligence.Common.Implementation
 
         private void AddPillarSection(
             Body body, MainDocumentPart mainPart,
-            AiCityPillarReponse data, UserRole userRole)
+            AiCountryPillarReponse data, UserRole userRole)
         {
             body.AppendChild(SectionHeading("Pillar", DarkGreen));
             body.AppendChild(CreateProgressBar("Score", (float)(data.AIProgress ?? 0), MedGreen));
@@ -990,11 +989,11 @@ namespace HealthIntelligence.Common.Implementation
 
         /// <summary>
         /// Registers a repeating page header (appears on every page) that mirrors
-        /// the QuestPDF CityComposeHeader layout:
+        /// the QuestPDF CountryComposeHeader layout:
         ///
         ///  ┌─────────────────────────────────────────┬────────────┐
         ///  │  [Title — bold white 21pt]              │ [  LOGO  ] │
-        ///  │  City, State, Country | Data Year: YYYY │ [  white ] │
+        ///  │  Country, Continent, Country | Data Year: YYYY │ [  white ] │
         ///  │  Generated: Mon DD, YYYY               │ [   box  ] │
         ///  └─────────────────────────────────────────┴────────────┘
         ///  ─────────── divider (#d9e2df) ───────────────────────────
@@ -1005,7 +1004,7 @@ namespace HealthIntelligence.Common.Implementation
         private string? _pendingHeaderRelId = null;
 
         /// <summary>
-        /// Call once before generating any city sections to reset state.
+        /// Call once before generating any country sections to reset state.
         /// </summary>
         private void ResetSectionState() => _pendingHeaderRelId = null;
 
@@ -1035,9 +1034,9 @@ namespace HealthIntelligence.Common.Implementation
         /// Automatically closes the PREVIOUS section with a next-page section break
         /// (which replaces the manual PageBreak() call between sections).
         /// </summary>
-        private void AppendCityHeader(
+        private void AppendCountryHeader(
             MainDocumentPart mainPart,
-            AiCitySummeryDto data,
+            AiCountrySummeryDto data,
             string? sectionTitle = null)
         {
             var body = mainPart.Document.Body!;
@@ -1051,7 +1050,7 @@ namespace HealthIntelligence.Common.Implementation
             var headerPart = mainPart.AddNewPart<HeaderPart>();
             var header = new Header();
 
-            string title = string.IsNullOrEmpty(sectionTitle) ? data.CityName : sectionTitle;
+            string title = string.IsNullOrEmpty(sectionTitle) ? data.CountryName : sectionTitle;
 
             string logoPath = Path.Combine(
                 Directory.GetCurrentDirectory(),
@@ -1098,7 +1097,7 @@ namespace HealthIntelligence.Common.Implementation
 
             leftCell.Append(
                 HeaderParagraph(title, "42", "FFFFFF", true, "40"),
-                HeaderParagraph($"{data.CityName}, {data.State}, {data.Country} | Data Year: {data.ScoringYear}", "20", "E8F3F0", false, "20"),
+                HeaderParagraph($"{data.CountryName}, {data.Continent}, {data.Continent} | Data Year: {data.ScoringYear}", "20", "E8F3F0", false, "20"),
                 HeaderParagraph($"Generated: {DateTime.Now:MMM dd, yyyy}", "16", "CFE3DD", false, "0")
             );
 
@@ -2010,49 +2009,49 @@ namespace HealthIntelligence.Common.Implementation
 
         private void AddPerformanceTrendSections(
            Body body, MainDocumentPart mainPart,
-           List<PeerCityHistoryReportDto> peerCities,
-           AiCitySummeryDto cityDetails, UserRole userRole)
+           List<PeerCountryHistoryReportDto> peerCountries,
+           AiCountrySummeryDto countryDetails, UserRole userRole)
         {
-            if (!peerCities.Any()) return;
+            if (!peerCountries.Any()) return;
 
-            var main = FindMainCity(peerCities, cityDetails);
-            var peers = peerCities.Where(p => !IsSameCity(p.CityName, cityDetails.CityName)).ToList();
-            var all = BuildAllCities(main, peers);
+            var main = FindMainCountry(peerCountries, countryDetails);
+            var peers = peerCountries.Where(p => !IsSameCountry(p.CountryName, countryDetails.CountryName)).ToList();
+            var all = BuildAllCountries(main, peers);
 
             var allYears = all
-                .SelectMany(c => c.CityHistory ?? Enumerable.Empty<PeerCityYearHistoryDto>())
+                .SelectMany(c => c.CountryHistory ?? Enumerable.Empty<PeerCountryYearHistoryDto>())
                 .Select(h => h.Year).Distinct().OrderBy(y => y).ToList();
 
             if (!allYears.Any()) return;
 
             // Historical trend
-            AppendCityHeader(mainPart, cityDetails, "Performance Trends Over Time");
+            AppendCountryHeader(mainPart, countryDetails, "Performance Trends Over Time");
             var peerAvg = allYears.Select(yr =>
             {
-                var scores = peers.Select(p => p.CityHistory?.FirstOrDefault(h => h.Year == yr))
+                var scores = peers.Select(p => p.CountryHistory?.FirstOrDefault(h => h.Year == yr))
                     .Where(h => h != null).Select(h => (float)h!.ScoreProgress).ToList();
                 return (Year: yr, Avg: scores.Any() ? scores.Average() : 0f, HasData: scores.Any());
             }).ToList();
 
             var trendPng = RenderPng(
-                (c, s) => PaintMultiLineTrend(c, s, allYears, peers, main, cityDetails, peerAvg),
+                (c, s) => PaintMultiLineTrend(c, s, allYears, peers, main, countryDetails, peerAvg),
                 700, 200);
             body.AppendChild(CreateFullWidthImage(mainPart, trendPng, 200));
             body.AppendChild(Gap(100));
 
             if (main != null)
                 body.AppendChild(CreateYoYTable(allYears.TakeLast(5).ToList(),
-                    (main.CityHistory ?? new()).OrderBy(h => h.Year).ToList(),
+                    (main.CountryHistory ?? new()).OrderBy(h => h.Year).ToList(),
                     peerAvg.Select(p => (p.Year, p.Avg)).ToList()));
 
             body.AppendChild(PageBreak());
 
             // Pillar trend
-            AppendCityHeader(mainPart, cityDetails, "Pillar-Level Trend Analysis");
+            AppendCountryHeader(mainPart, countryDetails, "Pillar-Level Trend Analysis");
             if (main != null)
             {
-                var pillars = (main.CityHistory ?? new())
-                    .SelectMany(h => h.Pillars ?? Enumerable.Empty<PeerCityPillarHistoryReportDto>())
+                var pillars = (main.CountryHistory ?? new())
+                    .SelectMany(h => h.Pillars ?? Enumerable.Empty<PeerCountryPillarHistoryReportDto>())
                     .GroupBy(p => p.PillarID)
                     .Select(g => g.OrderBy(p => p.DisplayOrder).First())
                     .OrderBy(p => p.DisplayOrder).Take(14).ToList();
@@ -2060,11 +2059,11 @@ namespace HealthIntelligence.Common.Implementation
                 if (pillars.Any())
                 {
                     var pillarTrendPng = RenderPng(
-                        (c, s) => PaintPillarLineChart(c, s, allYears, main.CityHistory ?? new(), pillars),
+                        (c, s) => PaintPillarLineChart(c, s, allYears, main.CountryHistory ?? new(), pillars),
                         700, 200);
                     body.AppendChild(CreateFullWidthImage(mainPart, pillarTrendPng, 200));
                     body.AppendChild(Gap(100));
-                    body.AppendChild(CreatePillarHeatmapTable(allYears, main.CityHistory ?? new(), pillars));
+                    body.AppendChild(CreatePillarHeatmapTable(allYears, main.CountryHistory ?? new(), pillars));
                 }
             }
         }
@@ -2077,17 +2076,17 @@ namespace HealthIntelligence.Common.Implementation
 
         private void AddPeerComparisonSections(
             Body body, MainDocumentPart mainPart,
-            List<PeerCityHistoryReportDto> peerCities,
-            AiCitySummeryDto cityDetails, UserRole userRole)
+            List<PeerCountryHistoryReportDto> peerCountries,
+            AiCountrySummeryDto countryDetails, UserRole userRole)
         {
-            if (!peerCities.Any()) return;
+            if (!peerCountries.Any()) return;
 
-            var main = FindMainCity(peerCities, cityDetails);
-            var peers = peerCities.Where(p => !IsSameCity(p.CityName, cityDetails.CityName)).ToList();
-            var all = BuildAllCities(main, peers);
+            var main = FindMainCountry(peerCountries, countryDetails);
+            var peers = peerCountries.Where(p => !IsSameCountry(p.CountryName, countryDetails.CountryName)).ToList();
+            var all = BuildAllCountries(main, peers);
 
             // ── 5.1  Population-Based ────────────────────────────────────────────
-            AppendCityHeader(mainPart, cityDetails, "Population-Based Peer Comparison");
+            AppendCountryHeader(mainPart, countryDetails, "Population-Based Peer Comparison");
 
             var popSorted = all
                 .Where(c => c.Population.HasValue)
@@ -2097,27 +2096,27 @@ namespace HealthIntelligence.Common.Implementation
             if (popSorted.Any())
             {
                 body.AppendChild(CreateInsightBand(
-                    $"{popSorted.Count} cities compared  |  " +
-                    $"Largest: {popSorted.First().CityName} ({FormatPop(popSorted.First().Population)})  |  " +
-                    $"Smallest: {popSorted.Last().CityName} ({FormatPop(popSorted.Last().Population)})"));
+                    $"{popSorted.Count} countries compared  |  " +
+                    $"Largest: {popSorted.First().CountryName} ({FormatPop(popSorted.First().Population)})  |  " +
+                    $"Smallest: {popSorted.Last().CountryName} ({FormatPop(popSorted.Last().Population)})"));
 
-                body.AppendChild(SectionHeading("Population Size by City", DarkGreen));
+                body.AppendChild(SectionHeading("Population Size by Country", DarkGreen));
                 int popH = Math.Max(popSorted.Count * 40, 80);
                 var popPng = RenderPng(
-                    (c, s) => PdfGeneratorService.DrawPopulationBarsCanvas(c, s, popSorted, cityDetails),
+                    (c, s) => PdfGeneratorService.DrawPopulationBarsCanvas(c, s, popSorted, countryDetails),
                     700, popH);
                 body.AppendChild(CreateFullWidthImage(mainPart, popPng, popH));
                 body.AppendChild(Gap(80));
-                body.AppendChild(CreateCityLegendTable(popSorted, cityDetails));
+                body.AppendChild(CreateCountryLegendTable(popSorted, countryDetails));
                 body.AppendChild(Gap(120));
 
-                body.AppendChild(SectionHeading("Score vs Population  (each dot = one city)", DarkGreen));
+                body.AppendChild(SectionHeading("Score vs Population  (each dot = one country)", DarkGreen));
                 int scatterH = Math.Max(popSorted.Count * 30, 160);
                 var scatterPng = RenderPng(
                     (c, s) => PdfGeneratorService.DrawScatterPlotCanvas(
-                        c, s, popSorted, cityDetails,
-                        city => (float)(city.Population ?? 0),
-                        city => PdfGeneratorService.GetLatestScoreOrZeroForDocx(city),
+                        c, s, popSorted, countryDetails,
+                        country => (float)(country.Population ?? 0),
+                        country => PdfGeneratorService.GetLatestScoreOrZeroForDocx(country),
                         "Population", "Score"),
                     700, scatterH);
                 body.AppendChild(CreateFullWidthImage(mainPart, scatterPng, scatterH));
@@ -2125,13 +2124,13 @@ namespace HealthIntelligence.Common.Implementation
             body.AppendChild(PageBreak());
 
             // ── 5.2  Regional ────────────────────────────────────────────────────
-            AppendCityHeader(mainPart, cityDetails, "Regional Peer Group Comparison");
+            AppendCountryHeader(mainPart, countryDetails, "Regional Peer Group Comparison");
             var regionPng = RenderPng((c, s) => PaintRegionalBars(c, s, all), 700, 220);
             body.AppendChild(CreateFullWidthImage(mainPart, regionPng, 220));
             body.AppendChild(PageBreak());
 
             // ── 5.3  Income-Level ────────────────────────────────────────────────
-            AppendCityHeader(mainPart, cityDetails, "Income-Level Peer Comparison");
+            AppendCountryHeader(mainPart, countryDetails, "Income-Level Peer Comparison");
 
             // ══════════════════════════════════════════════════════════════════
             // IncomePeerPage — DOCX (updated with PPP section)
@@ -2141,7 +2140,7 @@ namespace HealthIntelligence.Common.Implementation
             if (withIncome.Any())
             {
                 body.AppendChild(CreateInsightBand(
-                    $"Income quartile analysis  |  {withIncome.Count} cities  |  " +
+                    $"Income quartile analysis  |  {withIncome.Count} countries  |  " +
                     $"Range: {withIncome.Min(p => p.Income):C0} – {withIncome.Max(p => p.Income):C0}"));
 
                 // ── Quartile bars ─────────────────────────────────────────────
@@ -2153,12 +2152,12 @@ namespace HealthIntelligence.Common.Implementation
                 body.AppendChild(Gap(80));
 
                 // ── Income vs Score scatter ───────────────────────────────────
-                body.AppendChild(SectionHeading("Income vs Composite Score  (each dot = one city)", DarkGreen));
+                body.AppendChild(SectionHeading("Income vs Composite Score  (each dot = one country)", DarkGreen));
                 var incScatterPng = RenderPng(
                     (c, s) => PdfGeneratorService.DrawScatterPlotCanvas(
-                        c, s, withIncome, cityDetails,
-                        city => (float)(city.Income ?? 0),
-                        city => PdfGeneratorService.GetLatestScoreOrZeroForDocx(city),
+                        c, s, withIncome, countryDetails,
+                        country => (float)(country.Income ?? 0),
+                        country => PdfGeneratorService.GetLatestScoreOrZeroForDocx(country),
                         "Income (USD)", "Score"),
                     700, 180);
                 body.AppendChild(CreateFullWidthImage(mainPart, incScatterPng, 180));
@@ -2167,13 +2166,13 @@ namespace HealthIntelligence.Common.Implementation
                
                 // ── Top performers by income group (PPP column added) ─────────
                 body.AppendChild(SectionHeading("Top Performers by Income Group", DarkGreen));
-                body.AppendChild(CreateIncomeGroupTable(all, cityDetails));
+                body.AppendChild(CreateIncomeGroupTable(all, countryDetails));
             }
             body.AppendChild(PageBreak());
 
             // ── 5.5  Relative Ranking ────────────────────────────────────────────
-            AppendCityHeader(mainPart, cityDetails, "Relative Ranking Among Peer Cities");
-            AddRankingSection(body, mainPart, all, cityDetails);
+            AppendCountryHeader(mainPart, countryDetails, "Relative Ranking Among Peer Countries");
+            AddRankingSection(body, mainPart, all, countryDetails);
         }
 
         // ════════════════════════════════════════════════════════════════════════
@@ -2182,24 +2181,24 @@ namespace HealthIntelligence.Common.Implementation
 
         private void AddRankingSection(
             Body body, MainDocumentPart mainPart,
-            List<PeerCityHistoryReportDto> all,
-            AiCitySummeryDto cityDetails)
+            List<PeerCountryHistoryReportDto> all,
+            AiCountrySummeryDto countryDetails)
         {
             var ranked = all
-                .Select(c => (City: c, Score: GetLatestScoreOrZero(c)))
+                .Select(c => (Country: c, Score: GetLatestScoreOrZero(c)))
                 .OrderByDescending(x => x.Score)
                 .ToList();
 
-            int mainRank = ranked.FindIndex(r => IsSameCity(r.City.CityName, cityDetails.CityName)) + 1;
+            int mainRank = ranked.FindIndex(r => IsSameCountry(r.Country.CountryName, countryDetails.CountryName)) + 1;
             float mainScore = mainRank > 0 ? ranked[mainRank - 1].Score : 0f;
             float pctile = mainRank > 0 ? (1f - (float)mainRank / ranked.Count) * 100f : 0f;
 
             // Hero banner
-            body.AppendChild(CreateHeroBanner(cityDetails, mainRank, ranked.Count, mainScore, pctile));
+            body.AppendChild(CreateHeroBanner(countryDetails, mainRank, ranked.Count, mainScore, pctile));
             body.AppendChild(Gap(120));
 
             // Score distribution histogram
-            body.AppendChild(SectionHeading("Score Distribution Among All Cities", DarkGreen));
+            body.AppendChild(SectionHeading("Score Distribution Among All Countries", DarkGreen));
             var histPng = RenderPng(
                 (c, s) => PdfGeneratorService.DrawHistogramCanvas(
                     c, s, ranked.Select(r => r.Score).ToList(), mainScore, 10),
@@ -2208,22 +2207,22 @@ namespace HealthIntelligence.Common.Implementation
             body.AppendChild(Gap(100));
 
             // Full ranking table
-            body.AppendChild(SectionHeading("Full City Ranking", DarkGreen));
+            body.AppendChild(SectionHeading("Full Country Ranking", DarkGreen));
             var rows = ranked.Select((r, i) => new[]
             {
         (i + 1).ToString(),
-        r.City.CityName,
-        r.City.Country    ?? "—",
-        r.City.Region     ?? "—",
-        FormatPop(r.City.Population),
+        r.Country.CountryName,
+        r.Country.Continent    ?? "—",
+        r.Country.Region     ?? "—",
+        FormatPop(r.Country.Population),
         $"{r.Score:F1}"
     }).ToArray();
 
             body.AppendChild(CreateStyledTable(
-                new[] { "#", "City", "Country", "Region", "Pop.", "Score" },
+                new[] { "#", "Country", "Country", "Region", "Pop.", "Score" },
                 new[] { 360, 2000, 1300, 1400, 1000, 900 },
                 rows,
-                highlightRow: i => IsSameCity(ranked[i].City.CityName, cityDetails.CityName)));
+                highlightRow: i => IsSameCountry(ranked[i].Country.CountryName, countryDetails.CountryName)));
             body.AppendChild(PageBreak());
         }
 
@@ -2258,7 +2257,7 @@ namespace HealthIntelligence.Common.Implementation
         /// Dark-green hero banner: rank left, score right — mirrors the PDF RelativeRankingPage banner.
         /// </summary>
         private static Table CreateHeroBanner(
-            AiCitySummeryDto cityDetails,
+            AiCountrySummeryDto countryDetails,
             int rank, int total, float score, float pctile)
         {
             var noBorder = new EnumValue<BorderValues>(BorderValues.None);
@@ -2272,7 +2271,7 @@ namespace HealthIntelligence.Common.Implementation
 
             var row = new TableRow();
 
-            // Left cell – rank + city line
+            // Left cell – rank + country line
             int leftW = ContentDxa - 1900;
             row.AppendChild(new TableCell(
                 new TableCellProperties(
@@ -2292,7 +2291,7 @@ namespace HealthIntelligence.Common.Implementation
                         new RunProperties(
                             new Color { Val = "A5D6C2" },
                             new FontSize { Val = "22" }, new RunFonts { Ascii = "Arial" }),
-                        new Text($"{cityDetails.CityName}  ·  {cityDetails.Country}")))));
+                        new Text($"{countryDetails.CountryName}  ·  {countryDetails.Continent}")))));
 
             // Right cell – score + percentile
             row.AppendChild(new TableCell(
@@ -2338,8 +2337,8 @@ namespace HealthIntelligence.Common.Implementation
         // ══════════════════════════════════════════════════════════════════
 
         private static Table CreateIncomeGroupTable(
-            List<PeerCityHistoryReportDto> all,
-            AiCitySummeryDto cityDetails)
+            List<PeerCountryHistoryReportDto> all,
+            AiCountrySummeryDto countryDetails)
         {
             string[] categoryOrder = { "Low Income", "Lower-Middle Income", "Upper-Middle Income", "High Income" };
 
@@ -2347,45 +2346,45 @@ namespace HealthIntelligence.Common.Implementation
                 .GroupBy(x => PdfGeneratorService.GetIncomeCategory(x.Income ?? 0))
                 .ToDictionary(g => g.Key, g => g.ToList());
 
-            var orderedCities = new List<PeerCityHistoryReportDto>();
+            var orderedCountries = new List<PeerCountryHistoryReportDto>();
             foreach (var label in categoryOrder)
-                if (segments.TryGetValue(label, out var cities))
-                    orderedCities.AddRange(cities.OrderByDescending(c => GetLatestScoreOrZero(c)));
+                if (segments.TryGetValue(label, out var countries))
+                    orderedCountries.AddRange(countries.OrderByDescending(c => GetLatestScoreOrZero(c)));
 
-            var rows = orderedCities.Select(city =>
+            var rows = orderedCountries.Select(country =>
             {
-                float sc = GetLatestScoreOrZero(city);
+                float sc = GetLatestScoreOrZero(country);
 
                 return new[]
                 {
-                    city.CityName,
-                    city.Country ?? "—",
+                    country.CountryName,
+                    country.Continent ?? "—",
                     sc < 0 ? "—" : $"{sc:F1}",
-                    PdfGeneratorService.GetIncomeCategory(city.Income ?? 0),
-                    FormatPop(city.Income)         // ← NEW column
+                    PdfGeneratorService.GetIncomeCategory(country.Income ?? 0),
+                    FormatPop(country.Income)         // ← NEW column
                 };
             }).ToArray();
 
             return CreateStyledTableWithCellColors(
-                headers: new[] { "City", "Country", "Score", "Income Group", "Income" },
+                headers: new[] { "Country", "Continent", "Score", "Income Group", "Income" },
                 widths: new[] { 1800, 1000, 700, 2000, 1200 },
                 rows: rows,
-                highlightRow: i => IsSameCity(orderedCities[i].CityName, cityDetails.CityName)
+                highlightRow: i => IsSameCountry(orderedCountries[i].CountryName, countryDetails.CountryName)
                 );
         }
 
-        private static Table CreateCityLegendTable(
-            List<PeerCityHistoryReportDto> allCities, AiCitySummeryDto cityDetails)
+        private static Table CreateCountryLegendTable(
+            List<PeerCountryHistoryReportDto> allCountries, AiCountrySummeryDto countryDetails)
         {
             string[] palette = { "F0B429", "4CAF8A", "1E88E5", "FB8C00", "7B61FF", "E05252" };
             var rows = new List<string[]>();
-            for (int i = 0; i < allCities.Count; i++)
+            for (int i = 0; i < allCountries.Count; i++)
             {
-                bool isMain = IsSameCity(allCities[i].CityName, cityDetails.CityName);
-                rows.Add(new[] { isMain ? "★" : "•", allCities[i].CityName, allCities[i].Country ?? "—" });
+                bool isMain = IsSameCountry(allCountries[i].CountryName, countryDetails.CountryName);
+                rows.Add(new[] { isMain ? "★" : "•", allCountries[i].CountryName, allCountries[i].Continent ?? "—" });
             }
             return CreateStyledTable(
-                new[] { "", "City", "Country" },
+                new[] { "", "Country", "Continent" },
                 new[] { 300, 4000, 2000 },
                 rows.ToArray());
         }
@@ -2446,7 +2445,7 @@ namespace HealthIntelligence.Common.Implementation
 
         private static Table CreateYoYTable(
             List<int> years,
-            List<PeerCityYearHistoryDto> mainHistory,
+            List<PeerCountryYearHistoryDto> mainHistory,
             List<(int Year, float Avg)> peerAvg)
         {
             int yearW = (ContentDxa - 1300) / Math.Max(years.Count, 1);
@@ -2535,8 +2534,8 @@ namespace HealthIntelligence.Common.Implementation
 
         private static Table CreatePillarHeatmapTable(
             List<int> allYears,
-            List<PeerCityYearHistoryDto> history,
-            List<PeerCityPillarHistoryReportDto> pillars)
+            List<PeerCountryYearHistoryDto> history,
+            List<PeerCountryPillarHistoryReportDto> pillars)
         {
             int yearW   = Math.Max(400, (ContentDxa - 1600) / Math.Max(allYears.Count, 1));
             var table   = new Table(new TableProperties(
@@ -2725,20 +2724,20 @@ namespace HealthIntelligence.Common.Implementation
             SKCanvas c, QPDF.Size s, List<PillarChartItem> pillars) =>
             PdfGeneratorService.DrawPillarHorizontalBarsCanvas(c, s, pillars);
         private static void PaintRegionalBars(
-            SKCanvas c, QPDF.Size s, List<PeerCityHistoryReportDto> all) =>
+            SKCanvas c, QPDF.Size s, List<PeerCountryHistoryReportDto> all) =>
             PdfGeneratorService.DrawRegionalBarsCanvas(c, s, all);
 
         private static void PaintMultiLineTrend(
             SKCanvas c, QPDF.Size s,
-            List<int> years, List<PeerCityHistoryReportDto> peers,
-            PeerCityHistoryReportDto? main, AiCitySummeryDto details,
+            List<int> years, List<PeerCountryHistoryReportDto> peers,
+            PeerCountryHistoryReportDto? main, AiCountrySummeryDto details,
             List<(int Year, float Avg, bool HasData)> avg) =>
             PdfGeneratorService.DrawMultiLineTrendChartCanvas(c, s, years, peers, main, details, avg);
 
         private static void PaintPillarLineChart(
             SKCanvas c, QPDF.Size s,
-            List<int> years, List<PeerCityYearHistoryDto> history,
-            List<PeerCityPillarHistoryReportDto> pillars) =>
+            List<int> years, List<PeerCountryYearHistoryDto> history,
+            List<PeerCountryPillarHistoryReportDto> pillars) =>
             PdfGeneratorService.DrawPillarLineChartCanvas(c, s, years, history, pillars);
 
         // ════════════════════════════════════════════════════════════════════
@@ -2825,21 +2824,21 @@ namespace HealthIntelligence.Common.Implementation
             return $"#{r:X2}{g:X2}{b:X2}";
         }
 
-        private static float GetLatestScoreOrZero(PeerCityHistoryReportDto city) =>
-            city.CityHistory?.OrderByDescending(h => h.Year).FirstOrDefault() is { } last
+        private static float GetLatestScoreOrZero(PeerCountryHistoryReportDto country) =>
+            country.CountryHistory?.OrderByDescending(h => h.Year).FirstOrDefault() is { } last
                 ? (float)last.ScoreProgress : -1f;
 
-        private static PeerCityHistoryReportDto? FindMainCity(
-            List<PeerCityHistoryReportDto> all, AiCitySummeryDto city) =>
-            all.FirstOrDefault(p => IsSameCity(p.CityName, city.CityName));
+        private static PeerCountryHistoryReportDto? FindMainCountry(
+            List<PeerCountryHistoryReportDto> all, AiCountrySummeryDto country) =>
+            all.FirstOrDefault(p => IsSameCountry(p.CountryName, country.CountryName));
 
-        private static bool IsSameCity(string? a, string? b) =>
+        private static bool IsSameCountry(string? a, string? b) =>
             string.Equals(a?.Trim(), b?.Trim(), StringComparison.OrdinalIgnoreCase);
 
-        private static List<PeerCityHistoryReportDto> BuildAllCities(
-            PeerCityHistoryReportDto? main, List<PeerCityHistoryReportDto> peers)
+        private static List<PeerCountryHistoryReportDto> BuildAllCountries(
+            PeerCountryHistoryReportDto? main, List<PeerCountryHistoryReportDto> peers)
         {
-            var list = new List<PeerCityHistoryReportDto>();
+            var list = new List<PeerCountryHistoryReportDto>();
             if (main != null) list.Add(main);
             list.AddRange(peers);
             return list;

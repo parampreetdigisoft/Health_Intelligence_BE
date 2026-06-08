@@ -16,24 +16,24 @@ namespace HealthIntelligence.Controllers
             _publicService = publicService;
         }
 
-        [HttpGet("getAllCities")]
-        public async Task<IActionResult> getAllCities()
+        [HttpGet("getAllCountries")]
+        public async Task<IActionResult> getAllCountries()
         {
-            var response = await _publicService.GetAllCities();
+            var response = await _publicService.GetAllCountries();
             return Ok(response);
         }
 
-        [HttpGet("GetPartnerCitiesFilterRecord")]
-        public async Task<IActionResult> GetPartnerCitiesFilterRecord() => Ok(await _publicService.GetPartnerCitiesFilterRecord());
+        [HttpGet("GetPartnerCountriesFilterRecord")]
+        public async Task<IActionResult> GetPartnerCountriesFilterRecord() => Ok(await _publicService.GetPartnerCountriesFilterRecord());
 
         [HttpGet]
         [Route("GetAllPillarAsync")]
         public async Task<IActionResult> GetAllPillarAsync() => Ok(await _publicService.GetAllPillarAsync());
 
-        [HttpGet("GetPartnerCities")]
-        public async Task<IActionResult> GetPartnerCities([FromQuery] PartnerCityRequestDto r)
+        [HttpGet("GetPartnerCountries")]
+        public async Task<IActionResult> GetPartnerCountries([FromQuery] PartnerCountryRequestDto r)
         {
-            var response = await _publicService.GetPartnerCities(r);
+            var response = await _publicService.GetPartnerCountries(r);
             return Ok(response);
         }
         [HttpGet("DownloadExecutiveSummeryPdf")]
@@ -76,24 +76,24 @@ namespace HealthIntelligence.Controllers
                 return StatusCode(500, "Internal server error");
             }
         }
-        [HttpGet("countries-cities")]
+        [HttpGet("countries-countries")]
         public async Task<IActionResult> GetCountriesCities()
         {
             var data = await _publicService.GetCountriesAndCities_WithStaleSupport();
             return Ok(data);
         }
 
-        [HttpGet("promoted-cities")]
-        public async Task<IActionResult> GetPromotedCities()
+        [HttpGet("promoted-countries")]
+        public async Task<IActionResult> GetPromotedCountries()
         {
-            var data = await _publicService.GetPromotedCities();
+            var data = await _publicService.GetPromotedCountries();
             return Ok(data);
         }
 
         [HttpGet("emergingTrendsAndIssues")]
-        public async Task<IActionResult> GetEmergingTrendsAndIssues([FromQuery] int cityCount = 8)
+        public async Task<IActionResult> GetEmergingTrendsAndIssues([FromQuery] int countryCount = 8)
         {
-            return Ok(await _publicService.GetEmergingTrendsAndIssues(cityCount));
+            return Ok(await _publicService.GetEmergingTrendsAndIssues(countryCount));
         }
 
         [HttpGet("pillarLiveSignals")]

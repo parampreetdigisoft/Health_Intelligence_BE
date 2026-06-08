@@ -26,10 +26,10 @@ namespace HealthIntelligence.Services
         }
         public async Task RunMonthlyJob()
         {
-            var newCitiesIds = _context.Cities.Where(x => x.IsActive && !x.IsDeleted ).Select(x => x.CityID).ToList();
+            var newCitiesIds = _context.Countries.Where(x => x.IsActive && !x.IsDeleted ).Select(x => x.CountryID).ToList();
             foreach (var id in newCitiesIds)
             {
-                await AnalyzeSingleCityFull(id);
+                await AnalyzeSingleCountryFull(id);
             }
         }
 
@@ -50,7 +50,7 @@ namespace HealthIntelligence.Services
         {
             try
             {
-                await ImportAllCityImmediateSummary();
+                await ImportAllCountryImmediateSummary();
                 await ImportRemainingDocumentsToVectorDB();
                 await DeleteRemainingDocumentsToVectorDB();
 
@@ -63,15 +63,15 @@ namespace HealthIntelligence.Services
 
         public async Task ImportAiScore()
         {
-            // if new city added
+            // if new country added
             var totalPillar = await _context.Pillars.CountAsync();
-            var allCitiesIds = _context.Cities.Where(x=>x.IsActive && !x.IsDeleted).Select(x=>x.CityID).ToList();
-            var importedCitiesIds = _context.AICityScores.Select(x => x.CityID);
+            var allCountriesIds = _context.Countries.Where(x=>x.IsActive && !x.IsDeleted).Select(x=>x.CountryID).ToList();
+            var importedCountriesIds = _context.AICountryScores.Select(x => x.CountryID);
 
-            var newCitiesIds = allCitiesIds.Where(x=> !importedCitiesIds.Contains(x)).ToList();
-            foreach (var id in newCitiesIds)
+            var newCountriesIds = allCountriesIds.Where(x=> !importedCountriesIds.Contains(x)).ToList();
+            foreach (var id in newCountriesIds)
             {
-                await AnalyzeSingleCityFull(id);
+                await AnalyzeSingleCountryFull(id);
             }
 
             var now = DateTime.UtcNow;
@@ -80,76 +80,76 @@ namespace HealthIntelligence.Services
             var date = new DateTime(now.Year, now.Month, 1, 1, 0, 0, DateTimeKind.Utc)
                             .AddMonths(-1);
 
-            var importPillarsCityIds = _context.AIPillarScores
-                .GroupBy(x => x.CityID)
+            var importPillarsCountryIDs = _context.AIPillarScores
+                .GroupBy(x => x.CountryID)
                 .Where(g => g.Max(x => x.UpdatedAt) < date || g.Count() < totalPillar)
                 .Select(g => g.Key)
                 .ToList();
 
 
-            foreach (var id in importPillarsCityIds)
+            foreach (var id in importPillarsCountryIDs)
             {
-                await AnalyzeCityPillars(id);
+                await AnalyzeCountryPillars(id);
             }
 
 
-            var needtoImportCityIds = _context.AICityScores.Where(x => x.UpdatedAt < date && x.City.IsActive && !x.City.IsDeleted).Select(x=>x.CityID);
-            foreach (var id in needtoImportCityIds)
+            var needtoImportCountryIDs = _context.AICountryScores.Where(x => x.UpdatedAt < date && x.Country.IsActive && !x.Country.IsDeleted).Select(x=>x.CountryID);
+            foreach (var id in needtoImportCountryIDs)
             {
-                await AnalyzeSingleCity(id);
+                await AnalyzeSingleCountry(id);
             }
         }
 
-        public async Task AnalyzeAllCitiesFull()
+        public async Task AnalyzeAllCountriesFull()
         {
-            var url = aiUrl + AiEndpoints.AnalyzeAllCitiesFull;
+            var url = aiUrl + AiEndpoints.AnalyzeAllCountriesFull;
             await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
         }
 
-        public async Task AnalyzeSingleCityFull(int cityId)
+        public async Task AnalyzeSingleCountryFull(int countryId)
         {
-            var url = aiUrl + AiEndpoints.AnalyzeSingleCityFull(cityId);
+            var url = aiUrl + AiEndpoints.AnalyzeSingleCountryFull(countryId);
             await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
         }
 
-        public async Task AnalyzeSingleCity(int cityId)
+        public async Task AnalyzeSingleCountry(int countryId)
         {
-            var url = aiUrl + AiEndpoints.AnalyzeSingleCity(cityId);
+            var url = aiUrl + AiEndpoints.AnalyzeSingleCountry(countryId);
             await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
         }
 
-        public async Task AnalyzeCityPillars(int cityId)
+        public async Task AnalyzeCountryPillars(int countryId)
         {
-            var url = aiUrl + AiEndpoints.AnalyzeCityPillars(cityId);
+            var url = aiUrl + AiEndpoints.AnalyzeCountryPillars(countryId);
             await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
         }
-        public async Task AnalyzeSinglePillar(int cityId, int pillarId)
+        public async Task AnalyzeSinglePillar(int countryId, int pillarId)
         {
-            var url = aiUrl + AiEndpoints.AnalyzeSinglePillar(cityId, pillarId);
-            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
-        }
-
-        public async Task AnalyzeQuestionsOfCity(int cityId)
-        {
-            var url = aiUrl + AiEndpoints.AnalyzeCityQuestions(cityId);
+            var url = aiUrl + AiEndpoints.AnalyzeSinglePillar(countryId, pillarId);
             await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
         }
 
-        public async Task AnalyzeQuestionsOfCityPillar(int cityId, int pillarId)
+        public async Task AnalyzeQuestionsOfCountry(int countryId)
         {
-            var url = aiUrl + AiEndpoints.AnalyzeCityPillarQuestions(cityId, pillarId);
+            var url = aiUrl + AiEndpoints.AnalyzeCountryQuestions(countryId);
             await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
         }
 
-        public async Task AnalyzeCityImmediateSituation(int cityId)
+        public async Task AnalyzeQuestionsOfCountryPillar(int countryId, int pillarId)
         {
-            var url = aiUrl + AiEndpoints.AnalyzeCityImmediateSituation(cityId);
+            var url = aiUrl + AiEndpoints.AnalyzeCountryPillarQuestions(countryId, pillarId);
             await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
         }
 
-        public async Task AnalyzeCityMissingQuestions(MissingCityQuestionRequest r)
+        public async Task AnalyzeCountryImmediateSituation(int countryId)
         {
-            var url = aiUrl + AiEndpoints.AnalyzeCityMissingQuestions();
+            var url = aiUrl + AiEndpoints.AnalyzeCountryImmediateSituation(countryId);
+            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
+        }
+
+        public async Task AnalyzeCountryMissingQuestions(MissingCountryQuestionRequest r)
+        {
+            var url = aiUrl + AiEndpoints.AnalyzeCountryMissingQuestions();
             await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, r, headers);
         }
 
@@ -164,27 +164,27 @@ namespace HealthIntelligence.Services
             await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
         }
 
-        public async Task<ChatCityAskQuestionResponse> ChatCityAsk(ChatCityAskQuestionRequest request)
+        public async Task<ChatCountryAskQuestionResponse> ChatCountryAsk(ChatCountryAskQuestionRequest request)
         {
-            var url = aiUrl + AiEndpoints.ChatCityAsk();
-            return await _httpService.SendAsync<ChatCityAskQuestionResponse>(HttpMethod.Post, url, request, headers) ?? new ChatCityAskQuestionResponse();            
+            var url = aiUrl + AiEndpoints.ChatCountryAsk();
+            return await _httpService.SendAsync<ChatCountryAskQuestionResponse>(HttpMethod.Post, url, request, headers) ?? new ChatCountryAskQuestionResponse();            
         }
-        public async Task<ChatCityAskQuestionResponse> ChatGlobalAsk(ChatGlobalAskQuestionRequest request)
+        public async Task<ChatCountryAskQuestionResponse> ChatGlobalAsk(ChatGlobalAskQuestionRequest request)
         {
             var url = aiUrl + AiEndpoints.ChatGlobalAsk();
-            return await _httpService.SendAsync<ChatCityAskQuestionResponse>(HttpMethod.Post, url, request, headers) ?? new ChatCityAskQuestionResponse();            
+            return await _httpService.SendAsync<ChatCountryAskQuestionResponse>(HttpMethod.Post, url, request, headers) ?? new ChatCountryAskQuestionResponse();            
         }
 
-        public async Task<ChatCityAskQuestionResponse> CrossComparision(CrossComparisionRequest request)
+        public async Task<ChatCountryAskQuestionResponse> CrossComparision(CrossComparisionRequest request)
         {
             var url = aiUrl + AiEndpoints.CrossComparision();
-            var result = await _httpService.SendAsync<ChatCityAskQuestionResponse>(HttpMethod.Post, url, request, headers);
+            var result = await _httpService.SendAsync<ChatCountryAskQuestionResponse>(HttpMethod.Post, url, request, headers);
 
             return result;
         }
-        public async Task<ChatEmergingTrendsResponse?> GetEmergingTrendsAndIssues(int city_count)
+        public async Task<ChatEmergingTrendsResponse?> GetEmergingTrendsAndIssues(int country_count)
         {
-            var url = aiUrl + AiEndpoints.EmergingTrendsAndIssues(city_count);
+            var url = aiUrl + AiEndpoints.EmergingTrendsAndIssues(country_count);
 
             return await _httpService.SendAsync<ChatEmergingTrendsResponse>(
                 HttpMethod.Get,
@@ -194,16 +194,16 @@ namespace HealthIntelligence.Services
             );
         }
 
-        public async Task<ChatCityExecutiveSlidesResponse?> GetCitySlides(int cityId)
+        public async Task<ChatCountryExecutiveSlidesResponse?> GetCountrySlides(int countryId)
         {
-            var url = aiUrl + AiEndpoints.CitySlides();
+            var url = aiUrl + AiEndpoints.CountrySlides();
 
-            return await _httpService.SendAsync<ChatCityExecutiveSlidesResponse>(
+            return await _httpService.SendAsync<ChatCountryExecutiveSlidesResponse>(
                 HttpMethod.Post,
                 url,
-                new CitySlidesRequest
+                new CountrySlidesRequest
                 {
-                    CityId = cityId
+                    CountryId = countryId
                 },
                 headers
             );
@@ -221,13 +221,13 @@ namespace HealthIntelligence.Services
             );
         }
 
-        public async Task ImportAllCityImmediateSummary()
+        public async Task ImportAllCountryImmediateSummary()
         {
-            var allCitiesIds = await _context.Cities.Where(x => x.IsActive && !x.IsDeleted).Select(x => x.CityID).ToListAsync();
+            var allCountriesIds = await _context.Countries.Where(x => x.IsActive && !x.IsDeleted).Select(x => x.CountryID).ToListAsync();
 
-            foreach (var id in allCitiesIds)
+            foreach (var id in allCountriesIds)
             {
-                await AnalyzeCityImmediateSituation(id);
+                await AnalyzeCountryImmediateSituation(id);
                 await Task.Delay(200);
             }
 
@@ -235,18 +235,18 @@ namespace HealthIntelligence.Services
 
         public async Task ImportRemainingDocumentsToVectorDB()
         {
-            var activeDocumentIds = _context.CityDocuments
+            var activeDocumentIds = _context.CountryDocuments
                     .Where(x => !x.IsDeleted)
-                    .Select(x => x.CityDocumentID);
+                    .Select(x => x.CountryDocumentID);
 
             var data = await _context.DocumentChunks
-                .Where(x => !activeDocumentIds.Contains(x.CityDocumentID))
-                .Select(x => x.CityDocumentID)
+                .Where(x => !activeDocumentIds.Contains(x.CountryDocumentID))
+                .Select(x => x.CountryDocumentID)
 
                 .Union(
                     _context.DocumentTOC
-                        .Where(x => !activeDocumentIds.Contains(x.CityDocumentID))
-                        .Select(x => x.CityDocumentID)
+                        .Where(x => !activeDocumentIds.Contains(x.CountryDocumentID))
+                        .Select(x => x.CountryDocumentID)
                 )
                 .Distinct()
                 .ToListAsync();
@@ -260,18 +260,18 @@ namespace HealthIntelligence.Services
         }
         public async Task DeleteRemainingDocumentsToVectorDB()
         {
-            var activeDocumentIds = _context.CityDocuments
+            var activeDocumentIds = _context.CountryDocuments
                     .Where(x => x.IsDeleted)
-                    .Select(x => x.CityDocumentID);
+                    .Select(x => x.CountryDocumentID);
 
             var data = await _context.DocumentChunks
-                .Where(x => activeDocumentIds.Contains(x.CityDocumentID))
-                .Select(x => x.CityDocumentID)
+                .Where(x => activeDocumentIds.Contains(x.CountryDocumentID))
+                .Select(x => x.CountryDocumentID)
 
                 .Union(
                     _context.DocumentTOC
-                        .Where(x => activeDocumentIds.Contains(x.CityDocumentID))
-                        .Select(x => x.CityDocumentID)
+                        .Where(x => activeDocumentIds.Contains(x.CountryDocumentID))
+                        .Select(x => x.CountryDocumentID)
                 )
                 .Distinct()
                 .ToListAsync();
@@ -290,50 +290,50 @@ namespace HealthIntelligence.Services
 
     public static class AiEndpoints
     {
-        private const string BasePath = "/api/cities-score-analysis";
+        private const string BasePath = "/api/countries-score-analysis";
         private const string DocumentPath = "/api/rag";
         private const string ChatPath = "/api/chat";
 
-        public static string AnalyzeAllCitiesFull =>
+        public static string AnalyzeAllCountriesFull =>
             $"{BasePath}/analyze/full";
 
-        public static string AnalyzeSingleCityFull(int cityId) =>
-            $"{BasePath}/analyze/{cityId}/full";
+        public static string AnalyzeSingleCountryFull(int countryId) =>
+            $"{BasePath}/analyze/{countryId}/full";
 
-        public static string AnalyzeSingleCity(int cityId) =>
-            $"{BasePath}/analyze/{cityId}";
+        public static string AnalyzeSingleCountry(int countryId) =>
+            $"{BasePath}/analyze/{countryId}";
 
-        public static string AnalyzeCityPillars(int cityId) =>
-            $"{BasePath}/analyze/{cityId}/pillars";
-        public static string AnalyzeSinglePillar(int cityId, int pillarId) =>
-            $"{BasePath}/analyze/{cityId}/single-pillar/{pillarId}";
+        public static string AnalyzeCountryPillars(int countryId) =>
+            $"{BasePath}/analyze/{countryId}/pillars";
+        public static string AnalyzeSinglePillar(int countryId, int pillarId) =>
+            $"{BasePath}/analyze/{countryId}/single-pillar/{pillarId}";
 
-        public static string AnalyzeCityQuestions(int cityId) =>
-            $"{BasePath}/analyze/{cityId}/questions";
+        public static string AnalyzeCountryQuestions(int countryId) =>
+            $"{BasePath}/analyze/{countryId}/questions";
 
-        public static string AnalyzeCityPillarQuestions(int cityId, int pillarId) =>
-            $"{BasePath}/analyze/{cityId}/pillars/{pillarId}/questions";
+        public static string AnalyzeCountryPillarQuestions(int countryId, int pillarId) =>
+            $"{BasePath}/analyze/{countryId}/pillars/{pillarId}/questions";
 
-        public static string AnalyzeCityImmediateSituation(int cityId) =>
-           $"{BasePath}/analyze/{cityId}/immediateSituation";       
+        public static string AnalyzeCountryImmediateSituation(int countryId) =>
+           $"{BasePath}/analyze/{countryId}/immediateSituation";       
 
-        public static string AnalyzeCityMissingQuestions() =>
+        public static string AnalyzeCountryMissingQuestions() =>
           $"{BasePath}/analyze/missing-pillar-questions";
 
         public static string ProcessDocument(int documentId) =>
             $"{DocumentPath}/process-document/{documentId}";
         public static string DeleteDocument(int documentId) =>
             $"{DocumentPath}/delete-document/{documentId}";
-        public static string ChatCityAsk() => $"{ChatPath}/city";
+        public static string ChatCountryAsk() => $"{ChatPath}/country";
         public static string ChatGlobalAsk() => $"{ChatPath}/global";
 
         public static string CrossComparision() => $"{ChatPath}/cross-comparision";
 
-        public static string CitySlides() => $"{ChatPath}/executive-slides";
+        public static string CountrySlides() => $"{ChatPath}/executive-slides";
 
         public static string PillarLiveSignals() => $"{ChatPath}/pillar-live-signals";
-        public static string EmergingTrendsAndIssues(int city_count) =>
-            $"{ChatPath}/emerging-trends-and-issues?city_count={city_count}";
+        public static string EmergingTrendsAndIssues(int country_count) =>
+            $"{ChatPath}/emerging-trends-and-issues?country_count={country_count}";
     }
 
     #endregion
@@ -341,9 +341,9 @@ namespace HealthIntelligence.Services
 
     #region Ai Models 
 
-    public class ChatCityAskQuestionRequest : ChatGlobalAskQuestionRequest
+    public class ChatCountryAskQuestionRequest : ChatGlobalAskQuestionRequest
     {
-        public int CityID { get; set; }
+        public int CountryID { get; set; }
         public int? PillarID { get; set; }
     }
     public class ChatGlobalAskQuestionRequest
@@ -352,15 +352,15 @@ namespace HealthIntelligence.Services
         public string? HistoryText { get; set; }
         public int? FAQID { get; set; }
     }
-    public class ChatCityAskQuestionResponse
+    public class ChatCountryAskQuestionResponse
     {
         public bool Success { get; set; }
         public string? Message { get; set; }
         public string? Result { get; set; }
     }
-    public class MissingCityQuestionRequest
+    public class MissingCountryQuestionRequest
     {
-        public int CityID { get; set; }
+        public int CountryID { get; set; }
         public int? PillarID { get; set; }
     }
 

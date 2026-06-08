@@ -1,5 +1,5 @@
 ﻿
-using HealthIntelligence.Dtos.CityUserDto;
+using HealthIntelligence.Dtos.CountryUserDto;
 using HealthIntelligence.Dtos.kpiDto;
 using HealthIntelligence.Enums;
 using HealthIntelligence.IServices;
@@ -56,10 +56,10 @@ namespace HealthIntelligence.Controllers
             }
 
             var tierName = GetTierFromClaims();
-            if (tierName == null && userRole == UserRole.CityUser)
+            if (tierName == null && userRole == UserRole.CountryUser)
                 return Unauthorized("You Don't have access.");
 
-            if (!Enum.TryParse<TieredAccessPlan>(tierName, true, out var userPlan) && userRole == UserRole.CityUser)
+            if (!Enum.TryParse<TieredAccessPlan>(tierName, true, out var userPlan) && userRole == UserRole.CountryUser)
             {
                 return Unauthorized("You Don't have access.");
             }
@@ -94,9 +94,9 @@ namespace HealthIntelligence.Controllers
         }
 
         [HttpPost]
-        [Route("compareCities")]
+        [Route("compareCountries")]
         [Authorize(Policy = "StaffOnly")]
-        public async Task<IActionResult> CompareCities([FromBody] CompareCityRequestDto r)
+        public async Task<IActionResult> CompareCountries([FromBody] CompareCountryRequestDto r)
         {
             var userId = GetUserIdFromClaims();
             if (userId == null)
@@ -110,7 +110,7 @@ namespace HealthIntelligence.Controllers
             {
                 return Unauthorized("You Don't have access.");
             }
-           var result = await _kpiService.CompareCities(r, userId.GetValueOrDefault(), userRole);
+           var result = await _kpiService.CompareCountries(r, userId.GetValueOrDefault(), userRole);
             return Ok(result);
         }
 
@@ -133,10 +133,10 @@ namespace HealthIntelligence.Controllers
             }
 
             var tierName = GetTierFromClaims();
-            if (tierName == null && userRole == UserRole.CityUser)
+            if (tierName == null && userRole == UserRole.CountryUser)
                 return Unauthorized("You Don't have access.");
 
-            if (!Enum.TryParse<TieredAccessPlan>(tierName, true, out var userPlan) && userRole == UserRole.CityUser)
+            if (!Enum.TryParse<TieredAccessPlan>(tierName, true, out var userPlan) && userRole == UserRole.CountryUser)
             {
                 return Unauthorized("You Don't have access.");
             }
@@ -150,9 +150,9 @@ namespace HealthIntelligence.Controllers
             return Ok(result);
         }
 
-        [HttpGet("ExportCompareCities")]
+        [HttpGet("ExportCompareCountries")]
         [Authorize(Policy = "StaffOnly")]
-        public async Task<IActionResult> ExportCompareCities([FromQuery] CompareKpiCityRequest request)
+        public async Task<IActionResult> ExportCompareCountries([FromQuery] CompareKpiCountryRequest request)
         {
             var userId = GetUserIdFromClaims();
             if (userId == null)
@@ -166,7 +166,7 @@ namespace HealthIntelligence.Controllers
                 return Unauthorized("You Don't have access.");
 
 
-            var content = await _kpiService.ExportCompareCities(request, userId.Value, userRole);
+            var content = await _kpiService.ExportCompareCountries(request, userId.Value, userRole);
 
             return File(content.Item2,
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

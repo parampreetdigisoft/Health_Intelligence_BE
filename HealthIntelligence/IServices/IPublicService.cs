@@ -7,14 +7,14 @@ namespace HealthIntelligence.IServices
 {
     public interface IPublicService
     {
-        Task<ResultResponseDto<List<PartnerCityResponseDto>>> GetAllCities();
-        Task<ResultResponseDto<PartnerCityFilterResponse>> GetPartnerCitiesFilterRecord();
+        Task<ResultResponseDto<List<PartnerCountryResponseDto>>> GetAllCountries();
+        Task<ResultResponseDto<PartnerCountryFilterResponse>> GetPartnerCountriesFilterRecord();
         Task<ResultResponseDto<List<PillarResponseDto>>> GetAllPillarAsync();
-        Task<PaginationResponse<PartnerCityResponseDto>> GetPartnerCities(PartnerCityRequestDto r);
+        Task<PaginationResponse<PartnerCountryResponseDto>> GetPartnerCountries(PartnerCountryRequestDto r);
         Task<CountryCityResponse> GetCountriesAndCities_WithStaleSupport();
-        Task<ResultResponseDto<List<PromotedPillarsResponseDto>>> GetPromotedCities();
-        Task<ResultResponseDto<EmergingTrendsResult>> GetEmergingTrendsAndIssues(int cityCount);
+        Task<ResultResponseDto<List<PromotedPillarsResponseDto>>> GetPromotedCountries();
+        Task<ResultResponseDto<EmergingTrendsResult>> GetEmergingTrendsAndIssues(int countryCount);
         Task<ResultResponseDto<PillarLiveSignalsResult>> GetPillarLiveSignals();
-        Task<bool> RefreshEmergingTrendsCacheAsync(int cityCount, CancellationToken cancellationToken = default);
+        Task<bool> RefreshEmergingTrendsCacheAsync(int countryCount, CancellationToken cancellationToken = default);
     }
 }

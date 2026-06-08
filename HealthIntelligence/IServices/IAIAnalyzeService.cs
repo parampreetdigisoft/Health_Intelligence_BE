@@ -6,22 +6,22 @@ namespace HealthIntelligence.IServices
 {
     public interface IAIAnalyzeService
     {
-        Task AnalyzeAllCitiesFull();
-        Task AnalyzeSingleCityFull(int cityId);
-        Task AnalyzeSingleCity(int cityId);
-        Task AnalyzeCityPillars(int cityId);
-        Task AnalyzeSinglePillar(int cityId, int pillarId);
-        Task AnalyzeQuestionsOfCity(int cityId);
-        Task AnalyzeQuestionsOfCityPillar(int cityId, int pillarId);
+        Task AnalyzeAllCountriesFull();
+        Task AnalyzeSingleCountryFull(int countryId);
+        Task AnalyzeSingleCountry(int countryId);
+        Task AnalyzeCountryPillars(int countryId);
+        Task AnalyzeSinglePillar(int countryId, int pillarId);
+        Task AnalyzeQuestionsOfCountry(int countryId);
+        Task AnalyzeQuestionsOfCountryPillar(int countryId, int pillarId);
         Task ProcessDocument(int documentID);
         Task DeleteDocument(int documentID);
-        Task AnalyzeCityImmediateSituation(int cityId);
-        Task AnalyzeCityMissingQuestions(MissingCityQuestionRequest request);
-        Task<ChatCityAskQuestionResponse> ChatCityAsk(ChatCityAskQuestionRequest request);
-        Task<ChatCityAskQuestionResponse> ChatGlobalAsk(ChatGlobalAskQuestionRequest request);
-        Task<ChatCityAskQuestionResponse> CrossComparision(CrossComparisionRequest request);
-        Task<ChatEmergingTrendsResponse?> GetEmergingTrendsAndIssues(int city_count);
-        Task<ChatCityExecutiveSlidesResponse?> GetCitySlides(int cityId);
+        Task AnalyzeCountryImmediateSituation(int countryId);
+        Task AnalyzeCountryMissingQuestions(MissingCountryQuestionRequest request);
+        Task<ChatCountryAskQuestionResponse> ChatCountryAsk(ChatCountryAskQuestionRequest request);
+        Task<ChatCountryAskQuestionResponse> ChatGlobalAsk(ChatGlobalAskQuestionRequest request);
+        Task<ChatCountryAskQuestionResponse> CrossComparision(CrossComparisionRequest request);
+        Task<ChatEmergingTrendsResponse?> GetEmergingTrendsAndIssues(int country_count);
+        Task<ChatCountryExecutiveSlidesResponse?> GetCountrySlides(int countryId);
         Task<ChatPillarLiveSignalsResponse?> GetPillarLiveSignals();
         Task RunEvery2HoursJob();
         Task RunMonthlyJob();

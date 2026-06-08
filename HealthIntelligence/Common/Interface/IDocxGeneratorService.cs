@@ -11,20 +11,20 @@ namespace HealthIntelligence.Common.Interface
     /// </summary>
     public interface IDocxGeneratorService
     {
-        Task<byte[]> GenerateCityDetailsDocx(
-            AiCitySummeryDto city,
-            List<AiCityPillarReponse> pillars,
+        Task<byte[]> GenerateCountryDetailsDocx(
+            AiCountrySummeryDto country,
+            List<AiCountryPillarReponse> pillars,
             List<KpiChartItem> kpis,
-            List<PeerCityHistoryReportDto> peerCities,
+            List<PeerCountryHistoryReportDto> peerCountries,
             UserRole userRole);
 
         Task<byte[]> GeneratePillarDetailsDocx(
-            AiCityPillarReponse pillarData,
+            AiCountryPillarReponse pillarData,
             UserRole userRole);
 
-        Task<byte[]> GenerateAllCitiesDetailsDocx(
-            List<AiCitySummeryDto> cities,
-            Dictionary<int, List<AiCityPillarReponse>> pillarsDict,
+        Task<byte[]> GenerateAllCountriesDetailsDocx(
+            List<AiCountrySummeryDto> countries,
+            Dictionary<int, List<AiCountryPillarReponse>> pillarsDict,
             List<KpiChartItem> kpis,
             UserRole userRole);
     }

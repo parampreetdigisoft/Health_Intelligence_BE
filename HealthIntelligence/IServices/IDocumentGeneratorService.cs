@@ -21,25 +21,25 @@ namespace HealthIntelligence.Common.Interface
     /// </summary>
     public interface IDocumentGeneratorService
     {
-        /// <summary>Full city report: dashboard, summary, pillars, peer comparison, trends, KPI dashboard.</summary>
-        Task<byte[]> GenerateCityDetails(
-            AiCitySummeryDto city,
-            List<AiCityPillarReponse> pillars,
+        /// <summary>Full country report: dashboard, summary, pillars, peer comparison, trends, KPI dashboard.</summary>
+        Task<byte[]> GenerateCountryDetails(
+            AiCountrySummeryDto country,
+            List<AiCountryPillarReponse> pillars,
             List<KpiChartItem> kpis,
-            List<PeerCityHistoryReportDto> peerCity,
+            List<PeerCountryHistoryReportDto> peerCountry,
             UserRole userRole,
             DocumentFormat format = DocumentFormat.Pdf);
 
         /// <summary>Single pillar detail report.</summary>
         Task<byte[]> GeneratePillarDetails(
-            AiCityPillarReponse pillarData,
+            AiCountryPillarReponse pillarData,
             UserRole userRole,
             DocumentFormat format = DocumentFormat.Pdf);
 
-        /// <summary>Combined report covering every city in the list.</summary>
-        Task<byte[]> GenerateAllCitiesDetails(
-            List<AiCitySummeryDto> cities,
-            Dictionary<int, List<AiCityPillarReponse>> pillarsDict,
+        /// <summary>Combined report covering every country in the list.</summary>
+        Task<byte[]> GenerateAllCountriesDetails(
+            List<AiCountrySummeryDto> countries,
+            Dictionary<int, List<AiCountryPillarReponse>> pillarsDict,
             List<KpiChartItem> kpis,
             UserRole userRole,
             DocumentFormat format = DocumentFormat.Pdf);

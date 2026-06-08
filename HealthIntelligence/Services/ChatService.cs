@@ -57,20 +57,20 @@ namespace HealthIntelligence.Services
             }
         }
 
-        public async Task<ResultResponseDto<ChatResponseDto>> AskAboutCity(CityChatRequestDto request)
+        public async Task<ResultResponseDto<ChatResponseDto>> AskAboutCountry(CountryChatRequestDto request)
         {
             try
             {
-                var r = new ChatCityAskQuestionRequest
+                var r = new ChatCountryAskQuestionRequest
                 {
-                    CityID = request.CityID,
+                    CountryID = request.CountryID,
                     PillarID = request.PillarID,
                     QuestionText = request.QuestionText,
                     FAQID = request.FAQID,
                     HistoryText = request.HistoryText
                 };
 
-                var resutl = await _aIAnalyzeService.ChatCityAsk(r);
+                var resutl = await _aIAnalyzeService.ChatCountryAsk(r);
           
                 if (resutl == null || resutl.Success != true)
                 {
@@ -81,7 +81,7 @@ namespace HealthIntelligence.Services
 
                 return ResultResponseDto<ChatResponseDto>.Success(new ChatResponseDto
                 {
-                    CityID = request.CityID,
+                    CountryID = request.CountryID,
                     PillarID = request.PillarID,
                     QuestionText = request.QuestionText,
                     FAQID = request.FAQID,
@@ -90,43 +90,43 @@ namespace HealthIntelligence.Services
             }
             catch (Exception ex)
             {
-                await _appLogger.LogAsync("An error occurred while processing the AskAboutCity request.", ex);
+                await _appLogger.LogAsync("An error occurred while processing the AskAboutCountry request.", ex);
                 return ResultResponseDto<ChatResponseDto>.Failure(new[] { "An error occurred while processing your request. Please try again later." });
             }
         }     
 
 
-        public async Task<ResultResponseDto<ChatCityExecutiveSlidesResponse>> GetCitySlides(int cityId, int userId, UserRole userRole)
+        public async Task<ResultResponseDto<ChatCountryExecutiveSlidesResponse>> GetCountrySlides(int countryId, int userId, UserRole userRole)
         {
-            string cacheKey = $"CitySlides_{cityId}";
+            string cacheKey = $"CountrySlides_{countryId}";
 
             try
             {
-                if (userRole == UserRole.CityUser)
+                if (userRole == UserRole.CountryUser)
                 {
-                    var isValidCity = _context.PublicUserCityMappings.Where(x => x.UserID == userId).Any(c => c.CityID == cityId);
-                    if (!isValidCity)
+                    var isValidCountry = _context.PublicUserCountryMappings.Where(x => x.UserID == userId).Any(c => c.CountryID == countryId);
+                    if (!isValidCountry)
                     {
-                        return ResultResponseDto<ChatCityExecutiveSlidesResponse>.Failure(new[] { "You don't have access to this city data." });
+                        return ResultResponseDto<ChatCountryExecutiveSlidesResponse>.Failure(new[] { "You don't have access to this country data." });
                     }
                 }
                 var year = DateTime.UtcNow.Year;
 
-                var cityExists = await _commonService.GetCitiesRankings(cityId, year);
+                var countryExists = await _commonService.GetCountriesRankings(countryId, year);
 
-                var city = cityExists.FirstOrDefault(x => x.CityID == cityId);
+                var country = countryExists.FirstOrDefault(x => x.CountryID == countryId);
 
-                if (city == null)
+                if (country == null)
                 {
-                    return ResultResponseDto<ChatCityExecutiveSlidesResponse>.Failure(new[] { "City not found." });
+                    return ResultResponseDto<ChatCountryExecutiveSlidesResponse>.Failure(new[] { "Country not found." });
                 }
 
                 var pillars = (
                     from p in _context.Pillars
 
                     join x in _context.AIPillarScores
-                        .Where(a => a.CityID == city.CityID
-                                 && a.Year == city.DataYear)
+                        .Where(a => a.CountryID == country.CountryID
+                                 && a.Year == country.DataYear)
                     on p.PillarID equals x.PillarID into pillarScores
 
                     from score in pillarScores.DefaultIfEmpty()
@@ -141,47 +141,46 @@ namespace HealthIntelligence.Services
                     }
                 ).ToList();
 
-                if (userRole == UserRole.CityUser)
+                if (userRole == UserRole.CountryUser)
                 {
-                    var validPillars = _context.CityUserPillarMappings.Where(x => x.UserID == userId).Select(x => x.PillarID);
+                    var validPillars = _context.CountryUserPillarMappings.Where(x => x.UserID == userId).Select(x => x.PillarID);
                     pillars = pillars.Where(x => validPillars.Contains(x.PillarID)).ToList();
                 }
-                var cityResult = new CityRankingResponseDto
+                var countryResult = new CountryRankingResponseDto
                 {
-                    State = city.State,
-                    CityID = city.CityID,
-                    CityName = city.CityName,
-                    CityRank = city.CityRank,
-                    Country = city.Country,
-                    CityAIScore = city.CityAIScore,
-                    DataYear = city.DataYear,
-                    Region = city.Region,
-                    CountryRank= city.CountryRank,
-                    TotalCity = city.TotalCity,
-                    TotalCityInCountry = city.TotalCityInCountry,
+                    Continent = country.Continent,
+                    CountryID = country.CountryID,
+                    CountryName = country.CountryName,
+                    CountryRank = country.CountryRank,                    
+                    CountryAIScore = country.CountryAIScore,
+                    DataYear = country.DataYear,
+                    Region = country.Region,
+                    RegionRank= country.RegionRank,
+                    TotalCountry = country.TotalCountry,
+                    TotalCountryInRegion = country.TotalCountryInRegion,
                     Pillars = pillars.OrderBy(p => p.DisplayOrder).ToList()
                 };
-                if (_cache.TryGetValue(cacheKey, out ChatCityExecutiveSlidesResponse cachedResult))
+                if (_cache.TryGetValue(cacheKey, out ChatCountryExecutiveSlidesResponse cachedResult))
                 {
-                    cachedResult.Result.City = cityResult;
-                    return ResultResponseDto<ChatCityExecutiveSlidesResponse>.Success(
+                    cachedResult.Result.Country = countryResult;
+                    return ResultResponseDto<ChatCountryExecutiveSlidesResponse>.Success(
                         cachedResult,
                         new List<string>
                         {
-                            "City executive slides fetched successfully from cache."
+                            "Country executive slides fetched successfully from cache."
                         }
                     );
                 }
                 // ✅ Fetch from AI service
-                var result = await _aIAnalyzeService.GetCitySlides(cityId);
+                var result = await _aIAnalyzeService.GetCountrySlides(countryId);
 
                 if (result == null || result.Success != true)
                 {
-                    return ResultResponseDto<ChatCityExecutiveSlidesResponse>.Failure(
+                    return ResultResponseDto<ChatCountryExecutiveSlidesResponse>.Failure(
                         new[]
                         {
                             result?.Message ??
-                            "Failed to fetch City executive slides from PEM Aevum."
+                            "Failed to fetch Country executive slides from PEM Aevum."
                         }
                     );
                 }
@@ -194,23 +193,23 @@ namespace HealthIntelligence.Services
                         SlidingExpiration = TimeSpan.FromHours(10),
                         Priority = CacheItemPriority.High
                     });
-                result.Result.City = cityResult;
-                return ResultResponseDto<ChatCityExecutiveSlidesResponse>.Success(
+                result.Result.Country = countryResult;
+                return ResultResponseDto<ChatCountryExecutiveSlidesResponse>.Success(
                     result,
                     new List<string>
                     {
-                         "City executive slides fetched successfully."
+                         "Country executive slides fetched successfully."
                     }
                 );
             }
             catch (Exception ex)
             {
                 await _appLogger.LogAsync(
-                    "An error occurred while processing the GetCitySlides request.",
+                    "An error occurred while processing the GetCountrySlides request.",
                     ex
                 );
 
-                return ResultResponseDto<ChatCityExecutiveSlidesResponse>.Failure(
+                return ResultResponseDto<ChatCountryExecutiveSlidesResponse>.Failure(
                     new[]
                     {
                         "An error occurred while processing your request. Please try again later."
@@ -259,7 +258,7 @@ namespace HealthIntelligence.Services
             {
                 var r = new CrossComparisionRequest
                 {
-                    CityIDs = request.CityIDs,
+                    CountryIDs = request.CountryIDs,
                     QuestionText = request.QuestionText,
                     HistoryText = request.HistoryText
                 };

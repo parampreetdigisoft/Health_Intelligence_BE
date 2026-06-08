@@ -24,37 +24,37 @@ namespace HealthIntelligence.Common.Implementation
             _docx = docx;
         }
 
-        public Task<byte[]> GenerateCityDetails(
-            AiCitySummeryDto city,
-            List<AiCityPillarReponse> pillars,
+        public Task<byte[]> GenerateCountryDetails(
+            AiCountrySummeryDto country,
+            List<AiCountryPillarReponse> pillars,
             List<KpiChartItem> kpis,
-            List<PeerCityHistoryReportDto> peerCity,
+            List<PeerCountryHistoryReportDto> peerCountry,
             UserRole userRole,
         Interface.DocumentFormat format = Interface.DocumentFormat.Pdf)
         {
              var result = format == Interface.DocumentFormat.Docx
-                ? _docx.GenerateCityDetailsDocx(city, pillars, kpis, peerCity, userRole)
-                : _pdf.GenerateCityDetailsPdf(city, pillars, kpis, peerCity, userRole);
+                ? _docx.GenerateCountryDetailsDocx(country, pillars, kpis, peerCountry, userRole)
+                : _pdf.GenerateCountryDetailsPdf(country, pillars, kpis, peerCountry, userRole);
 
             return result;
         }
 
         public Task<byte[]> GeneratePillarDetails(
-            AiCityPillarReponse pillarData,
+            AiCountryPillarReponse pillarData,
             UserRole userRole,
             Interface.DocumentFormat format = Interface.DocumentFormat.Pdf)
             => format == Interface.DocumentFormat.Docx
                 ? _docx.GeneratePillarDetailsDocx(pillarData, userRole)
                 : _pdf.GeneratePillarDetailsPdf(pillarData, userRole);
 
-        public Task<byte[]> GenerateAllCitiesDetails(
-            List<AiCitySummeryDto> cities,
-            Dictionary<int, List<AiCityPillarReponse>> pillarsDict,
+        public Task<byte[]> GenerateAllCountriesDetails(
+            List<AiCountrySummeryDto> countries,
+            Dictionary<int, List<AiCountryPillarReponse>> pillarsDict,
             List<KpiChartItem> kpis,
             UserRole userRole,
             Interface.DocumentFormat format = Interface.DocumentFormat.Pdf)
             => format == Interface.DocumentFormat.Docx
-                ? _docx.GenerateAllCitiesDetailsDocx(cities, pillarsDict, kpis, userRole)
-                : _pdf.GenerateAllCitiesDetailsPdf(cities, pillarsDict, kpis, userRole);
+                ? _docx.GenerateAllCountriesDetailsDocx(countries, pillarsDict, kpis, userRole)
+                : _pdf.GenerateAllCountriesDetailsPdf(countries, pillarsDict, kpis, userRole);
     }
 }

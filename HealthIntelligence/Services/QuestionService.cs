@@ -282,11 +282,11 @@ namespace HealthIntelligence.Services
                 return ResultResponseDto<string>.Failure(new string[] { "There is an error please try later" });
             }
         }
-        public async Task<ResultResponseDto<GetPillarQuestionByCityRespones>> GetQuestionsByCityIdAsync(CityPillerRequestDto request, int userId)
+        public async Task<ResultResponseDto<GetPillarQuestionByCountryRespones>> GetQuestionsByCountryIdAsync(CountryPillerRequestDto request, int userId)
         {
             try
             {
-                var valid = _context.UserCityMappings.Any(x => x.UserCityMappingID == request.UserCityMappingID && x.UserID == userId && !x.IsDeleted);
+                var valid = _context.UserCountryMappings.Any(x => x.UserCountryMappingID == request.UserCountryMappingID && x.UserID == userId && !x.IsDeleted);
                 if (valid)
                 {
                     var year = DateTime.Now.Year;
@@ -294,7 +294,7 @@ namespace HealthIntelligence.Services
                     var answeredPillarIds = new List<int>();
                     var assessment = await _context.Assessments
                         .Include(x => x.PillarAssessments).ThenInclude(x => x.Responses)
-                        .Where(a => a.UserCityMappingID == request.UserCityMappingID && a.UpdatedAt.Year == year && a.IsActive)
+                        .Where(a => a.UserCountryMappingID == request.UserCountryMappingID && a.UpdatedAt.Year == year && a.IsActive)
                         .FirstOrDefaultAsync();
                     if (assessment != null)
                     {
@@ -322,7 +322,7 @@ namespace HealthIntelligence.Services
 
                     if (selectPillar == null || selectPillar?.Questions == null)
                     {
-                        return ResultResponseDto<GetPillarQuestionByCityRespones>.Failure(new[] { "You have submitted assessment for this city" });
+                        return ResultResponseDto<GetPillarQuestionByCountryRespones>.Failure(new[] { "You have submitted assessment for this country" });
                     }
 
                     var editAssessmentResponse = new Dictionary<int, AssessmentResponse>();
@@ -362,10 +362,10 @@ namespace HealthIntelligence.Services
                         };
                     }).ToList();
 
-                    var result = new GetPillarQuestionByCityRespones
+                    var result = new GetPillarQuestionByCountryRespones
                     {
                         AssessmentID = assessment?.AssessmentID ?? 0,
-                        UserCityMappingID = request.UserCityMappingID,
+                        UserCountryMappingID = request.UserCountryMappingID,
                         PillarName = selectPillar.PillarName,
                         PillarID = selectPillar.PillarID,
                         Description = selectPillar.Description,
@@ -373,33 +373,33 @@ namespace HealthIntelligence.Services
                         SubmittedPillarDisplayOrder = answeredPillarIds.Count == 14 ? 14 : summitedPillar?.DisplayOrder ?? selectPillar.DisplayOrder,
                         Questions = questions
                     };
-                    return ResultResponseDto<GetPillarQuestionByCityRespones>.Success(result, new[] { "get questions successfully" });
+                    return ResultResponseDto<GetPillarQuestionByCountryRespones>.Success(result, new[] { "get questions successfully" });
                 }
                 return null;
 
             }
             catch (Exception ex)
             {
-                await _appLogger.LogAsync("Error Occure in GetQuestionsByCityIdAsync", ex);
-                return ResultResponseDto<GetPillarQuestionByCityRespones>.Failure(new string[] { "There is an error please try later" });
+                await _appLogger.LogAsync("Error Occure in GetQuestionsByCountryIdAsync", ex);
+                return ResultResponseDto<GetPillarQuestionByCountryRespones>.Failure(new string[] { "There is an error please try later" });
             }
         }
-        public async Task<Tuple<string, byte[]>> ExportAssessment(int userCityMappingID)
+        public async Task<Tuple<string, byte[]>> ExportAssessment(int userCountryMappingID)
         {
             try
             {
 
-                var fileName = (from m in _context.UserCityMappings
-                                join c in _context.Cities on m.CityID equals c.CityID
+                var fileName = (from m in _context.UserCountryMappings
+                                join c in _context.Countries on m.CountryID equals c.CountryID
                                 join u in _context.Users on m.UserID equals u.UserID 
-                                where m.UserCityMappingID == userCityMappingID
+                                where m.UserCountryMappingID == userCountryMappingID
                                 select new
                                 {
-                                    CityName = c.CityName,
+                                    CountryName = c.CountryName,
                                     FullName = u.FullName
                                 }).FirstOrDefault();
 
-                var sheetName = fileName?.CityName + "_" + fileName?.FullName;
+                var sheetName = fileName?.CountryName + "_" + fileName?.FullName;
 
                 // Get next unanswered pillar
                 var nextPillars = await _context.Pillars
@@ -411,10 +411,10 @@ namespace HealthIntelligence.Services
                 var pillarAssessments = _context.Assessments
                     .Include(x=>x.PillarAssessments)
                     .ThenInclude(x=>x.Responses)
-                    .Where(a => a.UserCityMappingID == userCityMappingID && a.IsActive && a.UpdatedAt.Year == year)
+                    .Where(a => a.UserCountryMappingID == userCountryMappingID && a.IsActive && a.UpdatedAt.Year == year)
                     .SelectMany(x => x.PillarAssessments).ToList();
 
-                var byteArray = MakePillarSheetClientReadable_Updated(nextPillars, pillarAssessments, userCityMappingID, fileName);
+                var byteArray = MakePillarSheetClientReadable_Updated(nextPillars, pillarAssessments, userCountryMappingID, fileName);
 
                 return new(sheetName, byteArray);
             }
@@ -442,7 +442,7 @@ namespace HealthIntelligence.Services
         // ── Row layout constants ─────────────────────────────────────
         // Row 1  : Title bar
         // Row 2  : Pillar name
-        // Row 3  : City / Year
+        // Row 3  : Country / Year
         // Row 4  : Evaluator
         // Row 5  : (thin gap)
         // Row 6  : Pillar description
@@ -477,8 +477,8 @@ namespace HealthIntelligence.Services
         private byte[] MakePillarSheetClientReadable_Updated(
             List<Pillar> pillars,
             List<PillarAssessment> pillarAssessments,
-            int userCityMappingID,
-            dynamic? cityUser)
+            int userCountryMappingID,
+            dynamic? CountryUser)
         {
             using var workbook = new XLWorkbook();
 
@@ -501,7 +501,7 @@ namespace HealthIntelligence.Services
 
                 // ── Row 1 : Title ─────────────────────────────────────
                 var title = ws.Range("A1:D1").Merge();
-                title.Value = "VERIDIAN URBAN INDEX — CITY ASSESSMENT";
+                title.Value = "VERIDIAN URBAN INDEX — COUNTRY ASSESSMENT";
                 title.Style.Font.Bold = true;
                 title.Style.Font.FontSize = 13;
                 title.Style.Font.FontColor = XLColor.White;
@@ -521,12 +521,12 @@ namespace HealthIntelligence.Services
                 ws.Row(2).Height = 20;
 
                 // ── Rows 3-4 : Meta ───────────────────────────────────
-                ws.Cell(3, 1).Value = "City:";
-                ws.Cell(3, 2).Value = cityUser?.CityName?.ToString() ?? "";
+                ws.Cell(3, 1).Value = "Country:";
+                ws.Cell(3, 2).Value = CountryUser?.CountryName?.ToString() ?? "";
                 ws.Cell(3, 3).Value = "Year:";
                 ws.Cell(3, 4).Value = DateTime.Now.Year;
                 ws.Cell(4, 1).Value = "Evaluator:";
-                ws.Cell(4, 2).Value = cityUser?.FullName?.ToString() ?? "";
+                ws.Cell(4, 2).Value = CountryUser?.FullName?.ToString() ?? "";
 
                 foreach (int r in new[] { 3, 4 })
                 {
@@ -748,7 +748,7 @@ namespace HealthIntelligence.Services
                     ws.Row(sourceRow).Height = 25;
 
                     // Hidden IDs (cols K–O = 11–15)
-                    ws.Cell(sourceRow, 11).Value = userCityMappingID;
+                    ws.Cell(sourceRow, 11).Value = userCountryMappingID;
                     ws.Cell(sourceRow, 12).Value = pillar.PillarID;
                     ws.Cell(sourceRow, 13).Value = q.QuestionID;
                     ws.Cell(sourceRow, 14).Value = ans.QuestionOptionID;
@@ -871,7 +871,7 @@ namespace HealthIntelligence.Services
 
             return safeName;
         }
-        public async Task<ResultResponseDto<List<QuestionsByUserPillarsResponsetDto>>> GetQuestionsHistoryByPillar(GetCityPillarHistoryRequestDto requestDto)
+        public async Task<ResultResponseDto<List<QuestionsByUserPillarsResponsetDto>>> GetQuestionsHistoryByPillar(GetCountryPillarHistoryRequestDto requestDto)
         {
             try
             {
@@ -905,8 +905,8 @@ namespace HealthIntelligence.Services
                 // =========================
                 // 2. USER MAPPINGS
                 // =========================
-                var userMappings = await _context.UserCityMappings
-                    .Where(x => x.CityID == requestDto.CityID
+                var userMappings = await _context.UserCountryMappings
+                    .Where(x => x.CountryID == requestDto.CountryID
                                 && !x.IsDeleted
                                 && (x.AssignedByUserId == requestDto.UserID
                                     || x.UserID == requestDto.UserID
@@ -914,23 +914,23 @@ namespace HealthIntelligence.Services
                     .AsNoTracking()
                     .ToListAsync();
 
-                var mappingIds = userMappings.Select(x => x.UserCityMappingID).ToList();
+                var mappingIds = userMappings.Select(x => x.UserCountryMappingID).ToList();
 
                 // =========================
                 // 3. ASSESSMENTS
                 // =========================
                 var assessments = await _context.Assessments
-                    .Include(x => x.UserCityMapping)
+                    .Include(x => x.UserCountryMapping)
                     .Include(a => a.PillarAssessments
                         .Where(pa => pa.PillarID == requestDto.PillarID))
                     .ThenInclude(pa => pa.Responses)
-                    .Where(a => mappingIds.Contains(a.UserCityMappingID)
+                    .Where(a => mappingIds.Contains(a.UserCountryMappingID)
                                 && a.IsActive
                                 && a.UpdatedAt.Year == year)
                     .AsNoTracking()
                     .ToListAsync();
 
-                var userIds = assessments.Select(x => x.UserCityMapping.UserID).Distinct().ToList();
+                var userIds = assessments.Select(x => x.UserCountryMapping.UserID).Distinct().ToList();
 
                 // =========================
                 // 4. USERS DICTIONARY
@@ -944,7 +944,7 @@ namespace HealthIntelligence.Services
                 // 5. USER RESPONSES
                 // =========================
                 var responsesByUser = assessments
-                    .GroupBy(a => a.UserCityMapping.UserID)
+                    .GroupBy(a => a.UserCountryMapping.UserID)
                     .ToDictionary(
                         g => g.Key,
                         g => g.SelectMany(a => a.PillarAssessments)
@@ -956,7 +956,7 @@ namespace HealthIntelligence.Services
                 // 6. AI DATA (NEW)
                 // =========================
                 var aiRaw = await _context.AIEstimatedQuestionScores
-                    .Where(x => x.CityID == requestDto.CityID
+                    .Where(x => x.CountryID == requestDto.CountryID
                                 && x.PillarID == requestDto.PillarID
                                 && x.Year == year)
                     .ToListAsync();
@@ -1052,17 +1052,17 @@ namespace HealthIntelligence.Services
         }
 
 
-        public async Task<ResultResponseDto<GetPillarQuestionByCityRespones>> GetQuestionsByCityMappingIdForAnalyst(
-            CityPillerRequestDto request, int userId)
+        public async Task<ResultResponseDto<GetPillarQuestionByCountryRespones>> GetQuestionsByCountryMappingIdForAnalyst(
+            CountryPillerRequestDto request, int userId)
         {
             try
             {
-                var userCityMappings = await _context.UserCityMappings
-                    .FirstOrDefaultAsync(x => x.UserCityMappingID == request.UserCityMappingID
+                var userCountryMappings = await _context.UserCountryMappings
+                    .FirstOrDefaultAsync(x => x.UserCountryMappingID == request.UserCountryMappingID
                                            && x.UserID == userId
                                            && !x.IsDeleted);
 
-                if (userCityMappings == null)
+                if (userCountryMappings == null)
                     return null;
 
                 var year = DateTime.Now.Year;
@@ -1071,7 +1071,7 @@ namespace HealthIntelligence.Services
                 var assessment = await _context.Assessments
                     .Include(x => x.PillarAssessments)
                         .ThenInclude(x => x.Responses)
-                    .Where(a => a.UserCityMappingID == request.UserCityMappingID
+                    .Where(a => a.UserCountryMappingID == request.UserCountryMappingID
                              && a.UpdatedAt.Year == year
                              && a.IsActive)
                     .FirstOrDefaultAsync();
@@ -1099,8 +1099,8 @@ namespace HealthIntelligence.Services
                     .FirstOrDefaultAsync();
 
                 if (selectPillar?.Questions == null)
-                    return ResultResponseDto<GetPillarQuestionByCityRespones>.Failure(
-                        new[] { "You have submitted assessment for this city" });
+                    return ResultResponseDto<GetPillarQuestionByCountryRespones>.Failure(
+                        new[] { "You have submitted assessment for this country" });
 
                 // Build lookup for existing responses for the selected pillar
                 var editAssessmentResponse = assessment?.PillarAssessments
@@ -1144,15 +1144,15 @@ namespace HealthIntelligence.Services
                         };
                     }).ToList();
 
-                // Load city-level user mappings assigned by this analyst
-                var userCityMappingsList = await _context.UserCityMappings
-                    .Where(x => x.CityID == userCityMappings.CityID
-                             && x.AssignedByUserId == userCityMappings.UserID)
+                // Load country-level user mappings assigned by this analyst
+                var userCountryMappingsList = await _context.UserCountryMappings
+                    .Where(x => x.CountryID == userCountryMappings.CountryID
+                             && x.AssignedByUserId == userCountryMappings.UserID)
                     .AsNoTracking()
                     .ToListAsync();
 
-                var mappingIds = userCityMappingsList.Select(x => x.UserCityMappingID).ToList();
-                var userIds = userCityMappingsList.Select(x => x.UserID).ToList();
+                var mappingIds = userCountryMappingsList.Select(x => x.UserCountryMappingID).ToList();
+                var userIds = userCountryMappingsList.Select(x => x.UserID).ToList();
 
                 var users = await _context.Users
                     .Where(x => userIds.Contains(x.UserID))
@@ -1161,7 +1161,7 @@ namespace HealthIntelligence.Services
 
                 // Load analyst responses for this pillar
                 var analystResponses = await _context.Assessments
-                    .Where(a => mappingIds.Contains(a.UserCityMappingID)
+                    .Where(a => mappingIds.Contains(a.UserCountryMappingID)
                              && a.IsActive
                              && a.UpdatedAt.Year == year)
                     .SelectMany(a => a.PillarAssessments
@@ -1170,7 +1170,7 @@ namespace HealthIntelligence.Services
                             .Where(r => r != null)
                             .Select(r => new HistoryQuestionAnswerRawDto
                             {
-                                UserID = a.UserCityMapping.UserID,
+                                UserID = a.UserCountryMapping.UserID,
                                 QuestionID = r.QuestionID,
                                 OptionID = r.QuestionOptionID,
                                 ScoreValue = (int?)r.Score,
@@ -1187,7 +1187,7 @@ namespace HealthIntelligence.Services
 
                 // Load AI estimated scores for this pillar
                 var aiRawData = await _context.AIEstimatedQuestionScores
-                    .Where(x => x.CityID == userCityMappings.CityID
+                    .Where(x => x.CountryID == userCountryMappings.CountryID
                              && x.PillarID == selectPillar.PillarID
                              && x.Year == year)
                     .AsNoTracking()
@@ -1228,10 +1228,10 @@ namespace HealthIntelligence.Services
                     }
                 }
 
-                var result = new GetPillarQuestionByCityRespones
+                var result = new GetPillarQuestionByCountryRespones
                 {
                     AssessmentID = assessment?.AssessmentID ?? 0,
-                    UserCityMappingID = request.UserCityMappingID,
+                    UserCountryMappingID = request.UserCountryMappingID,
                     PillarName = selectPillar.PillarName,
                     PillarID = selectPillar.PillarID,
                     Description = selectPillar.Description,
@@ -1242,13 +1242,13 @@ namespace HealthIntelligence.Services
                     Questions = questions
                 };
 
-                return ResultResponseDto<GetPillarQuestionByCityRespones>.Success(
+                return ResultResponseDto<GetPillarQuestionByCountryRespones>.Success(
                     result, new[] { "get questions successfully" });
             }
             catch (Exception ex)
             {
-                await _appLogger.LogAsync("Error Occure in GetQuestionsByCityIdAsync", ex);
-                return ResultResponseDto<GetPillarQuestionByCityRespones>.Failure(
+                await _appLogger.LogAsync("Error Occure in GetQuestionsByCountryIdAsync", ex);
+                return ResultResponseDto<GetPillarQuestionByCountryRespones>.Failure(
                     new[] { "There is an error please try later" });
             }
         }
