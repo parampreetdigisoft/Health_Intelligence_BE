@@ -1,4 +1,4 @@
-﻿using System.Threading.Channels;
+using System.Threading.Channels;
 
 namespace HealthIntelligence.Backgroundjob
 {
@@ -8,9 +8,9 @@ namespace HealthIntelligence.Backgroundjob
 
         public ChannelService()
         {
-            var options = new BoundedChannelOptions(10000) // Limit to prevent memory overflow
+            var options = new BoundedChannelOptions(10000) 
             {
-                FullMode = BoundedChannelFullMode.DropOldest, // Drop old logs if full
+                FullMode = BoundedChannelFullMode.DropOldest, 
                 SingleReader = true,
                 SingleWriter = false
             };

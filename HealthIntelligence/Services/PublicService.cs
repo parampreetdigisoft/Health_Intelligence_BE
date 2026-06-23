@@ -1,4 +1,7 @@
-﻿using HealthIntelligence.Common.Implementation;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using HealthIntelligence.Common.Implementation;
 using HealthIntelligence.Common.Interface;
 using HealthIntelligence.Common.Models;
 using HealthIntelligence.Data;
@@ -6,9 +9,6 @@ using HealthIntelligence.Dtos.chatDto;
 using HealthIntelligence.Dtos.CommonDto;
 using HealthIntelligence.Dtos.PublicDto;
 using HealthIntelligence.IServices;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using System.Text.Json;
 
 namespace HealthIntelligence.Services
@@ -22,9 +22,15 @@ namespace HealthIntelligence.Services
         private readonly IMemoryCache _cache;
         private readonly ICommonService _commonService;
         private readonly IAIAnalyzeService _aIAnalyzeService;
-
-        public PublicService(ApplicationDbContext context, IAppLogger appLogger, IWebHostEnvironment env, 
-            IMemoryCache cache, ICommonService commonService, IAIAnalyzeService aIAnalyzeService)
+        private readonly IConfiguration _configuration;
+        public PublicService(
+            ApplicationDbContext context,
+            IAppLogger appLogger,
+            IWebHostEnvironment env,
+            IMemoryCache cache,
+            ICommonService commonService,
+            IAIAnalyzeService aIAnalyzeService,
+            IConfiguration configuration)
         {
             _context = context;
             _appLogger = appLogger;
@@ -32,20 +38,20 @@ namespace HealthIntelligence.Services
             _cache = cache;
             _commonService = commonService;
             _aIAnalyzeService = aIAnalyzeService;
+            _configuration = configuration;
         }
-        public async Task<ResultResponseDto<List<PartnerCountryResponseDto>>> GetAllCountries()
+        public async Task<ResultResponseDto<List<PartnerCountryResponseDto>>> getAllCountries()
         {
             try
             {
                 var result = await _context.Countries.Where(c => c.IsActive && !c.IsDeleted).
                  Select(c => new PartnerCountryResponseDto
                  {
-                     CountryID = c.CountryID,
-                     Continent = c.Continent,
+                     CountryID = c.CountryID,                     
                      CountryName = c.CountryName,
                      CountryCode = c.CountryCode,
-                     Region = c.Region,
-                     Country = c.CountryName
+                     Continent = c.Continent,
+                     
                  }).OrderBy(x => x.CountryName).ToListAsync();
 
                 return ResultResponseDto<List<PartnerCountryResponseDto>>.Success(result, new string[] { "get All Countries successfully" });
@@ -60,29 +66,24 @@ namespace HealthIntelligence.Services
         {
             try
             {
-                // Fetch all active countries once
+                // Fetch all active Countries once
                 var activeCountries = await _context.Countries
                     .Where(x => !x.IsDeleted)
                     .ToListAsync();
 
                 var res = new PartnerCountryFilterResponse
                 {
-                    //Countries = activeCountries
-                    //    .Select(x => new
-                    //    {
-                    //        x.CountryID,
-                    //        x.CountryName
-                    //    })
-                    //    .Distinct()
-                    //    .ToList(),
-
-                    Countries = activeCountries
-                        .Select(x => new PartnerCountryDto
-                        {
-                            CountryID = x.CountryID,
-                            CountryName = x.CountryName
-                        })
+                    Countries = activeCountries.Select(x=>x.CountryName)
+                        .Distinct()
                         .ToList(),
+
+                    //Countries = activeCountries
+                    //    .Select(x => new PartnerCountryDto
+                    //    {
+                    //        CountryID = x.CountryID,
+                    //        CountryName = x.CountryName
+                    //    })
+                    //    .ToList(),
 
                     Regions = activeCountries
                         .Select(x => x.Region)
@@ -100,7 +101,7 @@ namespace HealthIntelligence.Services
             {
                 await _appLogger.LogAsync("Error Occured in GetPartnerCountriesFilterRecord", ex);
                 return ResultResponseDto<PartnerCountryFilterResponse>.Failure(
-                    new string[] { "Failed to get Partner Country filter data" }
+                    new string[] { "Failed to get Partner country filter data" }
                 );
             }
         }
@@ -134,7 +135,7 @@ namespace HealthIntelligence.Services
                 var year = DateTime.Now.Year;
 
 
-                var countryQuery =
+                var cityQuery =
                    from c in _context.Countries.Where(x => !request.CountryID.HasValue || x.CountryID == request.CountryID)
                    join uc in _context.UserCountryMappings on c.CountryID equals uc.CountryID into ucg
                    from uc in ucg.DefaultIfEmpty()
@@ -150,7 +151,7 @@ namespace HealthIntelligence.Services
                     (a == null || a.UpdatedAt.Year == year) 
                    group r by new
                    {
-                       c.CountryID,
+                       c.CountryID,                       
                        c.CountryCode,
                        c.Image,
                        c.Continent,
@@ -176,16 +177,16 @@ namespace HealthIntelligence.Services
 
                 if (!string.IsNullOrWhiteSpace(request.Country))
                 {
-                    countryQuery = countryQuery.Where(c => c.Country.Contains(request.Country));
+                    cityQuery = cityQuery.Where(c => c.CountryName.Contains(request.Country));
                 }
 
                 // Only filter by Region if a value is provided
                 if (!string.IsNullOrWhiteSpace(request.Region))
                 {
-                    countryQuery = countryQuery.Where(c => c.Region != null && c.Region.Contains(request.Region));
+                    cityQuery = cityQuery.Where(c => c.Region != null && c.Region.Contains(request.Region));
                 }
 
-                var response = await countryQuery.ApplyPaginationAsync(request);
+                var response = await cityQuery.ApplyPaginationAsync(request);
 
                 return response;
 
@@ -197,13 +198,13 @@ namespace HealthIntelligence.Services
             }
         }
 
-        public async Task<CountryCityResponse> GetCountriesAndCities_WithStaleSupport()
+        public async Task<CountryCityResponse> GetCountriesAndCountries_WithStaleSupport()
         {
             try
             {
                 string jsonFilePath = Path.Combine(_env.WebRootPath, "data\\countries_cache.json");
                 if (!File.Exists(jsonFilePath))
-                    return new CountryCityResponse(); // ✅ NEVER return null
+                    return new CountryCityResponse(); // ? NEVER return null
 
                 var json = await File.ReadAllTextAsync(jsonFilePath);
 
@@ -213,42 +214,74 @@ namespace HealthIntelligence.Services
             }
             catch (Exception ex)
             {
-                // ✅ Optional: log error
+                // ? Optional: log error
                 // _logger.LogError(ex, "Failed to load country-city file");
 
-                return new CountryCityResponse(); // ✅ Safe fallback
+                return new CountryCityResponse(); // ? Safe fallback
             }
         }
 
         public async Task<ResultResponseDto<List<PromotedPillarsResponseDto>>> GetPromotedCountries()
         {
-            const string cacheKey = "PromotedCities";
+            const string cacheKey = "GetPromotedCountries";
 
             try
             {
-                // ✅ Try get from cache
                 if (_cache.TryGetValue(cacheKey, out List<PromotedPillarsResponseDto> cachedData))
                 {
                     return ResultResponseDto<List<PromotedPillarsResponseDto>>.Success(
                         cachedData,
-                        new List<string> { "Promoted countries fetched successfully" }
-                    );
+                        new List<string> { "Promoted Countries fetched successfully" });
                 }
 
-                int currentYear = DateTime.Now.Year;
+                int currentYear = DateTime.UtcNow.Year;
 
-                var admin = await _context.Users.FirstOrDefaultAsync(x => x.Role == Models.UserRole.Admin);
+                var admin = await _context.Users
+                    .AsNoTracking()
+                    .Where(x => x.Role == Models.UserRole.Admin)
+                    .Select(x => new
+                    {
+                        x.UserID,
+                        x.Role
+                    })
+                    .FirstOrDefaultAsync();
 
+                int userId = admin?.UserID ?? 0;
                 int role = (int)(admin?.Role ?? Models.UserRole.Admin);
 
-                var pillarScores = await _commonService.GetCountriesProgressAsync(admin?.UserID ?? 0, role, currentYear);
+                var pillarScores = await _commonService.GetCountriesProgressAsync(userId, role, currentYear);
 
+                int[] selectedPillars = { 1, 4, 7, 15, 22 };
+                pillarScores = pillarScores.Where(x => selectedPillars.Contains(x.PillarID)).ToList();
+
+                var topCountriesByPillar = pillarScores
+                    .GroupBy(x => x.PillarID)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.OrderByDescending(y => y.ScoreProgress)
+                              .Take(3)
+                              .ToList()
+                    );
+
+                var countryIds = topCountriesByPillar
+                    .SelectMany(x => x.Value)
+                    .Select(x => x.CountryID)
+                    .Distinct()
+                    .ToList();
+
+                var scoreLookup = pillarScores
+                    .GroupBy(x => new { x.CountryID, x.PillarID })
+                    .ToDictionary(
+                        g => (g.Key.CountryID, g.Key.PillarID),
+                        g => g.First().ScoreProgress
+                    );
 
                 var result = await _context.AIPillarScores
-                    .Include(x => x.Country)
-                    .Include(x => x.Pillar)
+                    .AsNoTracking()
                     .Where(x =>
                         x.Year == currentYear &&
+                        countryIds.Contains(x.CountryID) &&
+                        selectedPillars.Contains(x.PillarID) &&
                         x.Country.IsActive &&
                         !x.Country.IsDeleted)
                     .GroupBy(x => new
@@ -264,36 +297,124 @@ namespace HealthIntelligence.Services
                         PillarName = g.Key.PillarName,
                         DisplayOrder = g.Key.DisplayOrder,
                         ImagePath = g.Key.ImagePath,
+
                         Countries = g
                             .OrderByDescending(x => x.AIProgress)
-                            .Take(3)
                             .Select(c => new PromotedCountryResponseDto
                             {
                                 CountryID = c.CountryID,
-                                CountryName = c.Country.CountryName,                                
-                                Continent = c.Country.Continent,
+                                CountryName = c.Country.CountryName,
                                 CountryCode = c.Country.CountryCode,
+                                Continent = c.Country.Continent,
                                 Region = c.Country.Region,
                                 Image = c.Country.Image,
-                                ScoreProgress = c.AIProgress,
                                 Description = c.EvidenceSummary,
-                            }).ToList()
+                                ScoreProgress = 0 
+                            })
+                            .ToList()
                     })
-                    .OrderBy(p => p.DisplayOrder)
+                    .OrderBy(x => x.DisplayOrder)
                     .ToListAsync();
 
                 foreach (var pillar in result)
                 {
                     foreach (var country in pillar.Countries)
                     {
-                        var score = pillarScores
-                            .Where(s => s.CountryID == country.CountryID && s.PillarID == pillar.PillarID)
-                            .Select(s => s.ScoreProgress)
-                            .FirstOrDefault();
-                        country.ScoreProgress = score;
+                        if (scoreLookup.TryGetValue(
+                            (country.CountryID, pillar.PillarID),
+                            out var score))
+                        {
+                            country.ScoreProgress = score;
+                        }
                     }
-                    pillar.Countries = pillar.Countries.OrderByDescending(c => c.ScoreProgress).ToList();
+
+                    pillar.Countries = pillar.Countries
+                        .OrderByDescending(x => x.ScoreProgress)
+                        .Take(3)
+                        .ToList();
                 }
+
+                _cache.Set(cacheKey, result, new MemoryCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5),
+                    SlidingExpiration = TimeSpan.FromMinutes(2),
+                    Priority = CacheItemPriority.High
+                });
+
+                return ResultResponseDto<List<PromotedPillarsResponseDto>>.Success(
+                    result,
+                    new List<string> { "Promoted Countries fetched successfully" });
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("Error Occurred in GetPromotedCountries", ex);
+
+                return ResultResponseDto<List<PromotedPillarsResponseDto>>.Failure(
+                    new[] { "Failed to get promoted Countries" });
+            }
+        }
+
+        public async Task<ResultResponseDto<List<PillarDmiResultDto>>> GetPillarsDmi()
+        {
+            const string cacheKey = "GetPillarsDmi";
+
+            try
+            {
+                // ? Try get from cache
+                if (_cache.TryGetValue(cacheKey, out List<PillarDmiResultDto> cachedData))
+                {
+                    return ResultResponseDto<List<PillarDmiResultDto>>.Success(
+                        cachedData,
+                        new List<string> { "Pillars Dmi fetched successfully" }
+                    );
+                }
+
+                int currentYear = DateTime.Now.Year;
+
+                var data = await _context.AiPillarStatsLast4MonthsView
+                     .AsNoTracking()
+                     .ToListAsync();
+
+                var pillars = await _context.Pillars
+                     .AsNoTracking()
+                     .ToDictionaryAsync(x => x.PillarID);
+
+                var result = data
+                    .GroupBy(x => new { x.PillarID })
+                    .Select(g =>
+                    {
+                        var pillar = pillars.GetValueOrDefault(g.Key.PillarID);
+
+                        var ordered = g.OrderByDescending(x => x.MonthNo).ToList();
+
+                        var m = ordered.Select(g => g.MonthNo).Distinct().ToList();
+
+                        decimal p_t = m.Count > 0 ? ordered.Where(x=>x.MonthNo == m.ElementAtOrDefault(0)).Average(x=>x.ScoreProgress) : 0m;
+                        decimal p_t1 = m.Count > 1 ? ordered.Where(x => x.MonthNo == m.ElementAtOrDefault(1)).Average(x => x.ScoreProgress) : 0m;
+                        decimal p_t2 = m.Count > 2 ? ordered.Where(x => x.MonthNo == m.ElementAtOrDefault(2)).Average(x => x.ScoreProgress) : 0m;
+                        decimal p_t3 = m.Count > 3 ? ordered.Where(x => x.MonthNo == m.ElementAtOrDefault(3)).Average(x => x.ScoreProgress) : 0m;
+
+
+                        decimal dmi =
+                        (
+                            (0.5m * (p_t - p_t1)) +
+                            (0.3m * (p_t1 - p_t2)) +
+                            (0.2m * (p_t2 - p_t3))
+                        ) / 20m;
+
+                        dmi = Math.Max(-1m, Math.Min(1m, dmi));
+
+                        return new PillarDmiResultDto
+                        {
+                            PillarID = g.Key.PillarID,
+                            PillarName = pillar?.PillarName ?? "",
+                            DisplayOrder = pillar?.DisplayOrder ?? 0,
+                            Angle = dmi * 180,
+                            PEMDM_t = dmi
+                        };
+                    })
+                    .OrderBy(x => x.PillarID)
+                    .ToList();
 
                 _cache.Set(cacheKey, result, new MemoryCacheEntryOptions
                 {
@@ -302,34 +423,116 @@ namespace HealthIntelligence.Services
                     Priority = CacheItemPriority.High
                 });
 
-                return ResultResponseDto<List<PromotedPillarsResponseDto>>.Success(
+                return ResultResponseDto<List<PillarDmiResultDto>>.Success(
                     result,
-                    new List<string> { "Promoted countries fetched successfully" }
+                    new List<string> { "Pillars Dmi fetched successfully" }
                 );
             }
             catch (Exception ex)
             {
-                await _appLogger.LogAsync("Error Occurred in GetPromotedCountries", ex);
-                return ResultResponseDto<List<PromotedPillarsResponseDto>>.Failure(
-                    new[] { "Failed to get promoted countries" }
+                await _appLogger.LogAsync("Error Occurred in GetPillarsDmi", ex);
+                return ResultResponseDto<List<PillarDmiResultDto>>.Failure(
+                    new[] { "Failed to get promoted pillars" }
                 );
             }
+        }
+
+        private static string EmergingTrendsCacheKey(int countryCount) =>
+            $"EmergingTrendsAndIssues_{countryCount}";
+
+        private static string EmergingTrendsStaleCacheKey(int countryCount) =>
+            $"EmergingTrendsAndIssues_Stale_{countryCount}";
+
+        private TimeSpan EmergingTrendsCacheDuration =>
+            TimeSpan.FromHours(_configuration.GetValue("EmergingTrendsCache:CacheExpirationHours", 12));
+
+        private TimeSpan EmergingTrendsStaleCacheDuration =>
+            TimeSpan.FromHours(_configuration.GetValue("EmergingTrendsCache:StaleCacheExpirationHours", 168));
+
+        private bool TryGetEmergingTrendsFromCache(
+            int countryCount,
+            out EmergingTrendsResult? result,
+            bool allowStale = false)
+        {
+            result = null;
+
+            if (_cache.TryGetValue(EmergingTrendsCacheKey(countryCount), out EmergingTrendsResult? cached)
+                && cached?.Countries?.Count > 0)
+            {
+                result = cached;
+                return true;
+            }
+
+            if (allowStale
+                && _cache.TryGetValue(EmergingTrendsStaleCacheKey(countryCount), out EmergingTrendsResult? stale)
+                && stale?.Countries?.Count > 0)
+            {
+                result = stale;
+                return true;
+            }
+
+            return false;
+        }
+
+        private void SetEmergingTrendsCache(
+            int countryCount,
+            EmergingTrendsResult data,
+            bool updateStale = true)
+        {
+            var cacheOptions = new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = EmergingTrendsCacheDuration,
+                Priority = CacheItemPriority.NeverRemove
+            };
+
+            _cache.Set(EmergingTrendsCacheKey(countryCount), data, cacheOptions);
+
+            if (updateStale)
+            {
+                _cache.Set(
+                    EmergingTrendsStaleCacheKey(countryCount),
+                    data,
+                    new MemoryCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = EmergingTrendsStaleCacheDuration,
+                        Priority = CacheItemPriority.NeverRemove
+                    }
+                );
+            }
+        }
+
+        private bool PreserveEmergingTrendsCacheOnRefreshFailure(int countryCount)
+        {
+            if (!TryGetEmergingTrendsFromCache(countryCount, out var stale, allowStale: true)
+                || stale == null)
+            {
+                return false;
+            }
+
+            SetEmergingTrendsCache(countryCount, stale, updateStale: false);
+            return true;
         }
 
         public async Task<ResultResponseDto<EmergingTrendsResult>> GetEmergingTrendsAndIssues(int countryCount)
         {
             try
             {
-                var cacheKey = EmergingTrendsCacheKey(countryCount);
+                countryCount = _configuration.GetValue("EmergingTrendsCache:CountryCount", 8);
 
-                if (_cache.TryGetValue(cacheKey, out EmergingTrendsResult cachedResult)
-                    && cachedResult?.Countries?.Count > 0)
+                if (TryGetEmergingTrendsFromCache(countryCount, out var cachedResult, allowStale: true)
+                    && cachedResult != null)
                 {
+                    var fromPrimary = _cache.TryGetValue(
+                        EmergingTrendsCacheKey(countryCount),
+                        out EmergingTrendsResult _);
+
                     return ResultResponseDto<EmergingTrendsResult>.Success(
                         cachedResult,
                         new List<string>
                         {
-                            "Emerging trends and issues fetched successfully from cache."
+                            fromPrimary
+                                ? "Emerging trends and issues fetched successfully from cache."
+                                : "Emerging trends and issues fetched successfully from last known data."
                         }
                     );
                 }
@@ -355,6 +558,96 @@ namespace HealthIntelligence.Services
                     }
                 );
             }
+        }
+
+        public async Task<bool> RefreshEmergingTrendsCacheAsync(
+            int countryCount,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                countryCount = _configuration.GetValue("EmergingTrendsCache:CountryCount", countryCount);
+
+                var enriched = await FetchAndEnrichEmergingTrendsAsync(countryCount, cancellationToken);
+
+                if (enriched?.Countries?.Count > 0)
+                {
+                    SetEmergingTrendsCache(countryCount, enriched);
+                    return true;
+                }
+
+                return PreserveEmergingTrendsCacheOnRefreshFailure(countryCount);
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync(
+                    "An error occurred while refreshing the emerging trends cache.",
+                    ex
+                );
+
+                return PreserveEmergingTrendsCacheOnRefreshFailure(countryCount);
+            }
+        }
+
+        private async Task<EmergingTrendsResult?> FetchAndEnrichEmergingTrendsAsync(
+            int countryCount,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _aIAnalyzeService.GetEmergingTrendsAndIssues(countryCount);
+
+            if (result == null || result.Success != true || result.Result == null)
+            {
+                return null;
+            }
+
+            if (result.Result.Countries == null || result.Result.Countries.Count == 0)
+            {
+                return null;
+            }
+
+            var countryCodes = result.Result.Countries
+                .Select(c => c.CountryCode?.Trim().ToLower())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToList();
+
+            var countries = result.Result.Countries
+                .Select(c => c.Country?.Trim().ToLower())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToList();
+
+            var countryLookup = await _context.Countries
+                .AsNoTracking()
+                .Where(c =>
+                    c.IsActive &&
+                    !c.IsDeleted &&
+                    (
+                        countryCodes.Contains(c.CountryCode.ToLower()) ||
+                        countries.Contains(c.CountryName.ToLower())
+                    ))
+                .Select(c => new
+                {
+                    CountryCode = c.CountryCode.ToLower(),
+                    CountryName = c.CountryName.ToLower(),
+                    c.Image,
+                    c.Region,
+                    c.Continent,
+                    c.CountryID
+                })
+                .ToListAsync(cancellationToken);
+
+            foreach (var trendCountry in result.Result.Countries)
+            {
+                var countryCode = trendCountry.CountryCode?.Trim().ToLower();
+                var countryName = trendCountry.Country?.Trim().ToLower();
+
+                var matchedCountry = countryLookup.FirstOrDefault(x =>
+                    x.CountryCode == countryCode ||
+                    x.CountryName == countryName);
+
+                trendCountry.ImagePath = matchedCountry?.Image ?? "";
+            }
+
+            return result.Result;
         }
 
         public async Task<ResultResponseDto<PillarLiveSignalsResult>> GetPillarLiveSignals()
@@ -447,64 +740,6 @@ namespace HealthIntelligence.Services
                 );
             }
         }
-
-        public async Task<bool> RefreshEmergingTrendsCacheAsync(
-            int countryCount,
-            CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                var enriched = await FetchAndEnrichEmergingTrendsAsync(countryCount, cancellationToken);
-
-                if (enriched == null || enriched.Countries == null || enriched.Countries.Count == 0)
-                {
-                    return false;
-                }
-
-                var cacheKey = EmergingTrendsCacheKey(countryCount);
-                _cache.Set(
-                    cacheKey,
-                    enriched,
-                    new MemoryCacheEntryOptions
-                    {
-                        AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(12),
-                        Priority = CacheItemPriority.High
-                    }
-                );
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                await _appLogger.LogAsync(
-                    "An error occurred while refreshing the emerging trends cache.",
-                    ex
-                );
-                return false;
-            }
-        }
-        private static string EmergingTrendsCacheKey(int countryCount) =>
-           $"EmergingTrendsAndIssues_{countryCount }";
-
-        private async Task<EmergingTrendsResult?> FetchAndEnrichEmergingTrendsAsync(
-            int countryCount,
-            CancellationToken cancellationToken = default)
-        {
-            var result = await _aIAnalyzeService.GetEmergingTrendsAndIssues(countryCount);
-
-            if (result == null || result.Success != true || result.Result == null)
-            {
-                return null;
-            }
-
-            if (result.Result.Countries == null || result.Result.Countries.Count == 0)
-            {
-                return null;
-            }            
-
-            return result.Result;
-        }
-
     }
 }
 
@@ -517,7 +752,7 @@ public class CountryCityResponse
 
 public class CountryData
 {
-    public string country { get; set; }
-    public List<string> countries { get; set; }
+    public string Country { get; set; }
+    public List<string> Countries { get; set; }
 }
 

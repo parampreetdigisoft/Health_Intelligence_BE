@@ -1,4 +1,4 @@
-﻿using HealthIntelligence.IServices;
+using HealthIntelligence.IServices;
 
 namespace HealthIntelligence.Backgroundjob
 {
@@ -32,7 +32,7 @@ namespace HealthIntelligence.Backgroundjob
                     using var scope = _serviceProvider.CreateScope();
                     var aiService = scope.ServiceProvider.GetRequiredService<IAIAnalyzeService>();
 
-                    //await aiService.RunEvery2HoursJob();
+                    await aiService.RunEvery2HoursJob();
                 }
                 catch (Exception ex)
                 {
@@ -40,6 +40,28 @@ namespace HealthIntelligence.Backgroundjob
                     Console.WriteLine(ex.Message);
                 }
             } while (await timer.WaitForNextTickAsync(token));
+        }
+
+        private async Task RunDaily(CancellationToken token)
+        {
+            var timer = new PeriodicTimer(TimeSpan.FromHours(24));
+
+            while (await timer.WaitForNextTickAsync(token))
+            {
+                try
+                {
+                    using var scope = _serviceProvider.CreateScope();
+
+                    var aiService = scope.ServiceProvider
+                        .GetRequiredService<IAIAnalyzeService>();
+
+                    await aiService.RunDailyJob();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+            }
         }
 
         private async Task RunEveryMonth(CancellationToken token)
@@ -62,27 +84,6 @@ namespace HealthIntelligence.Backgroundjob
                     var aiService = scope.ServiceProvider.GetRequiredService<IAIAnalyzeService>();
 
                    // await aiService.RunMonthlyJob();
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex.Message);
-                }
-            }
-        }
-        private async Task RunDaily(CancellationToken token)
-        {
-            var timer = new PeriodicTimer(TimeSpan.FromHours(24));
-
-            while (await timer.WaitForNextTickAsync(token))
-            {
-                try
-                {
-                    using var scope = _serviceProvider.CreateScope();
-
-                    var aiService = scope.ServiceProvider
-                        .GetRequiredService<IAIAnalyzeService>();
-
-                    await aiService.RunDailyJob();
                 }
                 catch (Exception ex)
                 {

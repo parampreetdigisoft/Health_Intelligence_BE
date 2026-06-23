@@ -1,18 +1,18 @@
-﻿using HealthIntelligence.Models;
+using HealthIntelligence.Models;
 
 namespace HealthIntelligence.Dtos.QuestionDto
 {
-    public class GetQuestionRespones : AddUpdateQuestionDto
+    public class GetQuestionResponse : AddUpdateQuestionDto
     {
         public int DisplayOrder { get; set; }
         public string PillarName { get; set; }
     }
-    public class GetQuestionByCountryRespones : GetQuestionRespones
+    public class GetQuestionByCountryResponse : GetQuestionResponse
     {
         public int AssessmentID { get; set; }
         public int PillarDisplayOrder { get; set; }
     }
-    public class GetPillarQuestionByCountryRespones 
+    public class GetPillarQuestionByCountryResponse 
     {
         public int AssessmentID { get; set; }
         public int UserCountryMappingID { get; set; }

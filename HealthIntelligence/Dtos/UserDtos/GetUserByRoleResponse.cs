@@ -1,9 +1,9 @@
-﻿using HealthIntelligence.Dtos.CountryDto;
+using HealthIntelligence.Dtos.CountryDto;
 
 namespace HealthIntelligence.Dtos.UserDtos
 {
     public class GetUserByRoleResponse : PublicUserResponse
     {
-        public List<AddUpdateCountryDto> countries { get; set; } = new();
+        public List<AddUpdateCountryDto> Countries { get; set; } = new();
     }
 }

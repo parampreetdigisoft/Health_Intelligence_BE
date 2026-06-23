@@ -1,4 +1,4 @@
-﻿using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.Dtos.CommonDto;
 
 namespace HealthIntelligence.Dtos.PublicDto
 {

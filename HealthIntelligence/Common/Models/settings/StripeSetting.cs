@@ -1,4 +1,4 @@
-﻿namespace HealthIntelligence.Common.Models.settings
+namespace HealthIntelligence.Common.Models.settings
 {
     public class StripeSetting
     {

@@ -1,16 +1,15 @@
-﻿
+
 
 namespace HealthIntelligence.Dtos.PublicDto
 {
     public class PartnerCountryResponseDto : PartnerCountryHistoryResponseDto
     {
-        public int CountryID { get; set; }        
+        public int CountryID { get; set; }
         public string Continent { get; set; }
+        public string State { get; set; }
         public string CountryName { get; set; }
         public string? CountryCode { get; set; }
         public string? Region { get; set; }
-
-        public string Country { get; set; }
         public string? Image { get; set; }
     }
 

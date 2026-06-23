@@ -1,9 +1,11 @@
-﻿using HealthIntelligence.Common.Interface;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using HealthIntelligence.Common.Interface;
+using HealthIntelligence.Common.Models.settings;
 using HealthIntelligence.Data;
 using HealthIntelligence.Dtos.CountryDto;
 using HealthIntelligence.IServices;
-using Microsoft.Data.SqlClient;
-using Microsoft.EntityFrameworkCore;
 
 namespace HealthIntelligence.Common.Implementation
 {
@@ -14,26 +16,31 @@ namespace HealthIntelligence.Common.Implementation
         private readonly ApplicationDbContext _context;
         private readonly IAppLogger _appLogger;
         private readonly IWebHostEnvironment _env;
-        public CommonService(ApplicationDbContext context, IAppLogger appLogger, IWebHostEnvironment env)
+        private readonly AppSettings _appSettings;
+        public CommonService(ApplicationDbContext context, IAppLogger appLogger, IWebHostEnvironment env, IOptions<AppSettings> appSettings)
         {
             _context = context;
             _appLogger = appLogger;
             _env = env;
+            _appSettings = appSettings.Value;
         }
         #endregion
 
+
         public static string InitailLineOfExecutiveSummery(
-          string evidenceSummary,
-          string? immediateSituationSummary,
-          decimal? progress,
-          string? countryName = "The country", int pillarCount = 14, int kpiCount = 110)
+            string evidenceSummary,
+            string? immediateSituationSummary,
+            decimal? progress,
+            string? countryName = "The country", int pillarCount = 23, int kpiCount = 37)
         {
             immediateSituationSummary = immediateSituationSummary ?? "";
 
-            var evidenceSummaryStaringLine = $"{countryName ?? "The country"} records an overall AHSIP score of {progress ?? 0}, reflecting performance across {pillarCount} pillars and {kpiCount} KPIs.";
+            var evidenceSummaryStaringLine= $"{countryName ?? "The country"} records an overall PEM score of {progress ?? 0}, reflecting performance across {pillarCount} pillars and {kpiCount} KPIs.";
 
             return immediateSituationSummary + "\n\n " + evidenceSummaryStaringLine + " " + evidenceSummary;
         }
+
+
         public async Task<List<EvaluationCountryProgressResultDto>> GetCountriesProgressAsync(int userId, int role, int year)
         {
             try
@@ -54,6 +61,27 @@ namespace HealthIntelligence.Common.Implementation
                 return new List<EvaluationCountryProgressResultDto>();
             }
         }
+
+        public async Task<List<CountryRankingResultDto>> GetCountriesRankings(int countryId, int year)
+        {
+            try
+            {
+                return await _context.CountryRankingResults
+                 .FromSqlRaw(
+                     "EXEC usp_getCountryRanking @countryId, @year",
+                     new SqlParameter("@countryId", countryId),
+                     new SqlParameter("@year", year)
+                 )
+                 .AsNoTracking()
+                 .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("Error in Executing usp_getCountryRanking", ex);
+                return new List<CountryRankingResultDto>();
+            }
+        }
+
         public async Task<List<EvaluationCountryProgressHistoryResultDto>> GetCountriesProgressHistoryAsync(int userId, int role, int fromYear, int toYear)
         {
             try
@@ -90,51 +118,5 @@ namespace HealthIntelligence.Common.Implementation
                 return new List<GetCountriesProgressAdminDto>();
             }
         }
-        public string ReplacePercentAcross(string input, int score)
-        {
-            const string target = " percent across";
-
-            int idx = input.IndexOf(target, StringComparison.OrdinalIgnoreCase);
-            if (idx == -1)
-                return input;
-
-            // Walk backward to find start of number
-            int start = idx - 1;
-            while (start >= 0 && char.IsDigit(input[start]))
-                start--;
-
-            start++; // move to first digit
-
-            // If no digits found, return original
-            if (start >= idx)
-                return input;
-
-            return string.Concat(
-                input.AsSpan(0, start),
-                score.ToString(),
-                input.AsSpan(idx)
-            );
-        }
-
-        public async Task<List<CountryRankingResultDto>> GetCountriesRankings(int countryId, int year)
-        {
-            try
-            {
-                return await _context.CountryRankingResultDto
-                 .FromSqlRaw(
-                     "EXEC usp_getCountryRanking @CountryId, @Year",
-                     new SqlParameter("@CountryId", countryId),
-                     new SqlParameter("@Year", year)
-                 )
-                 .AsNoTracking()
-                 .ToListAsync();
-            }
-            catch (Exception ex)
-            {
-                await _appLogger.LogAsync("Error in Executing usp_getCountryRanking", ex);
-                return new List<CountryRankingResultDto    >();
-            }
-        }
-
     }
 }

@@ -1,4 +1,4 @@
-﻿using HealthIntelligence.Dtos.PublicDto;
+using HealthIntelligence.Dtos.PublicDto;
 using HealthIntelligence.IServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,7 +19,7 @@ namespace HealthIntelligence.Controllers
         [HttpGet("getAllCountries")]
         public async Task<IActionResult> getAllCountries()
         {
-            var response = await _publicService.GetAllCountries();
+            var response = await _publicService.getAllCountries();
             return Ok(response);
         }
 
@@ -76,17 +76,24 @@ namespace HealthIntelligence.Controllers
                 return StatusCode(500, "Internal server error");
             }
         }
-        [HttpGet("countries-countries")]
-        public async Task<IActionResult> GetCountriesCities()
+        [HttpGet("countries-Countries")]
+        public async Task<IActionResult> GetCountriesCountries()
         {
-            var data = await _publicService.GetCountriesAndCities_WithStaleSupport();
+            var data = await _publicService.GetCountriesAndCountries_WithStaleSupport();
             return Ok(data);
         }
 
-        [HttpGet("promoted-countries")]
+        [HttpGet("promoted-Countries")]
         public async Task<IActionResult> GetPromotedCountries()
         {
             var data = await _publicService.GetPromotedCountries();
+            return Ok(data);
+        }
+
+        [HttpGet("getPillarsDmi")]
+        public async Task<IActionResult> GetPillarsDmi()
+        {
+            var data = await _publicService.GetPillarsDmi();
             return Ok(data);
         }
 

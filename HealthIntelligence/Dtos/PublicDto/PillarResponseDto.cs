@@ -1,4 +1,4 @@
-﻿namespace HealthIntelligence.Dtos.PublicDto
+namespace HealthIntelligence.Dtos.PublicDto
 {
     public class PillarResponseDto
     {

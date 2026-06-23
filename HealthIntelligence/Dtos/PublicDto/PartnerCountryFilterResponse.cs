@@ -1,10 +1,10 @@
-﻿namespace HealthIntelligence.Dtos.PublicDto
+namespace HealthIntelligence.Dtos.PublicDto
 {
     public class PartnerCountryFilterResponse
     {
-        public List<string> Cities { get; set; }
+        public List<string> Countries { get; set; }
         public List<string> Regions { get; set; }
-        public List<PartnerCountryDto> Countries { get; set; }
+        public List<PartnerCountryDto> Cities { get; set; }
     }
 
     public class PartnerCountryDto

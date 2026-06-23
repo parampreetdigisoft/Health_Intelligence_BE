@@ -1,4 +1,4 @@
-﻿using HealthIntelligence.Backgroundjob;
+using HealthIntelligence.Backgroundjob;
 using HealthIntelligence.Backgroundjob.logging;
 using HealthIntelligence.Common.Implementation;
 using HealthIntelligence.Common.Interface;
@@ -12,7 +12,7 @@ namespace HealthIntelligence.Common.DI
         public static IServiceCollection AddDependencyInjection(this IServiceCollection services)
         {
             services.AddHostedService<ChannelWorker>();
-            //services.AddHostedService<AiJobService>();
+            services.AddHostedService<AiJobService>();
             services.AddHostedService<EmergingTrendsCacheWorker>();
             services.AddScoped<Download>();
             services.AddHostedService<LogWorker>();
@@ -23,6 +23,7 @@ namespace HealthIntelligence.Common.DI
 
 
             services.AddScoped<IAIAnalyzeService, AIAnalyzeService>();
+            services.AddScoped<IChatService, ChatService>();
             services.AddScoped<IQuestionService, QuestionService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IPillarService, PillarService>();
@@ -31,17 +32,15 @@ namespace HealthIntelligence.Common.DI
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<ICountryUserService, CountryUserService>();
+            services.AddScoped<ISignalDashboardService, SignalDashboardService>();
             services.AddScoped<IPaymentService, PaymentService>();
             services.AddScoped<IPublicService, PublicService>();
             services.AddScoped<IKpiService, KpiService>();
             services.AddScoped<IAIComputationService, AIComputationService>();
             services.AddScoped<ICommonService, CommonService>();
-            services.AddScoped<IBlogService, BlogService>();
-            services.AddScoped<IPdfGeneratorService, PdfGeneratorService>();
+            services.AddScoped<Interface.IPdfGeneratorService, Implementation.PdfGeneratorService>();
             services.AddScoped<IDocxGeneratorService, DocxGeneratorService>();
             services.AddScoped<IDocumentGeneratorService, DocumentGeneratorService>();
-            services.AddScoped<IChatService, ChatService>();
-
             return services;
         }
     }

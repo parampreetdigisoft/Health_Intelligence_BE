@@ -1,13 +1,15 @@
-﻿using HealthIntelligence.Common.Implementation;
+using ClosedXML.Excel;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using HealthIntelligence.Common.Implementation;
 using HealthIntelligence.Common.Models;
+using HealthIntelligence.Common.Models.settings;
 using HealthIntelligence.Data;
 using HealthIntelligence.Dtos.AssessmentDto;
 using HealthIntelligence.Dtos.CommonDto;
 using HealthIntelligence.Dtos.QuestionDto;
 using HealthIntelligence.IServices;
 using HealthIntelligence.Models;
-using ClosedXML.Excel;
-using Microsoft.EntityFrameworkCore;
 using System.Text;
 namespace HealthIntelligence.Services
 {
@@ -15,10 +17,12 @@ namespace HealthIntelligence.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly IAppLogger _appLogger;
-        public QuestionService(ApplicationDbContext context, IAppLogger appLogger)
+        private readonly AppSettings _appSettings;
+        public QuestionService(ApplicationDbContext context, IAppLogger appLogger, IOptions<AppSettings> appSettings)
         {
             _context = context;
             _appLogger = appLogger;
+            _appSettings = appSettings.Value;
         }
 
         public async Task<List<Pillar>> GetPillarsAsync()
@@ -34,7 +38,7 @@ namespace HealthIntelligence.Services
             }
         }
 
-        public async Task<PaginationResponse<GetQuestionRespones>> GetQuestionsAsync(GetQuestionRequestDto request)
+        public async Task<PaginationResponse<GetQuestionResponse>> GetQuestionsAsync(GetQuestionRequestDto request)
         {
             try
             {
@@ -43,8 +47,8 @@ namespace HealthIntelligence.Services
                     .Include(q => q.Pillar)
                     .Include(o => o.QuestionOptions)
                 where !q.IsDeleted
-                   && (!request.PillarID.HasValue || q.PillarID == request.PillarID.Value)
-                select new GetQuestionRespones
+                   && (!request.PillarID.HasValue || q.PillarID == request.PillarID.Value)                
+                select new GetQuestionResponse
                 {
                     QuestionID = q.QuestionID,
                     QuestionText = q.QuestionText,
@@ -61,7 +65,7 @@ namespace HealthIntelligence.Services
             catch (Exception ex)
             {
                 await _appLogger.LogAsync("Error Occure in GetQuestionsAsync", ex);
-                return new PaginationResponse<GetQuestionRespones>();
+                return new PaginationResponse<GetQuestionResponse>();
             }
         }
 
@@ -282,7 +286,7 @@ namespace HealthIntelligence.Services
                 return ResultResponseDto<string>.Failure(new string[] { "There is an error please try later" });
             }
         }
-        public async Task<ResultResponseDto<GetPillarQuestionByCountryRespones>> GetQuestionsByCountryIdAsync(CountryPillerRequestDto request, int userId)
+        public async Task<ResultResponseDto<GetPillarQuestionByCountryResponse>> GetQuestionsByCountryIdAsync(CountryPillerRequestDto request, int userId)
         {
             try
             {
@@ -302,7 +306,7 @@ namespace HealthIntelligence.Services
                        .Select(r => r.PillarID)
                        .ToList();
                     }
-                    if (assessment != null && answeredPillarIds.Count == 14 && !request.PillarID.HasValue)
+                    if (assessment != null && answeredPillarIds.Count == _appSettings.PillarCount && !request.PillarID.HasValue)
                     {
                         request.PillarID = assessment.PillarAssessments.First().PillarID;
                     }
@@ -322,7 +326,7 @@ namespace HealthIntelligence.Services
 
                     if (selectPillar == null || selectPillar?.Questions == null)
                     {
-                        return ResultResponseDto<GetPillarQuestionByCountryRespones>.Failure(new[] { "You have submitted assessment for this country" });
+                        return ResultResponseDto<GetPillarQuestionByCountryResponse>.Failure(new[] { "You have submitted assessment for this country" });
                     }
 
                     var editAssessmentResponse = new Dictionary<int, AssessmentResponse>();
@@ -362,7 +366,7 @@ namespace HealthIntelligence.Services
                         };
                     }).ToList();
 
-                    var result = new GetPillarQuestionByCountryRespones
+                    var result = new GetPillarQuestionByCountryResponse
                     {
                         AssessmentID = assessment?.AssessmentID ?? 0,
                         UserCountryMappingID = request.UserCountryMappingID,
@@ -370,18 +374,18 @@ namespace HealthIntelligence.Services
                         PillarID = selectPillar.PillarID,
                         Description = selectPillar.Description,
                         DisplayOrder = selectPillar.DisplayOrder,
-                        SubmittedPillarDisplayOrder = answeredPillarIds.Count == 14 ? 14 : summitedPillar?.DisplayOrder ?? selectPillar.DisplayOrder,
+                        SubmittedPillarDisplayOrder = answeredPillarIds.Count == _appSettings.PillarCount ? _appSettings.PillarCount : summitedPillar?.DisplayOrder ?? selectPillar.DisplayOrder,
                         Questions = questions
                     };
-                    return ResultResponseDto<GetPillarQuestionByCountryRespones>.Success(result, new[] { "get questions successfully" });
+                    return ResultResponseDto<GetPillarQuestionByCountryResponse>.Success(result, new[] { "get questions successfully" });
                 }
                 return null;
 
             }
             catch (Exception ex)
             {
-                await _appLogger.LogAsync("Error Occure in GetQuestionsByCountryIdAsync", ex);
-                return ResultResponseDto<GetPillarQuestionByCountryRespones>.Failure(new string[] { "There is an error please try later" });
+                await _appLogger.LogAsync("Error Occure in GetQuestionsByCityIdAsync", ex);
+                return ResultResponseDto<GetPillarQuestionByCountryResponse>.Failure(new string[] { "There is an error please try later" });
             }
         }
         public async Task<Tuple<string, byte[]>> ExportAssessment(int userCountryMappingID)
@@ -424,41 +428,10 @@ namespace HealthIntelligence.Services
                 return new Tuple<string, byte[]>("", Array.Empty<byte>());
             }
         }
-
-
-
-
-        // ============================================================
-        //  EXPORT — MakePillarSheetClientReadable_Updated
-        //  IMPORT — ImportAssessmentAsync
-        //
-        //  Key changes vs old version:
-        //  • __OptionData hidden sheet drives per-question dropdowns
-        //  • 4 rows per question: Answer | Comment | Source | Separator
-        //  • Col J (hidden) holds numeric score formula → clean SUM / AVERAGE
-        //  • Better visual design: freeze pane, colour palette, borders
-        // ============================================================
-
-        // ── Row layout constants ─────────────────────────────────────
-        // Row 1  : Title bar
-        // Row 2  : Pillar name
-        // Row 3  : Country / Year
-        // Row 4  : Evaluator
-        // Row 5  : (thin gap)
-        // Row 6  : Pillar description
-        // Row 7  : (thin gap)
-        // Row 8  : Column headers  ← freeze above here
-        // Row 9+ : Questions (4 rows each)
-        //            row+0  Answer   (col A=sno, B=question, C="Answer",  D=dropdown ← EDITABLE)
-        //            row+1  Comment  (col B=hint, C="Comment", D=text     ← EDITABLE)
-        //            row+2  Source   (col C="Source", D=text              ← EDITABLE)
-        //                            col K-O = hidden IDs
-        //            row+3  Separator (thin coloured rule)
-
         private const int FIRST_Q_ROW = 9;
         private const int ROWS_PER_Q = 4;
 
-        // ── Colour palette ───────────────────────────────────────────
+        // -- Colour palette -------------------------------------------
         private static readonly XLColor ColHeaderBlue = XLColor.FromArgb(31, 73, 125);
         private static readonly XLColor ColAccentBlue = XLColor.FromArgb(68, 114, 196);
         private static readonly XLColor ColLightBlue = XLColor.FromArgb(219, 229, 241);
@@ -470,15 +443,11 @@ namespace HealthIntelligence.Services
         private static readonly XLColor ColDescBorder = XLColor.FromArgb(200, 175, 70);
         private static readonly XLColor ColTotalBg = XLColor.FromArgb(228, 239, 255);
         private static readonly XLColor ColInputBorder = XLColor.FromArgb(180, 200, 230);
-
-        // ────────────────────────────────────────────────────────────
-        //  EXPORT
-        // ────────────────────────────────────────────────────────────
         private byte[] MakePillarSheetClientReadable_Updated(
-            List<Pillar> pillars,
-            List<PillarAssessment> pillarAssessments,
-            int userCountryMappingID,
-            dynamic? CountryUser)
+             List<Pillar> pillars,
+             List<PillarAssessment> pillarAssessments,
+             int userCountryMappingID,
+             dynamic? cityUser)
         {
             using var workbook = new XLWorkbook();
 
@@ -493,15 +462,15 @@ namespace HealthIntelligence.Services
             {
                 var ws = workbook.Worksheets.Add(GetValidSheetName(pillar.PillarName));
 
-                // ── Column widths ─────────────────────────────────────
+                // -- Column widths -------------------------------------
                 ws.Column(1).Width = 6;   // #
                 ws.Column(2).Width = 72;  // Question
                 ws.Column(3).Width = 13;  // Field label
                 ws.Column(4).Width = 52;  // Response (dropdown / text)
 
-                // ── Row 1 : Title ─────────────────────────────────────
+                // -- Row 1 : Title -------------------------------------
                 var title = ws.Range("A1:D1").Merge();
-                title.Value = "Africa Health Systems Intelligence Platform (AHSIP) — COUNTRY ASSESSMENT";
+                title.Value = "Peace Enablers Matrix � City Assessment";
                 title.Style.Font.Bold = true;
                 title.Style.Font.FontSize = 13;
                 title.Style.Font.FontColor = XLColor.White;
@@ -510,7 +479,7 @@ namespace HealthIntelligence.Services
                 title.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
                 ws.Row(1).Height = 26;
 
-                // ── Row 2 : Pillar name ───────────────────────────────
+                // -- Row 2 : Pillar name -------------------------------
                 var pillarTitle = ws.Range("A2:D2").Merge();
                 pillarTitle.Value = $"Pillar: {pillar.PillarName}";
                 pillarTitle.Style.Font.Bold = true;
@@ -520,13 +489,13 @@ namespace HealthIntelligence.Services
                 pillarTitle.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
                 ws.Row(2).Height = 20;
 
-                // ── Rows 3-4 : Meta ───────────────────────────────────
-                ws.Cell(3, 1).Value = "Country:";
-                ws.Cell(3, 2).Value = CountryUser?.CountryName?.ToString() ?? "";
+                // -- Rows 3-4 : Meta -----------------------------------
+                ws.Cell(3, 1).Value = "City:";
+                ws.Cell(3, 2).Value = cityUser?.CountryName?.ToString() ?? "";
                 ws.Cell(3, 3).Value = "Year:";
                 ws.Cell(3, 4).Value = DateTime.Now.Year;
                 ws.Cell(4, 1).Value = "Evaluator:";
-                ws.Cell(4, 2).Value = CountryUser?.FullName?.ToString() ?? "";
+                ws.Cell(4, 2).Value = cityUser?.FullName?.ToString() ?? "";
 
                 foreach (int r in new[] { 3, 4 })
                 {
@@ -538,10 +507,10 @@ namespace HealthIntelligence.Services
                     ws.Row(r).Height = 18;
                 }
 
-                // ── Row 5 : thin gap ──────────────────────────────────
+                // -- Row 5 : thin gap ----------------------------------
                 ws.Row(5).Height = 4;
 
-                // ── Row 6 : Pillar description ─────────────────────────
+                // -- Row 6 : Pillar description -------------------------
                 var desc = ws.Range("A6:D6").Merge();
                 desc.Value = CleanHtml(pillar.Description);
                 desc.Style.Fill.BackgroundColor = ColDescBg;
@@ -552,14 +521,14 @@ namespace HealthIntelligence.Services
                 desc.Style.Border.OutsideBorderColor = ColDescBorder;
                 ws.Row(6).Height = 120;
 
-                // ── Row 7 : thin gap ──────────────────────────────────
+                // -- Row 7 : thin gap ----------------------------------
                 ws.Row(7).Height = 4;
 
-                // ── Row 8 : Column headers ────────────────────────────
+                // -- Row 8 : Column headers ----------------------------
                 ws.Cell(8, 1).Value = "#";
                 ws.Cell(8, 2).Value = "Question";
                 ws.Cell(8, 3).Value = "Field";
-                ws.Cell(8, 4).Value = "Response  ▼  (select from dropdown)";
+                ws.Cell(8, 4).Value = "Response  ?  (select from dropdown)";
 
                 var hdr = ws.Range(8, 1, 8, 4);
                 hdr.Style.Font.Bold = true;
@@ -573,7 +542,7 @@ namespace HealthIntelligence.Services
                 // Freeze rows 1-8 so header stays on screen while scrolling
                 ws.SheetView.FreezeRows(8);
 
-                // ── Questions ─────────────────────────────────────────
+                // -- Questions -----------------------------------------
                 int row = FIRST_Q_ROW;
                 int sno = 1;
                 var scoreRowNums = new List<int>(); // rows that carry a score (Col J formula)
@@ -591,7 +560,7 @@ namespace HealthIntelligence.Services
                     bool isEven = (sno % 2 == 0);
                     XLColor qBg = isEven ? ColRowAlt : XLColor.White;
 
-                    // ── Build option texts (score desc first, then N/A / Unknown) ──
+                    // -- Build option texts (score desc first, then N/A / Unknown) --
                     var options = (q.QuestionOptions ?? new List<QuestionOption>())
                                   .OrderByDescending(x => x.ScoreValue)
                                   .ThenBy(x => x.OptionText)
@@ -609,7 +578,7 @@ namespace HealthIntelligence.Services
                         optWs.Cell(optRow++, 1).Value = txt;
                     int qOptEnd = optRow - 1;   // inclusive end row in __OptionData
 
-                    // ── Create a workbook-level Named Range for this question's options.
+                    // -- Create a workbook-level Named Range for this question's options.
                     //    ClosedXML does NOT support cross-sheet sheet-references directly
                     //    in dv.Value ("'Sheet'!$A$1:$A$7" silently fails).
                     //    A Named Range IS recognised by Excel and works correctly.
@@ -620,7 +589,7 @@ namespace HealthIntelligence.Services
                     workbook.NamedRanges.Add(namedRangeKey,
                         optWs.Range(qOptStart, 1, qOptEnd, 1));
 
-                    // ── Current answer text (pre-fill if data exists) ──
+                    // -- Current answer text (pre-fill if data exists) --
                     string currentAnswer = "";
                     if (ans.QuestionOptionID > 0)
                     {
@@ -635,7 +604,7 @@ namespace HealthIntelligence.Services
                     int ansRow = row;
                     scoreRowNums.Add(ansRow);
 
-                    // ── Col A : S.No ──────────────────────────────────
+                    // -- Col A : S.No ----------------------------------
                     ws.Cell(ansRow, 1).Value = sno++;
                     ws.Cell(ansRow, 1).Style.Font.Bold = true;
                     ws.Cell(ansRow, 1).Style.Font.FontColor = XLColor.White;
@@ -643,7 +612,7 @@ namespace HealthIntelligence.Services
                     ws.Cell(ansRow, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
                     ws.Cell(ansRow, 1).Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
 
-                    // ── Col B : Question text ─────────────────────────
+                    // -- Col B : Question text -------------------------
                     ws.Cell(ansRow, 2).Value = q.QuestionText;
                     ws.Cell(ansRow, 2).Style.Font.Bold = true;
                     ws.Cell(ansRow, 2).Style.Font.FontSize = 10;
@@ -651,7 +620,7 @@ namespace HealthIntelligence.Services
                     ws.Cell(ansRow, 2).Style.Alignment.WrapText = true;
                     ws.Cell(ansRow, 2).Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
 
-                    // ── Col C : Label ─────────────────────────────────
+                    // -- Col C : Label ---------------------------------
                     ws.Cell(ansRow, 3).Value = "Answer";
                     ws.Cell(ansRow, 3).Style.Font.Bold = true;
                     ws.Cell(ansRow, 3).Style.Font.FontColor = ColAccentBlue;
@@ -659,7 +628,7 @@ namespace HealthIntelligence.Services
                     ws.Cell(ansRow, 3).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
                     ws.Cell(ansRow, 3).Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
 
-                    // ── Col D : Dropdown answer cell ──────────────────
+                    // -- Col D : Dropdown answer cell ------------------
                     var ansCell = ws.Cell(ansRow, 4);
                     ansCell.Value = currentAnswer;
                     ansCell.Style.Fill.BackgroundColor = ColEditableYellow;
@@ -668,19 +637,19 @@ namespace HealthIntelligence.Services
                     ansCell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
                     ansCell.Style.Border.OutsideBorderColor = ColAccentBlue;
 
-                    // DATA VALIDATION — list via Named Range (cross-sheet refs don't work in ClosedXML dv.Value)
+                    // DATA VALIDATION � list via Named Range (cross-sheet refs don't work in ClosedXML dv.Value)
                     if (optionTexts.Any())
                     {
                         var dv = ansCell.GetDataValidation();
                         dv.Clear();
                         dv.AllowedValues = XLAllowedValues.List;
-                        // Reference the Named Range we created above — this IS supported by ClosedXML
+                        // Reference the Named Range we created above � this IS supported by ClosedXML
                         // and produces a real clickable dropdown arrow in Excel / LibreOffice.
                         dv.Value = namedRangeKey;
                         dv.IgnoreBlanks = true;
                         dv.ShowInputMessage = true;
                         dv.InputTitle = "Select Answer";
-                        dv.InputMessage = "Click the dropdown arrow ▼ to choose a score option.";
+                        dv.InputMessage = "Click the dropdown arrow ? to choose a score option.";
                         dv.ShowErrorMessage = true;
                         dv.ErrorTitle = "Invalid Entry";
                         dv.ErrorMessage = "Please select a value from the dropdown list provided.";
@@ -689,8 +658,8 @@ namespace HealthIntelligence.Services
 
                     ws.Row(ansRow).Height = 45;
 
-                    // ── Col J (hidden) : Numeric score formula ─────────
-                    // Extracts the leading digit from the dropdown text (e.g. "3 - Good...") → 3
+                    // -- Col J (hidden) : Numeric score formula ---------
+                    // Extracts the leading digit from the dropdown text (e.g. "3 - Good...") ? 3
                     // Returns "" for N/A, Unknown, or blank
                     ws.Cell(ansRow, 10).FormulaA1 =
                         $"=IFERROR(" +
@@ -699,7 +668,7 @@ namespace HealthIntelligence.Services
                         $"  \"\")," +
                         $"\"\")";
 
-                    // ── Comment row (row+1) ───────────────────────────
+                    // -- Comment row (row+1) ---------------------------
                     int commentRow = ansRow + 1;
 
                     ws.Cell(commentRow, 1).Style.Fill.BackgroundColor = qBg;
@@ -726,7 +695,7 @@ namespace HealthIntelligence.Services
                     ws.Cell(commentRow, 4).Style.Border.OutsideBorderColor = ColInputBorder;
                     ws.Row(commentRow).Height = 40;
 
-                    // ── Source row (row+2) — also carries hidden IDs ──
+                    // -- Source row (row+2) � also carries hidden IDs --
                     int sourceRow = ansRow + 2;
 
                     ws.Cell(sourceRow, 1).Style.Fill.BackgroundColor = qBg;
@@ -747,14 +716,14 @@ namespace HealthIntelligence.Services
                     ws.Cell(sourceRow, 4).Style.Border.OutsideBorderColor = ColInputBorder;
                     ws.Row(sourceRow).Height = 25;
 
-                    // Hidden IDs (cols K–O = 11–15)
+                    // Hidden IDs (cols K�O = 11�15)
                     ws.Cell(sourceRow, 11).Value = userCountryMappingID;
                     ws.Cell(sourceRow, 12).Value = pillar.PillarID;
                     ws.Cell(sourceRow, 13).Value = q.QuestionID;
                     ws.Cell(sourceRow, 14).Value = ans.QuestionOptionID;
                     ws.Cell(sourceRow, 15).Value = ans.ResponseID;
 
-                    // ── Separator row (row+3) ─────────────────────────
+                    // -- Separator row (row+3) -------------------------
                     int sepRow = ansRow + 3;
                     ws.Range(sepRow, 1, sepRow, 4).Style.Fill.BackgroundColor = ColSeparator;
                     ws.Row(sepRow).Height = 3;
@@ -762,7 +731,7 @@ namespace HealthIntelligence.Services
                     row += ROWS_PER_Q;
                 }
 
-                // ── Totals section ────────────────────────────────────
+                // -- Totals section ------------------------------------
                 row++; // one blank row gap
 
                 // Helper to build comma-separated J-column references
@@ -827,7 +796,7 @@ namespace HealthIntelligence.Services
                 ws.Range(row, 1, row, 3).Style.Fill.BackgroundColor = ColTotalBg;
                 ws.Row(row).Height = 20;
 
-                // ── Hide auxiliary columns ────────────────────────────
+                // -- Hide auxiliary columns ----------------------------
                 ws.Column(10).Hide(); // Score formula (J)
                 ws.Column(11).Hide(); // userCityMappingID
                 ws.Column(12).Hide(); // pillarID
@@ -840,7 +809,6 @@ namespace HealthIntelligence.Services
             workbook.SaveAs(ms);
             return ms.ToArray();
         }
-
         string CleanHtml(string html)
         {
             if (string.IsNullOrWhiteSpace(html)) return string.Empty;
@@ -1051,8 +1019,7 @@ namespace HealthIntelligence.Services
             }
         }
 
-
-        public async Task<ResultResponseDto<GetPillarQuestionByCountryRespones>> GetQuestionsByCountryMappingIdForAnalyst(
+        public async Task<ResultResponseDto<GetPillarQuestionByCountryResponse>> GetQuestionsByCountryMappingIdForAnalyst(
             CountryPillerRequestDto request, int userId)
         {
             try
@@ -1080,7 +1047,7 @@ namespace HealthIntelligence.Services
                     .Select(r => r.PillarID)
                     .ToList() ?? new List<int>();
 
-                if (assessment != null && answeredPillarIds.Count == 14 && !request.PillarID.HasValue)
+                if (assessment != null && answeredPillarIds.Count == _appSettings.PillarCount && !request.PillarID.HasValue)
                     request.PillarID = assessment.PillarAssessments.First().PillarID;
 
                 // Get the target pillar (next unanswered or specific)
@@ -1099,7 +1066,7 @@ namespace HealthIntelligence.Services
                     .FirstOrDefaultAsync();
 
                 if (selectPillar?.Questions == null)
-                    return ResultResponseDto<GetPillarQuestionByCountryRespones>.Failure(
+                    return ResultResponseDto<GetPillarQuestionByCountryResponse>.Failure(
                         new[] { "You have submitted assessment for this country" });
 
                 // Build lookup for existing responses for the selected pillar
@@ -1214,7 +1181,7 @@ namespace HealthIntelligence.Services
 
                     foreach (var entry in relatedEntries)
                     {
-                        var option = question.QuestionOptions.FirstOrDefault(x => x.OptionID == entry.OptionID || x.ScoreValue == entry.ScoreValue); 
+                        var option = question.QuestionOptions.FirstOrDefault(x => x.OptionID == entry.OptionID || x.ScoreValue == entry.ScoreValue);
                         question.History.Add(new HistoryQuestionAnswerRawDto
                         {
                             UserID = entry.UserID,
@@ -1228,7 +1195,7 @@ namespace HealthIntelligence.Services
                     }
                 }
 
-                var result = new GetPillarQuestionByCountryRespones
+                var result = new GetPillarQuestionByCountryResponse
                 {
                     AssessmentID = assessment?.AssessmentID ?? 0,
                     UserCountryMappingID = request.UserCountryMappingID,
@@ -1236,19 +1203,19 @@ namespace HealthIntelligence.Services
                     PillarID = selectPillar.PillarID,
                     Description = selectPillar.Description,
                     DisplayOrder = selectPillar.DisplayOrder,
-                    SubmittedPillarDisplayOrder = answeredPillarIds.Count == 14
-                                                   ? 14
+                    SubmittedPillarDisplayOrder = answeredPillarIds.Count == _appSettings.PillarCount
+                                                   ? _appSettings.PillarCount
                                                    : nextUnansweredPillar?.DisplayOrder ?? selectPillar.DisplayOrder,
                     Questions = questions
                 };
 
-                return ResultResponseDto<GetPillarQuestionByCountryRespones>.Success(
+                return ResultResponseDto<GetPillarQuestionByCountryResponse>.Success(
                     result, new[] { "get questions successfully" });
             }
             catch (Exception ex)
             {
-                await _appLogger.LogAsync("Error Occure in GetQuestionsByCountryIdAsync", ex);
-                return ResultResponseDto<GetPillarQuestionByCountryRespones>.Failure(
+                await _appLogger.LogAsync("Error Occure in GetQuestionsByCityIdAsync", ex);
+                return ResultResponseDto<GetPillarQuestionByCountryResponse>.Failure(
                     new[] { "There is an error please try later" });
             }
         }

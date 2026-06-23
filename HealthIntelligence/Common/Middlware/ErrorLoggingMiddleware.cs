@@ -1,4 +1,4 @@
-﻿using Microsoft.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 
 namespace HealthIntelligence.Common.Middlware
 {
@@ -23,13 +23,13 @@ namespace HealthIntelligence.Common.Middlware
             }
             catch (Exception ex)
             {
-                // 1️⃣ Log to console / default provider
+                // 1?? Log to console / default provider
                 _logger.LogError(ex, "Unhandled exception at {Path}", context.Request.Path);
 
-                // 2️⃣ Log to database
+                // 2?? Log to database
                 await LogToDatabaseAsync(ex, context);
 
-                // 3️⃣ Send response
+                // 3?? Send response
                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
                 context.Response.ContentType = "application/json";
                 await context.Response.WriteAsJsonAsync(new

@@ -1,4 +1,4 @@
-﻿using HealthIntelligence.Models;
+using HealthIntelligence.Models;
 using System.Text.Json.Serialization;
 
 namespace HealthIntelligence.Dtos.QuestionDto
@@ -23,8 +23,8 @@ namespace HealthIntelligence.Dtos.QuestionDto
         public int PillarID { get; set; }
         public string QuestionText { get; set; }
         public bool IsSelected { get; set; } = false;
+        public List<QuestionOptionDto> QuestionOptions { get; set; }
         public List<HistoryQuestionAnswerRawDto> History { get; set; } = new();
-        public List<QuestionOptionDto> QuestionOptions { get; set; } 
     }
     public class QuestionOptionDto
     {
@@ -37,9 +37,6 @@ namespace HealthIntelligence.Dtos.QuestionDto
         public string Justification { get; set; } 
         public string? Source { get; set; } 
     }
-
-
-    // Add this class in your DTOs folder
     public class HistoryQuestionAnswerRawDto
     {
         public int UserID { get; set; }

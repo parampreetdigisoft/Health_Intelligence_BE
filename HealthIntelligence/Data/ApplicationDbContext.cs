@@ -1,6 +1,9 @@
+using AssessmentPlatform.Models;
+
+using Microsoft.EntityFrameworkCore;
+using HealthIntelligence.Common.Models;
 using HealthIntelligence.Dtos.CountryDto;
 using HealthIntelligence.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace HealthIntelligence.Data
 {
@@ -31,18 +34,20 @@ namespace HealthIntelligence.Data
         public DbSet<AITrustLevel> AITrustLevels { get; set; } = default!;
         public DbSet<AnalyticalLayerPillarMapping> AnalyticalLayerPillarMappings { get; set; } = default!;
         public DbSet<EvaluationCountryProgressResultDto> CountryProgressResults { get; set; }
-        public DbSet<EvaluationCountryProgressHistoryResultDto> CountryProgressHistoryResults { get; set; }
+        public DbSet<CountryRankingResultDto> CountryRankingResults { get; set; }
         public DbSet<GetCountriesProgressAdminDto> GetCountriesProgressAdminDto { get; set; }
         public DbSet<AIUserCountryMapping> AIUserCountryMappings { get; set; }
-        public DbSet<Blog> Blogs { get; set; }
         public DbSet<CountryPeer> CountryPeers { get; set; } = default!;
+        public DbSet<EvaluationCountryProgressHistoryResultDto> CountryProgressHistoryResults { get; set; }
         public DbSet<CountryDocument> CountryDocuments { get; set; }
-        public DbSet<DocumentChunks> DocumentChunks { get; set; }
-        public DbSet<DocumentTOC> DocumentTOC { get; set; }
-
+        public DbSet<AiPillarStatsLast4MonthsView> AiPillarStatsLast4MonthsView { get; set; }
         public DbSet<AssistantChatHistory> AssistantChatHistory { get; set; }
         public DbSet<AIAssistantFAQ> AIAssistantFAQ { get; set; }
-        public DbSet<CountryRankingResultDto> CountryRankingResultDto { get; set; }
+        public DbSet<DocumentChunks> DocumentChunks { get; set; }
+        public DbSet<DocumentTOC> DocumentTOC { get; set; }
+        public DbSet<DashboardMode> DashboardModes { get; set; } = default!;
+        public DbSet<DashboardModeKPIMapping> DashboardModeKPIMappings { get; set; } = default!;
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -115,21 +120,38 @@ namespace HealthIntelligence.Data
             {
                 entity.HasKey(al => al.InterpretationID);
             });
+            modelBuilder.Entity<CountryUserPillarMapping>().HasKey(ur => ur.CountryUserPillarMappingID);
+
+            modelBuilder.Entity<AIDataSourceCitation>().HasKey(ur => ur.CitationID);
+            modelBuilder.Entity<AICountryScore>(entity =>
+            {
+                entity.HasKey(e => e.CountryScoreID);
+            });
+            modelBuilder.Entity<AIEstimatedQuestionScore>().HasKey(ur => ur.QuestionScoreID);
+            modelBuilder.Entity<AIPillarScore>().HasKey(ur => ur.PillarScoreID);
+            modelBuilder.Entity<AITrustLevel>().HasKey(ur => ur.TrustID);
+            modelBuilder.Entity<AnalyticalLayerPillarMapping>().HasKey(ur => ur.AnalyticalLayerPillarMappingID);
+            modelBuilder.Entity<AIUserCountryMapping>().HasKey(ur => ur.AIUserCountryMappingID);
+            modelBuilder.Entity<EvaluationCountryProgressResultDto>().HasNoKey().ToView(null); 
+            modelBuilder.Entity<CountryRankingResultDto>().HasNoKey().ToView(null); 
+            modelBuilder.Entity<GetCountriesProgressAdminDto>().HasNoKey().ToView(null);
+            modelBuilder.Entity<EvaluationCountryProgressHistoryResultDto>().HasNoKey().ToView(null);
+            modelBuilder.Entity<CountryPeer>(entity =>
+            {
+                entity.HasKey(e => e.CountryPeerID);
+                entity.ToTable("CountryPeer");
+            });
+
             modelBuilder.Entity<CountryDocument>(entity =>
             {
                 entity.HasKey(e => e.CountryDocumentID);
                 entity.ToTable("CountryDocuments");
             });
-            modelBuilder.Entity<DocumentTOC>(entity =>
-            {
-                entity.HasKey(e => e.TOCID);
-                entity.ToTable("DocumentTOC");
-            });
-            modelBuilder.Entity<DocumentChunks>(entity =>
-            {
-                entity.HasKey(e => e.ChunkID);
-                entity.ToTable("DocumentChunks");
-            });
+
+            modelBuilder.Entity<AiPillarStatsLast4MonthsView>()
+            .HasNoKey()
+            .ToView("vw_AiGetPillarStats_Last4Months");
+
             modelBuilder.Entity<AssistantChatHistory>(entity =>
             {
                 entity.HasKey(e => e.ChatID);
@@ -141,21 +163,50 @@ namespace HealthIntelligence.Data
                 entity.HasKey(e => e.FAQID);
                 entity.ToTable("AIAssistantFAQ");
             });
-            modelBuilder.Entity<CountryUserPillarMapping>().HasKey(ur => ur.CountryUserPillarMappingID);
 
-            modelBuilder.Entity<AIDataSourceCitation>().HasKey(ur => ur.CitationID);
-            modelBuilder.Entity<AICountryScore>().HasKey(ur => ur.CountryScoreID);
-            modelBuilder.Entity<AIEstimatedQuestionScore>().HasKey(ur => ur.QuestionScoreID);
-            modelBuilder.Entity<AIPillarScore>().HasKey(ur => ur.PillarScoreID);
-            modelBuilder.Entity<AITrustLevel>().HasKey(ur => ur.TrustID);
-            modelBuilder.Entity<AnalyticalLayerPillarMapping>().HasKey(ur => ur.AnalyticalLayerPillarMappingID);
-            modelBuilder.Entity<AIUserCountryMapping>().HasKey(ur => ur.AIUserCountryMappingID);
-            modelBuilder.Entity<EvaluationCountryProgressResultDto>().HasNoKey().ToView(null); 
-            modelBuilder.Entity<EvaluationCountryProgressHistoryResultDto>().HasNoKey().ToView(null);
-            modelBuilder.Entity<CountryRankingResultDto>().HasNoKey().ToView(null);
-            modelBuilder.Entity<GetCountriesProgressAdminDto>().HasNoKey().ToView(null); 
-            modelBuilder.Entity<Blog>().HasKey(b => b.BlogID);
-            modelBuilder.Entity<CountryPeer>().HasKey(b => b.CountryPeerID);
+            modelBuilder.Entity<DocumentTOC>(entity =>
+            {
+                entity.HasKey(e => e.TOCID);
+                entity.ToTable("DocumentTOC");
+            });
+            modelBuilder.Entity<DocumentChunks>(entity =>
+            {
+                entity.HasKey(e => e.ChunkID);
+                entity.ToTable("DocumentChunks");
+            });
+
+            modelBuilder.Entity<DashboardMode>(entity =>
+            {
+                entity.HasKey(e => e.DashboardModeID);
+                entity.ToTable("DashboardModes");
+
+                entity.Property(e => e.ModeName)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(e => e.Description)
+                    .HasMaxLength(500);
+
+                entity.HasMany(e => e.DashboardModeKPIMappings)
+                    .WithOne(m => m.DashboardMode)
+                    .HasForeignKey(m => m.DashboardModeID)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<DashboardModeKPIMapping>(entity =>
+            {
+                entity.HasKey(e => e.DashboardModeKPIMappingID);
+                entity.ToTable("DashboardModeKPIMappings");
+
+                entity.Property(e => e.Description)
+                    .HasMaxLength(500);
+
+                entity.Property(e => e.PriorityLevel)
+                    .HasDefaultValue(1);
+
+                entity.Property(e => e.IsActive)
+                    .HasDefaultValue(true);
+            });
 
             base.OnModelCreating(modelBuilder);
         }

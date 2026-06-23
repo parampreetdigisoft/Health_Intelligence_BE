@@ -1,4 +1,4 @@
-﻿namespace HealthIntelligence.Models
+namespace HealthIntelligence.Models
 {
     public class DocumentTOC
     {
@@ -6,9 +6,9 @@
 
         public int CountryDocumentID { get; set; }
 
-        public int? CountryID { get; set; }
+        public int CountryID { get; set; }
 
-        public int? PillarID { get; set; }
+        public int PillarID { get; set; }
 
         public string? SectionPath { get; set; }
 

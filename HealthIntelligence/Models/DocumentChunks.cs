@@ -1,4 +1,4 @@
-﻿namespace HealthIntelligence.Models
+namespace HealthIntelligence.Models
 {
     public class DocumentChunks
     {
@@ -8,9 +8,9 @@
 
         public int TOCID { get; set; }
 
-        public int? CountryID { get; set; }
+        public int CountryID { get; set; }
 
-        public int? PillarID { get; set; }
+        public int PillarID { get; set; }
 
         public int ChunkIndex { get; set; }
 

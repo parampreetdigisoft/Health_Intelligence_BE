@@ -1,4 +1,4 @@
-﻿using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.Dtos.CommonDto;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 namespace HealthIntelligence.Common.Implementation

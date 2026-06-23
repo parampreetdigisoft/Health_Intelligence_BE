@@ -1,10 +1,11 @@
-﻿
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using HealthIntelligence.Dtos.AiDto;
 using HealthIntelligence.Dtos.chatDto;
 using HealthIntelligence.IServices;
 using HealthIntelligence.Models;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-
+using HealthIntelligence.Services;
 using System.Security.Claims;
 
 namespace HealthIntelligence.Controllers
@@ -38,7 +39,7 @@ namespace HealthIntelligence.Controllers
 
 
         [HttpGet("getAssistantFAQDs")]
-        public async Task<IActionResult> GetById(int? id)
+        public async Task<IActionResult> GetById(int id)
         {
             var userId = GetUserIdFromClaims();
             if (userId == null)
@@ -74,26 +75,7 @@ namespace HealthIntelligence.Controllers
                 return Unauthorized("You Don't have access.");
             }
 
-            return Ok(await _chatService.AskAboutCountry(request));
-        }
-
-        [HttpPost("countrySlides")]
-        public async Task<IActionResult> GetCountrySlides([FromBody] int countryId)
-        {
-            var userId = GetUserIdFromClaims();
-            if (userId == null)
-                return Unauthorized("User ID not found in token.");
-
-            var role = GetRoleFromClaims();
-            if (role == null)
-                return Unauthorized("You Don't have access.");
-
-            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
-            {
-                return Unauthorized("You Don't have access.");
-            }
-
-            return Ok(await _chatService.GetCountrySlides(countryId, userId.GetValueOrDefault(), userRole));
+            return Ok(await _chatService.AskAboutCountry(request, userId.GetValueOrDefault(), userRole));
         }
 
         [HttpPost("askGlobalQuestion")]
@@ -112,7 +94,7 @@ namespace HealthIntelligence.Controllers
                 return Unauthorized("You Don't have access.");
             }
 
-            return Ok(await _chatService.AskAboutGlobal(request));
+            return Ok(await _chatService.AskAboutGlobal(request, userId.GetValueOrDefault(), userRole));
         }
 
 
@@ -133,8 +115,26 @@ namespace HealthIntelligence.Controllers
                 return Unauthorized("You Don't have access.");
             }
 
-            return Ok(await _chatService.CrossComparision(request));
+            return Ok(await _chatService.CrossComparision(request, userId.GetValueOrDefault(), userRole));
         }
 
+        [HttpPost("countrySlides")]
+        public async Task<IActionResult> GetCountrySlides([FromBody] int countryId)
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                return Unauthorized("You Don't have access.");
+            }
+
+            return Ok(await _chatService.GetCountrySlides(countryId, userId.GetValueOrDefault(), userRole));
+        }
     }
 }

@@ -1,4 +1,4 @@
-﻿namespace HealthIntelligence.Models
+﻿namespace AssessmentPlatform.Models
 {
     public class CountryPeer
     {

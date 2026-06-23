@@ -1,9 +1,14 @@
+
+using AssessmentPlatform.Dtos.AiDto;
+using AssessmentPlatform.Models;
 using HealthIntelligence.Common.Interface;
 using HealthIntelligence.Dtos.AiDto;
+using HealthIntelligence.IServices;
 using HealthIntelligence.Models;
-using HealthIntelligence.Services;
+using static HealthIntelligence.Services.AIComputationService;
 
-namespace HealthIntelligence.Common.Implementation
+
+namespace HealthIntelligence.Services
 {
     /// <summary>
     /// Facade that delegates to <see cref="PdfGeneratorService"/> or
@@ -13,11 +18,11 @@ namespace HealthIntelligence.Common.Implementation
     /// </summary>
     public sealed class DocumentGeneratorService : IDocumentGeneratorService
     {
-        private readonly IPdfGeneratorService _pdf;
+        private readonly Common.Interface.IPdfGeneratorService _pdf;
         private readonly IDocxGeneratorService _docx;
 
         public DocumentGeneratorService(
-            IPdfGeneratorService pdf,
+            Common.Interface.IPdfGeneratorService pdf,
             IDocxGeneratorService docx)
         {
             _pdf = pdf;
@@ -26,34 +31,34 @@ namespace HealthIntelligence.Common.Implementation
 
         public Task<byte[]> GenerateCountryDetails(
             AiCountrySummeryDto country,
-            List<AiCountryPillarReponse> pillars,
+            List<AiCountryPillarResponse> pillars,
             List<KpiChartItem> kpis,
-            List<PeerCountryHistoryReportDto> peerCountry,
+            List<PeerCountryHistoryReportDto> peercountry,
             UserRole userRole,
-        Interface.DocumentFormat format = Interface.DocumentFormat.Pdf)
+        HealthIntelligence.IServices.DocumentFormat format = HealthIntelligence.IServices.DocumentFormat.Pdf)
         {
-             var result = format == Interface.DocumentFormat.Docx
-                ? _docx.GenerateCountryDetailsDocx(country, pillars, kpis, peerCountry, userRole)
-                : _pdf.GenerateCountryDetailsPdf(country, pillars, kpis, peerCountry, userRole);
+             var result = format == HealthIntelligence.IServices.DocumentFormat.Docx
+                ? _docx.GenerateCountryDetailsDocx(country, pillars, kpis, peercountry, userRole)
+                : _pdf.GenerateCountryDetailsPdf(country, pillars, kpis, peercountry, userRole);
 
             return result;
         }
 
         public Task<byte[]> GeneratePillarDetails(
-            AiCountryPillarReponse pillarData,
+            AiCountryPillarResponse pillarData,
             UserRole userRole,
-            Interface.DocumentFormat format = Interface.DocumentFormat.Pdf)
-            => format == Interface.DocumentFormat.Docx
+            HealthIntelligence.IServices.DocumentFormat format = HealthIntelligence.IServices.DocumentFormat.Pdf)
+            => format == HealthIntelligence.IServices.DocumentFormat.Docx
                 ? _docx.GeneratePillarDetailsDocx(pillarData, userRole)
                 : _pdf.GeneratePillarDetailsPdf(pillarData, userRole);
 
         public Task<byte[]> GenerateAllCountriesDetails(
             List<AiCountrySummeryDto> countries,
-            Dictionary<int, List<AiCountryPillarReponse>> pillarsDict,
+            Dictionary<int, List<AiCountryPillarResponse>> pillarsDict,
             List<KpiChartItem> kpis,
             UserRole userRole,
-            Interface.DocumentFormat format = Interface.DocumentFormat.Pdf)
-            => format == Interface.DocumentFormat.Docx
+            HealthIntelligence.IServices.DocumentFormat format = HealthIntelligence.IServices.DocumentFormat.Pdf)
+            => format == HealthIntelligence.IServices.DocumentFormat.Docx
                 ? _docx.GenerateAllCountriesDetailsDocx(countries, pillarsDict, kpis, userRole)
                 : _pdf.GenerateAllCountriesDetailsPdf(countries, pillarsDict, kpis, userRole);
     }

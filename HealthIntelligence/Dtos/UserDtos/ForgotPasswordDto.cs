@@ -1,4 +1,4 @@
-﻿namespace HealthIntelligence.Dtos.UserDtos
+namespace HealthIntelligence.Dtos.UserDtos
 {
     public class ForgotPasswordDto
     {

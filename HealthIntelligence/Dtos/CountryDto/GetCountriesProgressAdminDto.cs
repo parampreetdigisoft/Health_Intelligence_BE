@@ -1,11 +1,10 @@
-﻿namespace HealthIntelligence.Dtos.CountryDto
+namespace HealthIntelligence.Dtos.CountryDto
 {
     public class GetCountriesProgressAdminDto
     {
         public int CountryID { get; set; }
         public string CountryName { get; set; }
-        public string Continent { get; set; }
-        public string Country { get; set; }
+        public string Continent { get; set; }        
         public int PillarID { get; set; }
         public string PillarName { get; set; } 
         public int DisplayOrder { get; set; }

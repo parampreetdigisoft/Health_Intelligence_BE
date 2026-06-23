@@ -1,4 +1,4 @@
-﻿namespace HealthIntelligence.Common.Models
+namespace HealthIntelligence.Common.Models
 {
     public class ResultResponseDto<T> 
     {

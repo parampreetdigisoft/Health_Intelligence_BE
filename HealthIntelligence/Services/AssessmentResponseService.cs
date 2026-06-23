@@ -1,4 +1,7 @@
-﻿using HealthIntelligence.Backgroundjob;
+using ClosedXML.Excel;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using HealthIntelligence.Backgroundjob;
 using HealthIntelligence.Common.Implementation;
 using HealthIntelligence.Common.Interface;
 using HealthIntelligence.Common.Models;
@@ -10,9 +13,6 @@ using HealthIntelligence.Dtos.CommonDto;
 using HealthIntelligence.Dtos.dashboard;
 using HealthIntelligence.IServices;
 using HealthIntelligence.Models;
-using ClosedXML.Excel;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using System.Linq.Expressions;
 
 namespace HealthIntelligence.Services
@@ -24,7 +24,8 @@ namespace HealthIntelligence.Services
         private readonly Download _download;
         private readonly ICommonService _commonService;
         private readonly AppSettings _appSettings;
-        public AssessmentResponseService(ApplicationDbContext context, IAppLogger appLogger, Download download, ICommonService commonService, IOptions<AppSettings> appSettings)
+        public AssessmentResponseService(ApplicationDbContext context, IAppLogger appLogger, Download download, ICommonService commonService,
+            IOptions<AppSettings> appSettings)
         {
             _context = context;
             _appLogger = appLogger;
@@ -216,7 +217,7 @@ namespace HealthIntelligence.Services
 
                 await _context.SaveChangesAsync();
 
-                if(assessment.AssessmentPhase == AssessmentPhase.Completed)
+                if (assessment.AssessmentPhase == AssessmentPhase.Completed)
                 {
                     _download.InsertAnalyticalLayerResults(assessment.UserCountryMapping.CountryID);
                 }
@@ -238,7 +239,7 @@ namespace HealthIntelligence.Services
                 var startDate = new DateTime(year, 1, 1);
                 var endDate = startDate.AddYears(1);
 
-                // Fetch allowed UserCountryMapping IDs for non-admin users
+                // Fetch allowed UserCityMapping IDs for non-admin users
                 List<int> allowedMappingIds = new();
 
                 if (role != UserRole.Admin)
@@ -387,15 +388,8 @@ namespace HealthIntelligence.Services
                 };
             }
         }
-
-        // ────────────────────────────────────────────────────────────
-        //  IMPORT
-        // ────────────────────────────────────────────────────────────
         private const int FIRST_Q_ROW = 9;
         private const int ROWS_PER_Q = 4;
-        // ────────────────────────────────────────────────────────────
-        //  IMPORT
-        // ────────────────────────────────────────────────────────────
         public async Task<ResultResponseDto<string>> ImportAssessmentAsync(IFormFile file, int userID)
         {
             try
@@ -414,13 +408,13 @@ namespace HealthIntelligence.Services
                     // Skip the hidden options data sheet
                     if (ws.Name.StartsWith("__")) continue;
 
-                    // ── Read meta from first question's source row ────
+                    // -- Read meta from first question's source row ----
                     // First question: ansRow=9, sourceRow=9+2=11
                     int userCountryMappingID = ws.Cell(11, 11).GetValue<int>();
                     int pillarID = ws.Cell(11, 12).GetValue<int>();
 
                     if (userCountryMappingID == 0 || pillarID == 0)
-                        continue; // empty or corrupt sheet — skip
+                        continue; // empty or corrupt sheet � skip
 
                     // Validate that the file belongs to the uploading user
                     if (!_context.UserCountryMappings.Any(x =>
@@ -434,7 +428,7 @@ namespace HealthIntelligence.Services
                     int lastRow = ws.LastRowUsed()?.RowNumber() ?? 0;
                     var assessmentResponses = new List<AddAssesmentResponseDto>();
 
-                    // ── Walk question blocks (4 rows each, starting row 9) ──
+                    // -- Walk question blocks (4 rows each, starting row 9) --
                     for (int row = FIRST_Q_ROW; row <= lastRow - 2; row += ROWS_PER_Q)
                     {
                         int sourceRow = row + 2;
@@ -501,7 +495,7 @@ namespace HealthIntelligence.Services
                         }
                     }
 
-                    // ── Save this pillar's responses ──────────────────
+                    // -- Save this pillar's responses ------------------
                     var assessment = new AddAssessmentDto
                     {
                         AssessmentID = 0,
@@ -530,18 +524,17 @@ namespace HealthIntelligence.Services
                 return ResultResponseDto<string>.Failure(new[] { "Failed to save assessment" });
             }
         }
-
-        public async Task<GetCountryQuestionHistoryReponseDto> GetCountryQuestionHistory(UserCountryRequstDto userCountryRequstDto)
+        public async Task<GetCountryQuestionHistoryResponseDto> GetCountryQuestionHistory(UserCountryRequestDto userCountryRequestDto)
         {
             try
             {
-                var userID = userCountryRequstDto.UserID;
-                var countryID = userCountryRequstDto.CountryID;
+                var userID = userCountryRequestDto.UserID;
+                var countryID = userCountryRequestDto.CountryID;
 
                 var user = await _context.Users.FirstOrDefaultAsync(x => x.UserID == userID && x.Role != UserRole.CountryUser);
                 if (user == null)
                 {
-                    return new GetCountryQuestionHistoryReponseDto
+                    return new GetCountryQuestionHistoryResponseDto
                     {
                         CountryID = countryID,
                         Score = 0,
@@ -550,7 +543,7 @@ namespace HealthIntelligence.Services
                         TotalQuestion = 0,
                         AnsQuestion = 0,
                         TotalAssessment = 0,
-                        Pillars = new List<CountryPillarQuestionHistoryReponseDto>()
+                        Pillars = new List<CountryPillarQuestionHistoryResponseDto>()
                     };
                 }
                 var countryHistory = new CountryHistoryDto();
@@ -563,14 +556,14 @@ namespace HealthIntelligence.Services
                 };
 
 
-                // 1. Get all UserCountryMapping IDs for the city
+                // 1. Get all UserCountryMapping IDs for the country
                 var ucmIds = await _context.UserCountryMappings
                     .Where(predicate)
                     .Select(x => x.UserCountryMappingID)
                     .ToListAsync();
 
                 var pillarAssessments = _context.Assessments
-                    .Where(a => ucmIds.Contains(a.UserCountryMappingID) && a.IsActive && a.UpdatedAt.Year == userCountryRequstDto.UpdatedAt.Year)
+                    .Where(a => ucmIds.Contains(a.UserCountryMappingID) && a.IsActive && a.UpdatedAt.Year == userCountryRequestDto.UpdatedAt.Year)
                     .SelectMany(x => x.PillarAssessments);
 
                 // 2. Fetch country-wise pillar/question details in one go
@@ -607,7 +600,7 @@ namespace HealthIntelligence.Services
 
                         decimal progress = ScoreCount != 0 && ansUserCount > 0 ? totalAnsScoreOfPillar * 100 / (ScoreCount * 4m ) : 0m;
 
-                        return new CountryPillarQuestionHistoryReponseDto
+                        return new CountryPillarQuestionHistoryResponseDto
                         {
                             PillarID = g.Key.PillarID,
                             PillarName = g.Key.PillarName,
@@ -622,7 +615,7 @@ namespace HealthIntelligence.Services
 
                 //// 3. Get assessment count in one query
                 //var assessmentCount = await _context.Assessments
-                //    .CountAsync(x => ucmIds.Contains(x.UserCountryMappingID) && x.IsActive);
+                //    .CountAsync(x => ucmIds.Contains(x.userCountryMappingID) && x.IsActive);
 
                 //// 4. Total pillars and questions (static across country)
                 //var pillarStats = await _context.Pillars
@@ -632,7 +625,7 @@ namespace HealthIntelligence.Services
                 //int totalQuestions = pillarStats.Sum(p => p.QuestionsCount);
 
                 // 5. Final payload
-                var payload = new GetCountryQuestionHistoryReponseDto
+                var payload = new GetCountryQuestionHistoryResponseDto
                 {
                     CountryID = countryID,
                     //TotalAssessment = assessmentCount,
@@ -649,8 +642,8 @@ namespace HealthIntelligence.Services
             }
             catch (Exception ex)
             {
-                await _appLogger.LogAsync("Error Occurred in GetCountryQuestionHistory", ex);
-                return new GetCountryQuestionHistoryReponseDto
+                await _appLogger.LogAsync("Error Occure in GetCountryQuestionHistory", ex);
+                return new GetCountryQuestionHistoryResponseDto
                 {
                     CountryID = 0,
                     Score = 0,
@@ -659,7 +652,7 @@ namespace HealthIntelligence.Services
                     TotalQuestion = 0,
                     AnsQuestion = 0,
                     TotalAssessment = 0,
-                    Pillars = new List<CountryPillarQuestionHistoryReponseDto>()
+                    Pillars = new List<CountryPillarQuestionHistoryResponseDto>()
                 };
             }
         }
@@ -721,7 +714,7 @@ namespace HealthIntelligence.Services
             try
             {
                 var assessment = await _context.Assessments.FirstOrDefaultAsync(x=>x.AssessmentID == r.AssessmentID);
-                if(assessment != null && assessment.UpdatedAt.Year==DateTime.UtcNow.Year)
+                if(assessment != null)
                 {
                     assessment.AssessmentPhase = r.AssessmentPhase;
 
@@ -730,10 +723,6 @@ namespace HealthIntelligence.Services
 
                     return ResultResponseDto<string>.Success("", new[] { "Assessment Status Changed successfully" });
                 }
-                else
-                {
-                    return ResultResponseDto<string>.Failure(new[] { "Failed: Assessment must be from the current year." });
-                }
             }
             catch (Exception ex)
             {
@@ -741,6 +730,7 @@ namespace HealthIntelligence.Services
                 return ResultResponseDto<string>.Failure(new[] { "Failed to Changed assessment status" });
 
             }
+            return ResultResponseDto<string>.Failure(new[] { "Failed to Changed assessment status" });
         }
 
         public async Task<ResultResponseDto<string>> TransferAssessment(TransferAssessmentRequestDto r, int userID, UserRole userRole)
@@ -763,7 +753,7 @@ namespace HealthIntelligence.Services
                                               x.UserID == r.TransferToUserID);
 
                 if (countryAssigned == null)
-                    return ResultResponseDto<string>.Failure(new[] { "This assessment can’t be imported because the selected user hasn’t been assigned to this country yet." });
+                    return ResultResponseDto<string>.Failure(new[] { "This assessment can�t be imported because the selected user hasn�t been assigned to this country yet." });
 
                 // Load existing assessment for that user/country/year (with pillars/responses)
                 var existingAssessment = await _context.Assessments
@@ -780,7 +770,7 @@ namespace HealthIntelligence.Services
                         CreatedAt = currentDate,
                         UpdatedAt = currentDate,
                         IsActive = true,
-                        AssessmentPhase = transferAssessment.AssessmentPhase == AssessmentPhase.Completed ?  transferAssessment.AssessmentPhase: AssessmentPhase.InProgress,
+                        AssessmentPhase = transferAssessment.AssessmentPhase == AssessmentPhase.Completed ? transferAssessment.AssessmentPhase : AssessmentPhase.InProgress,
                         PillarAssessments = new List<PillarAssessment>()
                     };
 
@@ -861,7 +851,7 @@ namespace HealthIntelligence.Services
                     //existingAssessment.PillarAssessments.Remove(pillar);
                     _context.PillarAssessments.Remove(pillar);
                 }
-                if(existingAssessment.AssessmentPhase == AssessmentPhase.Completed)
+                if (existingAssessment.AssessmentPhase == AssessmentPhase.Completed)
                 {
                     _download.InsertAnalyticalLayerResults(transferAssessment.UserCountryMapping.CountryID);
                 }
@@ -875,13 +865,12 @@ namespace HealthIntelligence.Services
                 return ResultResponseDto<string>.Failure(new[] { "Failed to transfer assessment, please try again later." });
             }
         }
-        public async Task<ResultResponseDto<AiCountryPillarDashboardResponseDto>> GetCountryPillarHistory(UserCountryDashBoardRequstDto request, int userId, UserRole userRole)
+        public async Task<ResultResponseDto<AiCountryPillarDashboardResponseDto>> GetCountryPillarHistory(UserCountryDashBoardRequestDto request, int userId, UserRole userRole)
         {
             try
             {
                 var year = request.UpdatedAt.Year;
-                var pillarCount = _appSettings.PillarCount;
-
+                int pillarCount = _appSettings.PillarCount;
                 // 1. Validate country access
                 var hasAccess = await _context.UserCountryMappings
                     .AnyAsync(x =>
@@ -904,10 +893,9 @@ namespace HealthIntelligence.Services
                     .OrderBy(x => x.DisplayOrder)
                     .ToListAsync();
 
-                var AICountryProgress = await _context.AICountryScores
+                var aiCountryProgress = await _context.AICountryScores
                     .Where(x => x.CountryID == request.CountryID && x.Year == year)
-                    .Select(x => (decimal?)x.AIProgress)
-                    .MaxAsync() ?? 0;
+                    .MaxAsync(x => x.AIProgress);
 
                 var country = await _context.Countries
                     .AsNoTracking()
@@ -915,14 +903,7 @@ namespace HealthIntelligence.Services
                     .Select(x => new { x.CountryID, x.CountryName })
                     .FirstOrDefaultAsync();
 
-                 var pillarEvaluations = pillarEvaluationsList.Where(x=>x.CountryID == request.CountryID).ToList();
-                
-                var aiPillar = _context.AIPillarScores.Where(x => x.CountryID == request.CountryID && x.Year == year).Select(x => new EvaluationCountryProgressResultDto
-                {
-                    CountryID = x.CountryID,
-                    PillarID = x.PillarID,
-                    AIProgress = x.AIProgress ?? 0
-                }).ToList();
+                 var pillarEvaluations = pillarEvaluationsList.Where(x=>x.CountryID == request.CountryID);
 
                 // 3. Map pillar results
                 var pillarResults = pillars
@@ -935,7 +916,7 @@ namespace HealthIntelligence.Services
                             PillarID = pillar.PillarID,
                             PillarName = pillar.PillarName,
                             DisplayOrder = pillar.DisplayOrder,
-                            AiValue = aiPillar.FirstOrDefault(x=>x.PillarID == pillar.PillarID)?.AIProgress ?? 0,
+                            AiValue = evals.FirstOrDefault()?.AIProgress ?? 0,
                             EvaluationValue = evals.FirstOrDefault()?.ScoreProgress ?? 0
                         })
                     .ToList();
@@ -945,8 +926,8 @@ namespace HealthIntelligence.Services
                 {
                     CountryID = request.CountryID,
                     CountryName = country?.CountryName ?? string.Empty,
-                    AiValue = AICountryProgress,
-                    EvaluationValue = Math.Round(pillarEvaluations.Select(x => x.ScoreProgress).DefaultIfEmpty(0).Sum()/ (decimal)pillarCount, 2),
+                    AiValue = aiCountryProgress ?? 0,
+                    EvaluationValue = Math.Round(pillarEvaluations.Select(x => x.ScoreProgress).DefaultIfEmpty(0).Sum()/pillarCount, 2),
                     Pillars = pillarResults
                 };
 

@@ -1,4 +1,4 @@
-﻿namespace HealthIntelligence.Models
+namespace HealthIntelligence.Models
 {
     public class Assessment
     {

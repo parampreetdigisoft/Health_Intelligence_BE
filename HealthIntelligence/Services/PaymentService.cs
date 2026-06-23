@@ -1,4 +1,4 @@
-﻿using HealthIntelligence.Common.Models;
+using HealthIntelligence.Common.Models;
 using HealthIntelligence.Common.Models.settings;
 using HealthIntelligence.Data;
 using HealthIntelligence.Dtos.PaymentDto;
@@ -62,7 +62,7 @@ namespace HealthIntelligence.Services
                                 UnitAmount = request.Amount * 100,
                                 ProductData = new SessionLineItemPriceDataProductDataOptions
                                 {
-                                    Name = "Africa Health Systems Intelligence Platform (AHSIP) Payment Please don't close the window after clicking on pay button",
+                                    Name = "Peace Enablers Matrix Payment Please don't close the window after clicking on pay button",
                                     Metadata = new Dictionary<string, string>
                                     {
                                         {request.Tier.ToString(), $"Provide {request.Tier.ToString()} Paid subsciption" }
@@ -73,8 +73,8 @@ namespace HealthIntelligence.Services
                         }
                     },
                     CustomerEmail = user.Email,
-                    SuccessUrl = $"{_appSettings.PublicApplicationUrl}/CountryUser/payment/payment-success?session_id={{CHECKOUT_SESSION_ID}}",
-                    CancelUrl = $"{_appSettings.PublicApplicationUrl}/CountryUser/payment/payment-cancel",
+                    SuccessUrl = $"{_appSettings.PublicApplicationUrl}/cityuser/payment/payment-success?session_id={{CHECKOUT_SESSION_ID}}",
+                    CancelUrl = $"{_appSettings.PublicApplicationUrl}/cityuser/payment/payment-cancel",
                     Metadata = new Dictionary<string, string>
                     {
                         { "UserId", user.UserID.ToString() },
@@ -165,7 +165,7 @@ namespace HealthIntelligence.Services
         {
             try
             {
-                // 🔎 1. Check for existing pending session
+                // ?? 1. Check for existing pending session
                 var existingPayment = await _context.PaymentRecords
                     .Where(p => p.UserID == request.UserID && p.PaymentStatus == PaymentStatus.Pending)
                     .OrderByDescending(p => p.CreatedAt) // assuming you have CreatedAt column
@@ -177,7 +177,7 @@ namespace HealthIntelligence.Services
                     var oldSession = await sessionService.GetAsync(existingPayment.CheckoutSessionId,
                         new SessionGetOptions { Expand = new List<string> { "payment_intent" } });
 
-                    // If PaymentIntent exists → cancel it on Stripe
+                    // If PaymentIntent exists ? cancel it on Stripe
                     if (oldSession?.PaymentIntentId != null)
                     {
                         var piService = new PaymentIntentService();

@@ -1,4 +1,4 @@
-﻿using HealthIntelligence.Common.Interface;
+using HealthIntelligence.Common.Interface;
 using HealthIntelligence.Common.Models.settings;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
@@ -36,7 +36,8 @@ namespace HealthIntelligence.Common.Implementation
                     UseDefaultCredentials=false,
                     Credentials = new NetworkCredential(_smtpSettings.Username, _smtpSettings.Password),
                     EnableSsl = _smtpSettings.EnableSsl,
-                    DeliveryMethod = SmtpDeliveryMethod.Network
+                    DeliveryMethod = SmtpDeliveryMethod.Network,
+                    TargetName = "STARTTLS/"+ _smtpSettings.Host
                 };
                 var htmlContent = await RenderRazorViewToStringAsync(viewNamePath, model);
                 var mailMessage = new MailMessage

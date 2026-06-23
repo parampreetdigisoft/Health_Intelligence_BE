@@ -1,4 +1,4 @@
-﻿namespace HealthIntelligence.Dtos.AiDto
+namespace HealthIntelligence.Dtos.AiDto
 {
     public class PeerCountryHistoryReportDto
     {
@@ -6,13 +6,14 @@
         public string Continent { get; set; }
         public string CountryName { get; set; }
         public string? CountryCode { get; set; }
-        public string? Region { get; set; }        
+        public string? Region { get; set; }
+        public string Country { get; set; }
         public DateTime? UpdatedDate { get; set; }
         public string? Image { get; set; }
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
         public int? Population { get; set; }
-        public decimal? Income { get; set; }
+        public decimal? Income { get; set; }       
         public List<PeerCountryYearHistoryDto> CountryHistory { get; set; }
     }
 

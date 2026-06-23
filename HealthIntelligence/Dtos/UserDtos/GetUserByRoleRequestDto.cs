@@ -1,4 +1,4 @@
-﻿using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.Dtos.CommonDto;
 using HealthIntelligence.Models;
 
 namespace HealthIntelligence.Dtos.UserDtos

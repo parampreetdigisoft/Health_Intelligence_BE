@@ -1,9 +1,11 @@
 
-using HealthIntelligence.Dtos.CountryDto;
-using HealthIntelligence.Dtos.UserDtos;
-using HealthIntelligence.IServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using HealthIntelligence.Dtos.CountryDto;
+using HealthIntelligence.Dtos.EmailExistDto;
+using HealthIntelligence.Dtos.UserDtos;
+using HealthIntelligence.IServices;
+using HealthIntelligence.Services;
 
 namespace HealthIntelligence.Controllers
 {
@@ -16,15 +18,6 @@ namespace HealthIntelligence.Controllers
         {
             _authService = authService;
         }
-        private int? GetUserIdFromClaims()
-        {
-            var userIdClaim = User.FindFirst("UserId")?.Value;
-            if (int.TryParse(userIdClaim, out int userId))
-                return userId;
-
-            return null;
-        }
-
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
@@ -102,6 +95,20 @@ namespace HealthIntelligence.Controllers
         }
 
         [HttpPost]
+        [AllowAnonymous]
+        [Route("CheckEmailExist")]        
+        public async Task<IActionResult> CheckEmailExist([FromBody] EmailExistRequestDto request)
+        {
+
+            var response = await _authService.CheckEmailExist(request);
+
+            if (response == null)
+                return StatusCode(500, "Email Check Validation failed due to a server error.");
+
+            return Ok(response);
+        }
+
+        [HttpPost]
         [Route("UpdateInviteUser")]
         [Authorize]
         public async Task<IActionResult> UpdateInviteUser([FromBody] UpdateInviteUserDto request)
@@ -115,7 +122,7 @@ namespace HealthIntelligence.Controllers
                 return StatusCode(500, "User Invitation failed due to a server error.");
 
             return Ok(response);
-        }
+        }        
 
         [HttpPost("register")]
         [Authorize(Roles = "Admin")]
@@ -123,7 +130,7 @@ namespace HealthIntelligence.Controllers
         {
             if (_authService.GetByEmail(req.Email) != null)
                 return BadRequest("User already exists");
-            var user = _authService.Register(req.FullName, req.Email, req.Phone, req.Password, req.Role);
+            var user = _authService.Register(req.FullName, req.Email, req.Phone, req.Password, req.Role, req.Tier);
             return Created($"/api/user/{user.UserID}", new { user.UserID, user.FullName, user.Email, user.Role });
         }
 
@@ -199,17 +206,23 @@ namespace HealthIntelligence.Controllers
                 return Unauthorized();
             return Ok(user);
         }
-
         [HttpPost]
         [Route("updateUser")]
-        [Authorize]
         public async Task<IActionResult> UpdateUser([FromForm] UpdateUserDto dto)
         {
             var claimUserId = GetUserIdFromClaims();
             if (claimUserId == null || claimUserId != dto.UserID)
-                return Unauthorized("You are not authorized.");
+                return Unauthorized("User ID not found.");
 
             return Ok(await _authService.UpdateUser(dto));
+        }
+        private int? GetUserIdFromClaims()
+        {
+            var userIdClaim = User.FindFirst("UserId")?.Value;
+            if (int.TryParse(userIdClaim, out int userId))
+                return userId;
+
+            return null;
         }
     }
 

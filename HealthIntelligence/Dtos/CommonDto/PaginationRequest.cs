@@ -1,4 +1,4 @@
-﻿namespace HealthIntelligence.Dtos.CommonDto
+namespace HealthIntelligence.Dtos.CommonDto
 {
     public class PaginationRequest
     {

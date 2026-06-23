@@ -13,6 +13,7 @@ namespace HealthIntelligence.Models
         public string Justification { get; set; } 
         public string? Source { get; set; } 
         public PillarAssessment PillarAssessment { get; set; } 
-        public Question Question { get; set; } 
+        public Question Question { get; set; }
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     }
 } 

@@ -1,4 +1,4 @@
-﻿namespace HealthIntelligence.Views.EmailModels
+namespace HealthIntelligence.Views.EmailModels
 {
     public class EmailInvitationSendRequestDto
     {
@@ -25,5 +25,8 @@
         public bool IsShowBtnText { get; set; } = true;
         public bool IsLoginBtn { get; set; } = true;
         public string Mail { get; set; }
+
+        public string Name { get; set; }
+
     }
 }

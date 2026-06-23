@@ -1,4 +1,6 @@
-﻿namespace HealthIntelligence.Dtos.AiDto
+using HealthIntelligence.Backgroundjob;
+
+namespace HealthIntelligence.Dtos.AiDto
 {
     public class ChangedAiCountryEvaluationStatusDto
     {
@@ -12,8 +14,9 @@
         public bool CountryEnable { get; set; }
         public bool PillarEnable { get; set; }
         public bool QuestionEnable { get; set; }
-        public bool ImmediateSummaryEnable { get; set; }
-        public bool RegenerateMissingQuestionsEnable { get; set; }
+        public bool ImmediateSummaryEnable { get; set; }       
+        public bool RegenerateMissingQuestionsEnable { get; set; }       
+
         public List<int> ViewerUserIDs { get; set; } = new();
     }
     public class RegeneratePillarAiSearchDto : RegenerateAiSearchDto

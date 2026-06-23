@@ -1,15 +1,24 @@
-﻿using HealthIntelligence.Common.Interface;
+using DocumentFormat.OpenXml.InkML;
+using DocumentFormat.OpenXml.Spreadsheet;
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
+
+using HealthIntelligence.Common.Implementation;
+using HealthIntelligence.Common.Interface;
 using HealthIntelligence.Common.Models;
 using HealthIntelligence.Common.Models.settings;
 using HealthIntelligence.Data;
 using HealthIntelligence.Dtos.CountryDto;
+using HealthIntelligence.Dtos.CountryUserDto;
+using HealthIntelligence.Dtos.EmailExistDto;
 using HealthIntelligence.Dtos.UserDtos;
+using HealthIntelligence.Enums;
 using HealthIntelligence.IServices;
 using HealthIntelligence.Models;
 using HealthIntelligence.Views.EmailModels;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
+
 using System.Data;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -26,8 +35,7 @@ namespace HealthIntelligence.Services
         private readonly IEmailService _emailService;
         private readonly IAppLogger _appLogger;
         private readonly IWebHostEnvironment _env;
-        public AuthService(ApplicationDbContext context, IOptions<AppSettings> appSettings, IEmailService emailService, 
-            IOptions<JwtSetting> jwtSetting, IAppLogger appLogger, IWebHostEnvironment env)
+        public AuthService(ApplicationDbContext context, IOptions<AppSettings> appSettings, IEmailService emailService, IOptions<JwtSetting> jwtSetting, IAppLogger appLogger, IWebHostEnvironment env)
         {
             _context = context;
             _appSettings = appSettings.Value;
@@ -40,7 +48,7 @@ namespace HealthIntelligence.Services
 
         #region IAuthService implemention
 
-        public User Register(string fullName, string email, string phn, string password, UserRole role)
+        public User Register(string fullName, string email, string phn, string password, UserRole role, Enums.TieredAccessPlan? tier = Enums.TieredAccessPlan.Pending)
         {
             var hash = BCrypt.Net.BCrypt.HashPassword(password);
             var user = new User
@@ -51,8 +59,7 @@ namespace HealthIntelligence.Services
                 PasswordHash = hash,
                 Role = role,
                 IsEmailConfirmed = false,
-                TemporaryMail = email,
-                Tier = role == UserRole.CountryUser ? Enums.TieredAccessPlan.Pending : null
+                Tier = tier ?? TieredAccessPlan.Pending
             };
             _context.Users.Add(user);
             _context.SaveChanges();
@@ -61,9 +68,9 @@ namespace HealthIntelligence.Services
 
         public User? GetByEmail(string email)
         {
-            return _context.Users.FirstOrDefault(u => u.Email == email);
+            return _context.Users.FirstOrDefault(u => u.Email == email && !u.IsDeleted);
         }
-        public async Task<User?> GetByEmailAysync(string email)
+        public async Task<User?> GetByEmailAsync(string email)
         {
             try
             {
@@ -97,14 +104,14 @@ namespace HealthIntelligence.Services
                     var url = user.Role != UserRole.CountryUser ? _appSettings.ApplicationUrl : _appSettings.PublicApplicationUrl;
                     string passwordResetLink = url + "/auth/reset-password?PasswordToken=" + token;
 
-                    var sub = "Password Update Link – Africa Health Systems Intelligence Platform (AHSIP)";
+                    var sub = "Password Update Link � Peace Enablers Matrix Platform";
                     var model = new EmailInvitationSendRequestDto
                     {
                         ResetPasswordUrl = passwordResetLink,
                         Title = sub,
                         ApiUrl = _appSettings.ApiUrl,
                         ApplicationUrl = url,
-                        MsgText= "A request was made to update the password for your Africa Health Systems Intelligence Platform (AHSIP) account. To proceed, please use the secure link below:",
+                        MsgText= "A request was made to update the password for your Peace Enablers Matrix (PEM) account. To proceed, please use the secure link below:",
                         IsShowBtnText=true,
                         IsLoginBtn=false,
                         BtnText= "Update Password",
@@ -165,7 +172,7 @@ namespace HealthIntelligence.Services
         {
             try
             {
-                var user = await GetByEmailAysync(email);
+                var user = await GetByEmailAsync(email);
                 if (user == null || !VerifyPassword(password, user.PasswordHash))
                 {
                     return ResultResponseDto<UserResponseDto>.Failure(new string[] { "Invalid request data." });
@@ -175,11 +182,11 @@ namespace HealthIntelligence.Services
                     var r = await SendTwoFactorOTPAsync(user);
                     if (r.Succeeded) 
                     {
-                        var sendOpt = new UserResponseDto {};
+                        var sendOpt = new UserResponseDto {};                        
                         return ResultResponseDto<UserResponseDto>.Success(sendOpt,
                           new string[] { "We've sent a one-time verification code (OTP) to your registered email address. Please check your inbox and enter the OTP to continue." });
                     }
-                    return ResultResponseDto<UserResponseDto>.Failure(new string[] { "Faild to send OTP Please try again." });
+                    return ResultResponseDto<UserResponseDto>.Failure(new string[] { "Failed to send OTP Please try again." });
                 }
                 else
                 {
@@ -247,7 +254,7 @@ namespace HealthIntelligence.Services
                 TokenExpirationDate = tokenExpired,
                 ProfileImagePath = user.ProfileImagePath,
                 Token = token,
-                tier = user.Tier
+                Tier = user.Tier
             };
             return ResultResponseDto<UserResponseDto>.Success(response, new string[] { "You have successfully logged in." });
         }
@@ -263,9 +270,9 @@ namespace HealthIntelligence.Services
                 bool isExistingUser = true;
                 var user = GetByEmail(inviteUser.Email);
 
-                if (user == null)
+                if (user == null || !user.IsDeleted)
                 {
-                    user = Register(inviteUser.FullName, inviteUser.Email, inviteUser.Phone, inviteUser.Password, inviteUser.Role);
+                    user = Register(inviteUser.FullName, inviteUser.Email, inviteUser.Phone, inviteUser.Password, inviteUser.Role, inviteUser.Tier);
                     if (user == null)
                     {
                         return ResultResponseDto<object>.Failure(new string[] { "Failed to register user." });
@@ -281,7 +288,14 @@ namespace HealthIntelligence.Services
                 var hash = BCrypt.Net.BCrypt.HashPassword(inviteUser.Email);
                 var passwordToken = hash;
                 var token = passwordToken.Replace("+", " ");
-                string sub = $"{inviteUser.Role.ToString()} Access Granted –Africa Health Systems Intelligence Platform (AHSIP)";
+                string roleName = inviteUser.Role.ToString();
+
+                if (inviteUser.Role == UserRole.CountryUser)
+                {
+                    roleName = "Country User";
+                }
+
+                string sub = $"{roleName} Access Granted � Peace Enablers Matrix Platform";
                 var url = _appSettings.ApplicationUrl; 
                 string passwordResetLink = url + "/auth/reset-password?PasswordToken=" + token;
 
@@ -297,29 +311,52 @@ namespace HealthIntelligence.Services
                     ApiUrl = _appSettings.ApiUrl,
                     Title = sub,
                     ApplicationUrl = url,
-                    Mail= _appSettings.AdminMail
+                    Mail= _appSettings.AdminMail,
+                    Name = "Dear" + " " +user.FullName
                 };
-                var viewNamePath = inviteUser.Role ==UserRole.Analyst ? "~/Views/EmailTemplates/AnalystSendInvitation.cshtml" : "~/Views/EmailTemplates/EvaluatorSendInvitation.cshtml";
+                var viewNamePath = inviteUser.Role switch
+                {
+                    UserRole.Analyst => "~/Views/EmailTemplates/AnalystSendInvitation.cshtml",
+                    UserRole.Evaluator => "~/Views/EmailTemplates/EvaluatorSendInvitation.cshtml",
+                    UserRole.CountryUser => "~/Views/EmailTemplates/CountryUserSendInvitation.cshtml",
+                    _ => ""
+                };
 
                 var isMailSent = await _emailService.SendEmailAsync(inviteUser.Email, sub, viewNamePath, model);
                 user.ResetToken = token;
                 user.ResetTokenDate = DateTime.Now;
-                user.IsDeleted = false;
+                user.IsDeleted = false;                
                 _context.Users.Update(user);
-
-                foreach (var id in inviteUser.CountryID)
+                if (inviteUser.Role != UserRole.CountryUser)
                 {
-                    var mapping = new UserCountryMapping
+                    foreach (var id in inviteUser.CountryID)
                     {
-                        UserID = user.UserID,
-                        CountryID = id,
-                        AssignedByUserId = inviteUser.InvitedUserID,
-                        Role = user.Role
-                    };
-                    _context.UserCountryMappings.Add(mapping);
+                        var mapping = new UserCountryMapping
+                        {
+                            UserID = user.UserID,
+                            CountryID = id,
+                            AssignedByUserId = inviteUser.InvitedUserID,
+                            Role = user.Role
+                        };
+                        _context.UserCountryMappings.Add(mapping);
+                    }
                 }
+                
                 await _context.SaveChangesAsync();
-
+                if (inviteUser.Role == UserRole.CountryUser)
+                {
+                    string tierName = inviteUser.Tier?.ToString();
+                    var kpiPayload = new AddCountryUserKpisCountryAndPillar
+                    {
+                        Countries = inviteUser.CountryID,
+                        Pillars = inviteUser.Pillars
+                    };
+                   var response =  await AddCountryUserKpisCountryAndPillar(kpiPayload, user.UserID, tierName);
+                    if (!response.Succeeded)
+                    {
+                        return ResultResponseDto<object>.Failure(new string[] { "There is an error please try later" });
+                    }
+                }
                 if (isMailSent)
                 {
                     string msg = string.Empty;
@@ -338,115 +375,292 @@ namespace HealthIntelligence.Services
             }
             catch (Exception ex)
             {
-                await _appLogger.LogAsync("Error Occure", ex);
+                await _appLogger.LogAsync("Error Occurred", ex);
                 return ResultResponseDto<object>.Failure(new string[] { "There is an error please try later" });
             }
         }
 
+        //   public async Task<ResultResponseDto<object>> UpdateInviteUser(UpdateInviteUserDto inviteUser)
+        //   {
+        //       try
+        //       {
+        //           if (inviteUser == null || string.IsNullOrEmpty(inviteUser.Email) || string.IsNullOrEmpty(inviteUser.FullName))
+        //           {
+        //               return ResultResponseDto<object>.Failure(new string[] { "Invalid request data." });
+        //           }
+        //           var userList = await _context.Users.Where(u => u.UserID == inviteUser.UserID || u.UserID == inviteUser.InvitedUserID).ToListAsync();
+
+        //           var user = userList.FirstOrDefault(u => u.UserID == inviteUser.UserID);
+        //           if (user == null)
+        //           {
+        //               return ResultResponseDto<object>.Failure(new string[] { "User not found." });
+        //           }
+        //           if (user.Role != inviteUser.Role)
+        //           {
+        //               return ResultResponseDto<object>.Failure(new string[] { "User already have different role" });
+        //           }
+        //           user.FullName = inviteUser.FullName;
+        //           user.Phone = inviteUser.Phone;
+        //           user.CreatedBy = inviteUser.InvitedUserID;
+        //           user.Email = inviteUser.Email;
+        //           user.Tier = inviteUser.Tier;
+        //           _context.Users.Update(user);                
+        //           var existingMappings = _context.UserCountryMappings
+        //                   .Where(m => m.UserID == user.UserID && m.AssignedByUserId == inviteUser.InvitedUserID && !m.IsDeleted)
+        //                   .ToList();
+
+        //           var existingCountryIds = existingMappings.Select(m => m.CountryID).ToList();
+
+        //           var newCountryIds = inviteUser.CountryID;
+
+        //           // Add missing countries
+        //           var countriesToAdd = newCountryIds.Except(existingCountryIds).ToList();
+        //           foreach (var cityId in countriesToAdd)
+        //           {
+        //               var newMapping = new UserCountryMapping
+        //{
+        //                   UserID = user.UserID,
+        //                   CountryID = cityId,
+        //                   AssignedByUserId = inviteUser.InvitedUserID,
+        //                   Role = user.Role
+        //               };
+        //               _context.UserCountryMappings.Add(newMapping);
+        //           }
+
+        //           //Delete countries no longer in the new list
+        //           var countriesToDelete = existingMappings
+        //               .Where(m => !newCountryIds.Contains(m.CountryID))
+        //               .ToList();
+        //           foreach (var c in countriesToDelete)
+        //           {
+        //               c.IsDeleted = true;
+        //               _context.UserCountryMappings.Update(c);
+        //           }
+
+        //           // Save all changes
+        //           await _context.SaveChangesAsync();
+
+        //           bool isMailSent = false;
+        //           var msgText = "You are receiving this email because you haven't reset your password";
+        //           string msg = "User updated successfully";
+
+        //           var invitedUser = userList.FirstOrDefault(x => x.UserID == inviteUser.InvitedUserID);
+
+        //           List<int> merged = inviteUser.CountryID.Concat(countriesToDelete.Select(x => x.CountryID)).ToList();
+
+        //           var countries = await _context.Countries
+        //               .Where(c => merged.Contains(c.CountryID))
+        //               .ToListAsync();
+
+        //           if (countriesToAdd.Count > 0)
+        //           {
+        //               isMailSent = true;
+        //               var invitedCountryNames = string.Join(", ",
+        //                   countries.Where(c => countriesToAdd.Contains(c.CountryID)).Select(c => c.CountryName));
+
+        //               msgText = $"You are receiving this email because {invitedUser?.FullName} recently requested country assignment ({invitedCountryNames}) for your PEM account.";
+        //           }
+
+        //           if (countriesToDelete.Count > 0)
+        //           {
+        //               var deleteName = countries
+        //               .Where(c => countriesToDelete.Select(x => x.CountryID).Contains(c.CountryID)).Select(c => c.CountryName);
+        //               var deleteCountryNames = string.Join(", ", deleteName);
+
+        //               if (isMailSent)
+        //               {
+        //                   msgText += $" Additionally, you no longer have access to the countries ({deleteCountryNames}) for your PEM account.";
+        //               }
+        //               else
+        //               {
+        //                   msgText = $"You are receiving this email because {invitedUser?.FullName} recently removed your access to the following countries ({deleteCountryNames}) for your PEM account.";
+        //               }
+        //               isMailSent = true;
+        //           }
+        //           if (!user.IsEmailConfirmed)
+        //           {
+        //               var hash = BCrypt.Net.BCrypt.HashPassword(inviteUser.Email);
+        //               var passwordToken = hash;
+        //               var token = passwordToken.Replace("+", " ");
+        //               string roleName = inviteUser.Role.ToString();
+
+        //               if (inviteUser.Role == UserRole.CountryUser)
+        //               {
+        //                   roleName = "Country User";
+        //               }
+
+        //               string sub = $"{roleName} Access Granted � Peace Enablers Matrix Platform";                    
+        //               var url = user.Role != UserRole.CountryUser ? _appSettings.ApplicationUrl : _appSettings.PublicApplicationUrl;
+        //               string passwordResetLink = url + "/auth/reset-password?PasswordToken=" + token;
+
+        //               var model = new EmailInvitationSendRequestDto
+        //               {
+        //                   ResetPasswordUrl = passwordResetLink,
+        //                   ApiUrl = _appSettings.ApiUrl,
+        //                   ApplicationUrl = url,
+        //                   Title = sub,
+        //                   Mail = _appSettings.AdminMail,
+        //                   Name = "Dear" + " " +user.FullName
+        //               };
+        //               var viewNamePath = inviteUser.Role switch
+        //               {
+        //                   UserRole.Analyst => "~/Views/EmailTemplates/AnalystSendInvitation.cshtml",
+        //                   UserRole.Evaluator => "~/Views/EmailTemplates/EvaluatorSendInvitation.cshtml",
+        //                   UserRole.CountryUser => "~/Views/EmailTemplates/CountryUserSendInvitation.cshtml",
+        //                   _ => "~/Views/EmailTemplates/DefaultInvitation.cshtml"
+        //               };
+
+        //               isMailSent = await _emailService.SendEmailAsync(inviteUser.Email, sub, viewNamePath, model);
+        //               user.ResetToken = token;
+        //               user.ResetTokenDate = DateTime.Now;
+        //               user.IsDeleted = false;
+
+        //               msg = $"User updated and invitation {(isMailSent ? "sent successfully" : "failed to send")}";
+        //               await _context.SaveChangesAsync();
+        //           }
+
+        //           return ResultResponseDto<object>.Success(new { }, new string[] { msg });
+        //       }
+        //       catch (Exception ex)
+        //       {
+        //           await _appLogger.LogAsync("Error Occure in UpdateInviteUser", ex);
+        //           return ResultResponseDto<object>.Failure(new string[] { "There is an error please try later" });
+        //       }
+        //   }
         public async Task<ResultResponseDto<object>> UpdateInviteUser(UpdateInviteUserDto inviteUser)
         {
             try
             {
                 if (inviteUser == null || string.IsNullOrEmpty(inviteUser.Email) || string.IsNullOrEmpty(inviteUser.FullName))
-                {
-                    return ResultResponseDto<object>.Failure(new string[] { "Invalid request data." });
-                }
-                var userList = await _context.Users.Where(u => u.UserID == inviteUser.UserID || u.UserID == inviteUser.InvitedUserID).ToListAsync();
+                    return ResultResponseDto<object>.Failure(new[] { "Invalid request data." });
+
+                var userList = await _context.Users
+                    .Where(u => u.UserID == inviteUser.UserID || u.UserID == inviteUser.InvitedUserID)
+                    .ToListAsync();
 
                 var user = userList.FirstOrDefault(u => u.UserID == inviteUser.UserID);
                 if (user == null)
-                {
-                    return ResultResponseDto<object>.Failure(new string[] { "User not found." });
-                }
+                    return ResultResponseDto<object>.Failure(new[] { "User not found." });
+
                 if (user.Role != inviteUser.Role)
-                {
-                    return ResultResponseDto<object>.Failure(new string[] { "User already have different role" });
-                }
+                    return ResultResponseDto<object>.Failure(new[] { "User already have different role" });
 
-
+                // Update basic user info
                 user.FullName = inviteUser.FullName;
                 user.Phone = inviteUser.Phone;
                 user.CreatedBy = inviteUser.InvitedUserID;
+                user.Email = inviteUser.Email;
+                user.Tier = inviteUser.Tier;
                 _context.Users.Update(user);
 
-                var existingMappings = _context.UserCountryMappings
-                    .Where(m => m.UserID == user.UserID && m.AssignedByUserId == inviteUser.InvitedUserID && !m.IsDeleted)
-                    .ToList();
+                // Determine added/deleted countries
+                var (countriesToAdd, countriesToDelete) = await GetCountryMappingChangesAsync(
+                    user.UserID,
+                    inviteUser.InvitedUserID,
+                    inviteUser.Role,
+                    inviteUser.CountryID
+                );
 
-                var existingCountryIds = existingMappings.Select(m => m.CountryID).ToList();
-
-                var newCountryIds = inviteUser.CountryID;
-
-                // Add missing countries
-                var countriesToAdd = newCountryIds.Except(existingCountryIds).ToList();
-                foreach (var countryId in countriesToAdd)
+                // Handle country mappings based on role
+                if (inviteUser.Role == UserRole.CountryUser)
                 {
-                    var newMapping = new UserCountryMapping
+                    // Delete old countries
+                    var existingCountries = await _context.PublicUserCountryMappings
+                        .Where(m => m.UserID == user.UserID)
+                        .ToListAsync();
+                    var countriesToRemove = existingCountries.Where(c => countriesToDelete.Contains(c.CountryID)).ToList();
+                    _context.PublicUserCountryMappings.RemoveRange(countriesToRemove);
+
+                    // Add new countries
+                    var utcNow = DateTime.UtcNow;
+                    var newCountries = countriesToAdd.Select(c => new PublicUserCountryMapping
                     {
                         UserID = user.UserID,
-                        CountryID = countryId,
+                        CountryID = c,
+                        IsActive = true,
+                        UpdatedAt = utcNow
+                    });
+                    await _context.PublicUserCountryMappings.AddRangeAsync(newCountries);
+
+                    // Update Pillars
+                    if (inviteUser.Pillars != null)
+                    {
+                        var existingPillars = await _context.CountryUserPillarMappings
+                            .Where(m => m.UserID == user.UserID)
+                            .ToListAsync();
+                        _context.CountryUserPillarMappings.RemoveRange(existingPillars);
+
+                        var newPillars = inviteUser.Pillars.Select(p => new CountryUserPillarMapping
+                        {
+                            UserID = user.UserID,
+                            PillarID = p,
+                            IsActive = true,
+                            UpdatedAt = utcNow
+                        });
+                        await _context.CountryUserPillarMappings.AddRangeAsync(newPillars);
+                    }
+                }
+                else
+                {
+                    // Other roles use UserCountryMappings
+                    var existingMappings = _context.UserCountryMappings
+                        .Where(m => m.UserID == user.UserID && m.AssignedByUserId == inviteUser.InvitedUserID && !m.IsDeleted)
+                        .ToList();
+
+                    // Add missing
+                    var addMappings = countriesToAdd.Select(c => new UserCountryMapping
+                    {
+                        UserID = user.UserID,
+                        CountryID = c,
                         AssignedByUserId = inviteUser.InvitedUserID,
                         Role = user.Role
-                    };
-                    _context.UserCountryMappings.Add(newMapping);
+                    });
+                    _context.UserCountryMappings.AddRange(addMappings);
+
+                    // Delete removed
+                    var deleteMappings = existingMappings.Where(m => countriesToDelete.Contains(m.CountryID)).ToList();
+                    foreach (var m in deleteMappings)
+                    {
+                        m.IsDeleted = true;
+                        _context.UserCountryMappings.Update(m);
+                    }
                 }
 
-                //Delete countries no longer in the new list
-                var countriesToDelete = existingMappings
-                    .Where(m => !newCountryIds.Contains(m.CountryID))
-                    .ToList();
-                foreach (var c in countriesToDelete)
-                {
-                    c.IsDeleted = true;
-                    _context.UserCountryMappings.Update(c);
-                }
-
-                // Save all changes
                 await _context.SaveChangesAsync();
 
+                // Common email logic
                 bool isMailSent = false;
-                var msgText = "You are receiving this email because you haven't reset your password";
+                string msgText = "You are receiving this email because you haven't reset your password";
                 string msg = "User updated successfully";
 
                 var invitedUser = userList.FirstOrDefault(x => x.UserID == inviteUser.InvitedUserID);
-
-                List<int> merged = inviteUser.CountryID.Concat(countriesToDelete.Select(x => x.CountryID)).ToList();
-
-                var countries = await _context.Countries
-                    .Where(c => merged.Contains(c.CountryID))
+                var mergedCountries = (inviteUser.CountryID ?? new List<int>()).Concat(countriesToDelete).ToList();
+                var countryDetails = await _context.Countries
+                    .Where(c => mergedCountries.Contains(c.CountryID))
                     .ToListAsync();
 
                 if (countriesToAdd.Count > 0)
                 {
                     isMailSent = true;
-                    var invitedCountryNames = string.Join(", ",
-                        countries.Where(c => countriesToAdd.Contains(c.CountryID)).Select(c => c.CountryName));
-
-                    msgText = $"You are receiving this email because {invitedUser?.FullName} recently requested country assignment ({invitedCountryNames}) for your USVI account.";
+                    var addedNames = string.Join(", ", countryDetails.Where(c => countriesToAdd.Contains(c.CountryID)).Select(c => c.CountryName));
+                    msgText = $"You are receiving this email because {invitedUser?.FullName} recently requested country assignment ({addedNames}) for your PEM account.";
                 }
 
                 if (countriesToDelete.Count > 0)
                 {
-                    var deleteName = countries
-                    .Where(c => countriesToDelete.Select(x => x.CountryID).Contains(c.CountryID)).Select(c => c.CountryName);
-                    var deleteCountryNames = string.Join(", ", deleteName);
-
-                    if (isMailSent)
-                    {
-                        msgText += $" Additionally, you no longer have access to the countries ({deleteCountryNames}) for your USVI account.";
-                    }
-                    else
-                    {
-                        msgText = $"You are receiving this email because {invitedUser?.FullName} recently removed your access to the following countries ({deleteCountryNames}) for your USVI account.";
-                    }
+                    var removedNames = string.Join(", ", countryDetails.Where(c => countriesToDelete.Contains(c.CountryID)).Select(c => c.CountryName));
+                    msgText = isMailSent
+                        ? msgText + $" Additionally, you no longer have access to the countries ({removedNames}) for your PEM account."
+                        : $"You are receiving this email because {invitedUser?.FullName} recently removed your access to the following countries ({removedNames}) for your PEM account.";
                     isMailSent = true;
                 }
-                if (isMailSent || !user.IsEmailConfirmed)
+
+                if (!user.IsEmailConfirmed)
                 {
                     var hash = BCrypt.Net.BCrypt.HashPassword(inviteUser.Email);
-                    var passwordToken = hash;
-                    var token = passwordToken.Replace("+", " ");
-                    string sub = $"{inviteUser.Role.ToString()} Access Granted – Africa Health Systems Intelligence Platform (AHSIP)";
+                    var token = hash.Replace("+", " ");
+                    string roleName = inviteUser.Role == UserRole.CountryUser ? "Country User" : inviteUser.Role.ToString();
+                    string sub = $"{roleName} Access Granted � Peace Enablers Matrix Platform";
                     var url = user.Role != UserRole.CountryUser ? _appSettings.ApplicationUrl : _appSettings.PublicApplicationUrl;
                     string passwordResetLink = url + "/auth/reset-password?PasswordToken=" + token;
 
@@ -456,9 +670,17 @@ namespace HealthIntelligence.Services
                         ApiUrl = _appSettings.ApiUrl,
                         ApplicationUrl = url,
                         Title = sub,
-                        Mail = _appSettings.AdminMail
+                        Mail = _appSettings.AdminMail,
+                        Name = "Dear " + user.FullName
                     };
-                    var viewNamePath = inviteUser.Role == UserRole.Analyst ? "~/Views/EmailTemplates/AnalystSendInvitation.cshtml" : "~/Views/EmailTemplates/EvaluatorSendInvitation.cshtml";
+
+                    var viewNamePath = inviteUser.Role switch
+                    {
+                        UserRole.Analyst => "~/Views/EmailTemplates/AnalystSendInvitation.cshtml",
+                        UserRole.Evaluator => "~/Views/EmailTemplates/EvaluatorSendInvitation.cshtml",
+                        UserRole.CountryUser => "~/Views/EmailTemplates/CountryUserSendInvitation.cshtml",
+                        _ => ""
+                    };
 
                     isMailSent = await _emailService.SendEmailAsync(inviteUser.Email, sub, viewNamePath, model);
                     user.ResetToken = token;
@@ -469,32 +691,73 @@ namespace HealthIntelligence.Services
                     await _context.SaveChangesAsync();
                 }
 
-                return ResultResponseDto<object>.Success(new { }, new string[] { msg });
+                return ResultResponseDto<object>.Success(new { }, new[] { msg });
             }
             catch (Exception ex)
             {
-                await _appLogger.LogAsync("Error Occure in UpdateInviteUser", ex);
-                return ResultResponseDto<object>.Failure(new string[] { "There is an error please try later" });
+                await _appLogger.LogAsync("Error Occurred in UpdateInviteUser", ex);
+                return ResultResponseDto<object>.Failure(new[] { "There is an error please try later" });
             }
         }
         public async Task<ResultResponseDto<object>> DeleteUser(int userId)
         {
             try
             {
+                var user = await _context.Users
+                    .FirstOrDefaultAsync(m => m.UserID == userId && !m.IsDeleted);
 
-                var user = await _context.Users.FirstOrDefaultAsync(m => m.UserID == userId && !m.IsDeleted);
                 if (user == null)
                 {
                     return ResultResponseDto<object>.Failure(new string[] { "User not exist" });
                 }
+
+                // Soft delete user
                 user.IsDeleted = true;
                 _context.Users.Update(user);
 
-                var userMapping = _context.UserCountryMappings.Where(x => x.UserID == userId).ToList();
-                foreach (var m in userMapping)
+                if (user.Role == UserRole.CountryUser)
                 {
-                    m.IsDeleted = true;
-                    _context.UserCountryMappings.Update(m);
+                    var utcNow = DateTime.UtcNow;
+
+                    // ?? Deactivate PublicUserCountryMappings
+                    var publicMappings = await _context.PublicUserCountryMappings
+                        .Where(x => x.UserID == userId && x.IsActive)
+                        .ToListAsync();
+
+                    foreach (var mapping in publicMappings)
+                    {
+                        mapping.IsActive = false;
+                        mapping.UpdatedAt = utcNow;
+                    }
+
+                    _context.PublicUserCountryMappings.UpdateRange(publicMappings);
+
+                    // ?? Deactivate CountryUserPillarMappings
+                    var pillarMappings = await _context.CountryUserPillarMappings
+                        .Where(x => x.UserID == userId && x.IsActive)
+                        .ToListAsync();
+
+                    foreach (var mapping in pillarMappings)
+                    {
+                        mapping.IsActive = false;
+                        mapping.UpdatedAt = utcNow;
+                    }
+
+                    _context.CountryUserPillarMappings.UpdateRange(pillarMappings);
+                }
+                else
+                {
+                    // ?? Handle other roles (existing logic)
+
+                    var userMappings = await _context.UserCountryMappings
+                        .Where(x => x.UserID == userId && !x.IsDeleted)
+                        .ToListAsync();
+
+                    foreach (var m in userMappings)
+                    {
+                        m.IsDeleted = true;
+                        _context.UserCountryMappings.Update(m);
+                    }
                 }
 
                 await _context.SaveChangesAsync();
@@ -503,7 +766,7 @@ namespace HealthIntelligence.Services
             }
             catch (Exception ex)
             {
-                await _appLogger.LogAsync("Error Occure in DeleteUser", ex);
+                await _appLogger.LogAsync("Error Occurred in DeleteUser", ex);
                 return ResultResponseDto<object>.Failure(new string[] { "There is an error please try later" });
             }
         }
@@ -527,7 +790,32 @@ namespace HealthIntelligence.Services
                 return ResultResponseDto<UserResponseDto>.Failure(new string[] { "There is an error please try later" });
             }
         }
+        public async Task<ResultResponseDto<object>> CheckEmailExist(EmailExistRequestDto request)
+        {
+            try
+            {
+                var user =  _context.Users.FirstOrDefault(u => u.Email == request.Email.Trim() && !u.IsDeleted);
+                bool exists = user != null && user.UserID != request.UserID;
 
+                if (exists)
+                {
+                    return ResultResponseDto<object>.Failure(
+                        new[] { "Email Already Exists" },
+                        isExist: true
+                    );
+                }
+
+                return ResultResponseDto<object>.Success(
+                    messages: new[] { "Email is Valid" }
+                    
+                );
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("Error Occured in fetch emails", ex);
+                return ResultResponseDto<object>.Failure(new string[] { "There is an error please try later" });
+            }
+        }
         public async Task<ResultResponseDto<object>> InviteBulkUser(InviteBulkUserDto inviteUserList)
         {
             try
@@ -582,7 +870,7 @@ namespace HealthIntelligence.Services
                     }
 
                     var existingCountryIds = _context.UserCountryMappings
-                        .Where(m => m.UserID == user.UserID && m.AssignedByUserId == inviteUser.InvitedUserID && !m.IsDeleted)
+						.Where(m => m.UserID == user.UserID && m.AssignedByUserId == inviteUser.InvitedUserID && !m.IsDeleted)
                         .Select(m => m.CountryID)
                         .ToList();
 
@@ -590,7 +878,7 @@ namespace HealthIntelligence.Services
                     foreach (var countryId in countriesToAdd)
                     {
                         newMappings.Add(new UserCountryMapping
-                        {
+						{
                             UserID = user.UserID,
                             CountryID = countryId,
                             AssignedByUserId = inviteUser.InvitedUserID,
@@ -612,7 +900,7 @@ namespace HealthIntelligence.Services
                          .Select(c => c.CountryName));
                         var invitedUser = _context.Users.FirstOrDefault(x => x.UserID == inviteUser.InvitedUserID);
 
-                        string sub = $"{inviteUser.Role.ToString()} Access Granted – Africa Health Systems Intelligence Platform (AHSIP)";
+                        string sub = $"{inviteUser.Role.ToString()} Access Granted � Peace Enablers Matrix Platform";
                         var model = new EmailInvitationSendRequestDto
                         {
                             ResetPasswordUrl = resetLink,
@@ -683,18 +971,18 @@ namespace HealthIntelligence.Services
                             url = $"analyst/evaluator-response/{request.UserID}/{assessment.UserCountryMapping.CountryID}";
                         }
 
-                        string passwordResetLink = _appSettings.ApplicationUrl + url;
+                        string passwordResetLink = _appSettings.ApplicationUrl+"/" + url;
                         var model = new EmailInvitationSendRequestDto
                         {
                             ResetPasswordUrl = passwordResetLink,
-                            Title = "Request to update country",
+                            Title = "Request to update assessment",
                             ApiUrl = _appSettings.ApiUrl,
                             ApplicationUrl = _appSettings.ApplicationUrl,
-                            MsgText = $"You are receiving this email because user {user?.FullName} recently requested to update country {country?.CountryName} from their USVI account.",
+                            MsgText = $"You are receiving this email because user {user?.FullName} recently requested to update assessment of {country?.CountryName} from their Peace Enablers Matrix account.",
                             BtnText = "Give Access",
                             Mail = _appSettings.AdminMail
                         };
-                        var isMailSent = await _emailService.SendEmailAsync(mailToUser.Email, "Request to update country", "~/Views/EmailTemplates/ChangePassword.cshtml", model);
+                        var isMailSent = await _emailService.SendEmailAsync(mailToUser.Email, "Request to update assessment", "~/Views/EmailTemplates/ChangePassword.cshtml", model);
                         if (isMailSent)
                         {
                             assessment.AssessmentPhase = AssessmentPhase.EditRequested;
@@ -717,7 +1005,7 @@ namespace HealthIntelligence.Services
             try
             {
                 // Check if the user already exists
-                var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email && u.IsDeleted == false);
+                var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
 
                 if (existingUser != null)
                 {
@@ -745,9 +1033,10 @@ namespace HealthIntelligence.Services
                         Title = "Verify Your Email",
                         ApiUrl = _appSettings.ApiUrl,
                         ApplicationUrl = _appSettings.PublicApplicationUrl,
-                        MsgText = "Thank you for signing up! Please verify your email and reset your password to complete registration.",
+                        MsgText = "Thank you for signing up! Please verify your email to complete registration.",
                         Mail = _appSettings.AdminMail,
                         BtnText = "Verify",
+                        DescriptionAboutBtnText = "Please verify your email address by clicking the button above.",
                         IsLoginBtn = false
                     };
 
@@ -763,6 +1052,7 @@ namespace HealthIntelligence.Services
                         user.ResetTokenDate = DateTime.Now;
                     }
                 }
+                user.TemporaryEmail = user.Email;                
 
                 _context.Users.Update(user);
 
@@ -777,7 +1067,7 @@ namespace HealthIntelligence.Services
                 {
                     return ResultResponseDto<UserResponseDto>.Success(new(), new[] 
                     { 
-                        "We’ve sent you a verification link. Please check your email." 
+                        "We�ve sent you a verification link. Please check your email." 
                     });
                 }
                 else
@@ -798,35 +1088,43 @@ namespace HealthIntelligence.Services
         {
             try
             {
-                var user = await _context.Users.Where(u => u.ResetToken == passwordToken).FirstOrDefaultAsync();
+                var user = await _context.Users
+                    .Where(u => u.ResetToken == passwordToken)
+                    .FirstOrDefaultAsync();
 
                 if (user == null)
                 {
                     return ResultResponseDto<object>.Failure(new string[] { "User not exist." });
                 }
+
                 if (_appSettings.LinkValidHours >= (DateTime.Now - user.ResetTokenDate).Hours)
                 {
-                    user.IsEmailConfirmed = true;
-                    if (!string.IsNullOrEmpty(user.TemporaryMail))
+                    if (!string.IsNullOrEmpty(user.TemporaryEmail))
                     {
-                        user.Email = user.TemporaryMail;
-                        user.TemporaryMail = null;
-
-                        _context.Users.Update(user);
-                        await _context.SaveChangesAsync();
+                        user.Email = user.TemporaryEmail;
+                        user.TemporaryEmail = null;
+                        user.IsEmailConfirmed = true;
                     }
 
-                    return ResultResponseDto<object>.Success(new { }, new string[] { "Mail Confirmed Successfully, You Can Login Now!" });
+                    _context.Users.Update(user);
+                    await _context.SaveChangesAsync();
+
+                    return ResultResponseDto<object>.Success(
+                        new { ResetToken = passwordToken },
+                        new string[] { "Mail Confirmed Successfully." }
+                    );
                 }
                 else
                 {
-                    return ResultResponseDto<object>.Failure(new string[] { "Link has been expired. You can reset your password" });
+                    return ResultResponseDto<object>.Failure(
+                        new string[] { "Link has been expired. You can reset your password" });
                 }
             }
             catch (Exception ex)
             {
                 await _appLogger.LogAsync("Error change password", ex);
-                return ResultResponseDto<object>.Failure(new string[] { "There is an error please try later" });
+                return ResultResponseDto<object>.Failure(
+                    new string[] { "There is an error please try later" });
             }
         }
         public async Task<ResultResponseDto<object>> ContactUs(ContactUsRequestDto requestDto)
@@ -841,7 +1139,7 @@ namespace HealthIntelligence.Services
                     ApplicationUrl = _appSettings.PublicApplicationUrl,
                     MsgText = requestDto.Message,
                     DescriptionAboutBtnText
-                        = $"This email was sent by {requestDto.Name} from {requestDto.Country}, {requestDto.Country}. You can reach them at: {requestDto.Email}.",
+                        = $"This email was sent by {requestDto.Name} from {requestDto.Country}. You can reach them at: {requestDto.Email}.",
                     IsLoginBtn = false,
                     IsShowBtnText = false,
                     Mail = _appSettings.AdminMail
@@ -879,11 +1177,11 @@ namespace HealthIntelligence.Services
         {
             try
             {
-                // 1️⃣ Generate secure random 6-digit OTP
+                // 1?? Generate secure random 6-digit OTP
                 var random = new Random();
                 var otp = random.Next(100000, 999999).ToString();
 
-                // 3️⃣ Store hashed OTP + expiry
+                // 3?? Store hashed OTP + expiry
                 user.ResetToken = otp;
                 user.ResetTokenDate = DateTime.Now; 
 
@@ -891,7 +1189,7 @@ namespace HealthIntelligence.Services
                 await _context.SaveChangesAsync();
 
                 var url = user.Role != UserRole.CountryUser ? _appSettings.ApplicationUrl : _appSettings.PublicApplicationUrl;
-                // 4️⃣ Send the OTP via email
+                // 4?? Send the OTP via email
                 var model = new EmailInvitationSendRequestDto
                 {
                     Title = "Two-Factor Authentication (2FA) Code",
@@ -903,7 +1201,7 @@ namespace HealthIntelligence.Services
                     IsLoginBtn = false,
                     IsShowBtnText = false,
                     Mail = _appSettings.AdminMail,
-                    DescriptionAboutBtnText = "You are receiving this email because a login attempt was made to your AHSIP account. " +
+                    DescriptionAboutBtnText = "You are receiving this email because a login attempt was made to your PEM account. " +
                                "If this was you, please use the above OTP to complete your sign-in. " +
                                "If you did not request this login, please secure your account immediately by resetting your password."
                 };
@@ -930,7 +1228,7 @@ namespace HealthIntelligence.Services
         {
             try
             {
-                var user = await GetByEmailAysync(email);
+                var user = await GetByEmailAsync(email);
                 if (user == null)
                     return ResultResponseDto<UserResponseDto>.Failure(new[] { "User not found. Please check your email and try again." });
 
@@ -957,7 +1255,7 @@ namespace HealthIntelligence.Services
         {
             try
             {
-                var user = await GetByEmailAysync(email);
+                var user = await GetByEmailAsync(email);
                 if (user == null)
                     return ResultResponseDto<string>.Failure(new[] { "User not found. Please check your email and try again." });
                 return await SendTwoFactorOTPAsync(user);
@@ -1005,52 +1303,45 @@ namespace HealthIntelligence.Services
 
                     user.ProfileImagePath = "/uploads/" + fileName;
                 }
-
-
-                if(requestDto.Email != user.Email) 
+               
+                bool isMailSent = false;
+                if (requestDto.Email != user.Email)
                 {
-                    var email = requestDto.Email.Trim().ToLower();
-
-                    var isDuplicate = await _context.Users
-                        .AnyAsync(x => x.Email.ToLower() == email
-                                    && x.UserID != requestDto.UserID);
-                    if (isDuplicate)
+                    var existUser = _context.Users.FirstOrDefault(u => u.Email == requestDto.Email.Trim() && !u.IsDeleted && u.UserID != requestDto.UserID);
+                    if (existUser != null)
                     {
-                        return ResultResponseDto<UpdateUserResponseDto>
-                            .Failure(new List<string> { "Email already exists." });
+                        return ResultResponseDto<UpdateUserResponseDto>.Failure(new List<string>() { "Email Already Exists" });
                     }
-
-                    var url = user.Role != UserRole.CountryUser ? _appSettings.ApplicationUrl : _appSettings.PublicApplicationUrl;
+                    user.TemporaryEmail = requestDto.Email;
                     var hash = BCrypt.Net.BCrypt.HashPassword(requestDto.Email);
-                    var token = hash.Replace("+", " "); 
-                    var passwordResetLink = $"{url}/auth/confirm-mail?PasswordToken={token}";
+                    var token = hash.Replace("+", " ");
+                    var passwordResetLink = $"{_appSettings.PublicApplicationUrl}/auth/confirm-mail?PasswordToken={token}";
 
                     var emailModel = new EmailInvitationSendRequestDto
                     {
                         ResetPasswordUrl = passwordResetLink,
                         Title = "Verify Your Email",
                         ApiUrl = _appSettings.ApiUrl,
-                        ApplicationUrl = url,
-                        MsgText = "A request was made to update the Email for your Africa Health Systems Intelligence Platform (AHSIP) account. Please verify your email and reset your password.",
+                        ApplicationUrl = _appSettings.PublicApplicationUrl,
+                        MsgText = "A request was made to update the Email for your Peace Enablers Matrix (PEM) account. Please verify your email or reset your password.",
                         Mail = _appSettings.AdminMail,
                         BtnText = "Verify",
                         DescriptionAboutBtnText = "Please verify your email address by clicking the button above."
                     };
 
-                    var isMailSent = await _emailService.SendEmailAsync(requestDto.Email,"Verify Your Email",
+                    isMailSent = await _emailService.SendEmailAsync(requestDto.Email, "Verify Your Email",
                         "~/Views/EmailTemplates/ChangePassword.cshtml", emailModel
                     );
-                   
+
                     if (isMailSent)
-                    {
-                        user.IsEmailConfirmed = false; // Require reconfirmation for new email
-                        user.TemporaryMail = requestDto.Email;
+                    {                       
+                        user.IsEmailConfirmed = false; // Require reconfirmation for new email                       
                         user.ResetToken = token;
                         user.ResetTokenDate = DateTime.Now;
                     }
-                    else 
-                    {
-                        return ResultResponseDto<UpdateUserResponseDto>.Failure(new List<string>() 
+                    else
+                    {                        
+                        return ResultResponseDto<UpdateUserResponseDto>.Failure(new List<string>()
                             { "Failed to send email confirmation. Please try again later." }
                         );
                     }
@@ -1074,14 +1365,130 @@ namespace HealthIntelligence.Services
                     ProfileImagePath = user.ProfileImagePath,
                     Tier = user.Tier ?? Enums.TieredAccessPlan.Pending
                 };
-
-                return ResultResponseDto<UpdateUserResponseDto>.Success(response, new List<string> { "Updated successfully" });
+                var messages = new List<string>();
+                if (isMailSent)
+                {
+                    messages.Add("Confirmation Mail Sent and Details Updated Successfully");
+                }
+                else
+                {
+                    messages.Add("Updated Successfully");
+                }
+                return ResultResponseDto<UpdateUserResponseDto>.Success(response, messages);               
             }
             catch (Exception ex)
             {
                 await _appLogger.LogAsync("Error Occure UpdateUser", ex);
                 return ResultResponseDto<UpdateUserResponseDto>.Failure(new string[] { "There is an error please try later" });
             }
+        }
+        public async Task<ResultResponseDto<string>> AddCountryUserKpisCountryAndPillar(AddCountryUserKpisCountryAndPillar payload, int userId, string tierName)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(tierName))
+                    return ResultResponseDto<string>.Failure(new[] { "Access tier information is missing. Please log in again." });
+
+                if (!Enum.TryParse<TieredAccessPlan>(tierName, true, out var tier))
+                    return ResultResponseDto<string>.Failure(new[] { "Invalid tier access. Please contact support team." });
+
+                var tierLimits = tier switch
+                {
+                    TieredAccessPlan.Basic => new { Min = 5, Max = 7, Name = "Basic" },
+                    TieredAccessPlan.Standard => new { Min = 8, Max = 12, Name = "Standard" },
+                    TieredAccessPlan.Premium => new { Min = 13, Max = 23, Name = "Premium" },
+                    _ => new { Min = 0, Max = 0, Name = "Unknown" }
+                };
+
+                if (tier != TieredAccessPlan.Premium)
+                {
+                    bool isValid =
+                        payload.Countries.Count >= tierLimits.Min && payload.Countries.Count <= tierLimits.Max &&
+                        payload.Pillars.Count >= tierLimits.Min && payload.Pillars.Count <= tierLimits.Max;
+
+                    if (!isValid)
+                    {
+                        return ResultResponseDto<string>.Failure(new[]
+                        {
+                            $"Your {tierLimits.Name} plan allows between {tierLimits.Min} and {tierLimits.Max} selections per category (Country, Pillar, and KPI). Please adjust your selections accordingly."
+                        });
+                    }
+                }
+
+                //  Remove existing mappings
+                var existingCountries = await _context.PublicUserCountryMappings
+                    .Where(m => m.UserID == userId)
+                    .ToListAsync();
+
+                var existingPillars = await _context.CountryUserPillarMappings
+                    .Where(m => m.UserID == userId)
+                    .ToListAsync();
+
+                _context.PublicUserCountryMappings.RemoveRange(existingCountries);
+                _context.CountryUserPillarMappings.RemoveRange(existingPillars);
+
+                var utcNow = DateTime.UtcNow;
+
+                var newCountryMappings = payload.Countries.Select(countryId => new PublicUserCountryMapping
+                {
+                    CountryID = countryId,
+                    UserID = userId,
+                    IsActive = true,
+                    UpdatedAt = utcNow
+                });
+
+                var newPillarMappings = payload.Pillars.Select(pillarId => new CountryUserPillarMapping
+                {
+                    PillarID = pillarId,
+                    UserID = userId,
+                    IsActive = true,
+                    UpdatedAt = utcNow
+                });
+
+                await _context.PublicUserCountryMappings.AddRangeAsync(newCountryMappings);
+                await _context.CountryUserPillarMappings.AddRangeAsync(newPillarMappings);
+
+                await _context.SaveChangesAsync();
+
+                return ResultResponseDto<string>.Success("", new[] { "Your preferences have been saved successfully." });
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("Error occurred in AddCountryUserKpisCountryAndPillar", ex);
+                return ResultResponseDto<string>.Failure(new[]
+                {
+                    "Something went wrong while saving your selections. Please try again later."
+                });
+            }
+        }
+
+
+        private async Task<(List<int> countriesToAdd, List<int> countriesToDelete)> GetCountryMappingChangesAsync( int userId, int assignedByUserId,
+            UserRole role, List<int> newCountryIds)
+        {
+            List<int> existingCountryIds;
+
+            if (role == UserRole.CountryUser)
+            {
+                existingCountryIds = await _context.PublicUserCountryMappings
+                    .Where(m => m.UserID == userId && m.IsActive)
+                    .Select(m => m.CountryID)
+                    .ToListAsync();
+            }
+            else
+            {
+                existingCountryIds = _context.UserCountryMappings
+                    .Where(m => m.UserID == userId && m.AssignedByUserId == assignedByUserId && !m.IsDeleted)
+                    .Select(m => m.CountryID)
+                    .ToList();
+            }
+
+            newCountryIds ??= new List<int>();
+
+            var countriesToAdd = newCountryIds.Except(existingCountryIds).ToList();
+            var countriesToDelete = existingCountryIds.Except(newCountryIds).ToList();
+
+            return (countriesToAdd, countriesToDelete);
         }
 
         #endregion

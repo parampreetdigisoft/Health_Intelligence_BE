@@ -1,8 +1,9 @@
+
 using HealthIntelligence.Dtos.AiDto;
 using HealthIntelligence.Models;
-using HealthIntelligence.Services;
+using static HealthIntelligence.Services.AIComputationService;
 
-namespace HealthIntelligence.Common.Interface
+namespace HealthIntelligence.IServices
 {
     /// <summary>
     /// Output format for document generation.
@@ -24,7 +25,7 @@ namespace HealthIntelligence.Common.Interface
         /// <summary>Full country report: dashboard, summary, pillars, peer comparison, trends, KPI dashboard.</summary>
         Task<byte[]> GenerateCountryDetails(
             AiCountrySummeryDto country,
-            List<AiCountryPillarReponse> pillars,
+            List<AiCountryPillarResponse> pillars,
             List<KpiChartItem> kpis,
             List<PeerCountryHistoryReportDto> peerCountry,
             UserRole userRole,
@@ -32,14 +33,14 @@ namespace HealthIntelligence.Common.Interface
 
         /// <summary>Single pillar detail report.</summary>
         Task<byte[]> GeneratePillarDetails(
-            AiCountryPillarReponse pillarData,
+            AiCountryPillarResponse pillarData,
             UserRole userRole,
             DocumentFormat format = DocumentFormat.Pdf);
 
         /// <summary>Combined report covering every country in the list.</summary>
         Task<byte[]> GenerateAllCountriesDetails(
             List<AiCountrySummeryDto> countries,
-            Dictionary<int, List<AiCountryPillarReponse>> pillarsDict,
+            Dictionary<int, List<AiCountryPillarResponse>> pillarsDict,
             List<KpiChartItem> kpis,
             UserRole userRole,
             DocumentFormat format = DocumentFormat.Pdf);

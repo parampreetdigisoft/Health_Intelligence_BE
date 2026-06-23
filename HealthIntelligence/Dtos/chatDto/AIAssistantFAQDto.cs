@@ -1,4 +1,4 @@
-﻿namespace HealthIntelligence.Dtos.chatDto
+namespace HealthIntelligence.Dtos.chatDto
 {
     public class AIAssistantFAQDto
     {

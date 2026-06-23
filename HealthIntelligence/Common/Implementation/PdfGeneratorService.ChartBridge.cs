@@ -19,9 +19,10 @@
 //  to Word document structure.  A shared static helper is the cleanest seam.
 // ═══════════════════════════════════════════════════════════════════════════
 
+
 using HealthIntelligence.Dtos.AiDto;
-using HealthIntelligence.Services;
 using SkiaSharp;
+using static HealthIntelligence.Services.AIComputationService;
 using QPDF = QuestPDF.Infrastructure;
 
 namespace HealthIntelligence.Common.Implementation
@@ -88,7 +89,7 @@ namespace HealthIntelligence.Common.Implementation
 
             for (int i = 0; i < n; i++)
             {
-                float v  = (float)(data[i].Value ?? 0);
+                float v  = (float)(data[i].Value);
                 float bx = lp + i * barW + barGap;
                 float bh = v / 100f * chartH;
                 float by = tp + chartH - bh;
@@ -119,7 +120,7 @@ namespace HealthIntelligence.Common.Implementation
         internal static void DrawPillarsRadialChartCanvas(
             SKCanvas c, QPDF.Size s, List<PillarChartItem> pillars)
         {
-            var data = pillars.Where(p => p.Value.HasValue).Take(14).ToList();
+            var data = pillars.Where(p => p.Value.HasValue).Take(23).ToList();
             if (!data.Any()) return;
             float cx = s.Width / 2f, cy = s.Height / 2f;
             float maxR = Math.Min(cx, cy) - 18f;
@@ -181,7 +182,7 @@ namespace HealthIntelligence.Common.Implementation
                 using var bar = new SKPaint { Shader = shader, IsAntialias = true };
                 c.DrawRoundRect(new SKRoundRect(new SKRect(labelW, y + 3, labelW + bw, y + rowH - 3), 3), bar);
                 using var scorePaint = new SKPaint { Color = col, TextSize = 8.5f, IsAntialias = true, TextAlign = SKTextAlign.Left };
-                c.DrawText($"{v:F1}, Rank {i+1}/{pillars.Count}", labelW + bw + 5, y + rowH * 0.65f, scorePaint);
+                c.DrawText($"{v:F1}%", labelW + bw + 5, y + rowH * 0.65f, scorePaint);
             }
         }
 
@@ -219,7 +220,7 @@ namespace HealthIntelligence.Common.Implementation
             SKCanvas c, QPDF.Size s, List<PeerCountryHistoryReportDto> all)
         {
             var byRegion = all
-                .GroupBy(p => string.IsNullOrWhiteSpace(p.Region) ? p.Continent ?? "Unknown" : p.Region)
+                .GroupBy(p => string.IsNullOrWhiteSpace(p.Region) ? p.Country ?? "Unknown" : p.Region)
                 .OrderByDescending(g => g.Count()).ToList();
 
             float barH   = s.Height / Math.Max(byRegion.Count, 1);
@@ -270,7 +271,7 @@ namespace HealthIntelligence.Common.Implementation
                 DrawPolylineStatic(c, pts, new SKPaint { Color = SKColor.Parse(pal[1 + (pi % (pal.Length - 1))]).WithAlpha(180), StrokeWidth = 1.2f, IsAntialias = true, IsStroke = true });
             }
 
-            // Main country line
+            // Main city line
             var mainPts = (mainCountry?.CountryHistory ?? new()).Where(h => years.Contains(h.Year)).OrderBy(h => h.Year)
                 .Select(h => new SKPoint(Xp(h.Year), Yp((float)h.ScoreProgress))).ToList();
             DrawPolylineStatic(c, mainPts, new SKPaint { Color = SKColor.Parse(pal[0]), StrokeWidth = 2.5f, IsAntialias = true, IsStroke = true });
@@ -316,15 +317,8 @@ namespace HealthIntelligence.Common.Implementation
 
         // ── Private static helpers shared by canvas methods above ─────────────
 
-        private static SKColor GetColorStatic(float value)
-        {
-            if (value >= 80) return SKColor.Parse("#2E7D32");
-            else if (value >= 60) return SKColor.Parse("#469449");
-            else if (value >= 40) return SKColor.Parse("#F9A825");
-            else if (value >= 20) return SKColor.Parse("#c66528");
-
-            return SKColor.Parse("#C62828");
-        }
+        private static SKColor GetColorStatic(float v)
+            => v >= 70 ? SKColor.Parse("#2E7D32") : v >= 40 ? SKColor.Parse("#F9A825") : SKColor.Parse("#C62828");
 
         private static bool IsSameCountryStatic(string? a, string? b)
             => string.Equals(a?.Trim(), b?.Trim(), StringComparison.OrdinalIgnoreCase);
@@ -515,7 +509,7 @@ namespace HealthIntelligence.Common.Implementation
             for (int b = 0; b <= bins; b += 2)
                 c.DrawText((b * bucket).ToString("F0"), padL + b * binW - 5, padT + h + 14, axisLbl);
 
-            // Selected-country marker (dashed gold line)
+            // Selected-city marker (dashed gold line)
             float mx = padL + Math.Clamp(markerValue, 0, 100) / 100f * w;
             using var marker = new SKPaint
             {

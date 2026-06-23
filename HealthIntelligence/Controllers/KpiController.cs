@@ -1,11 +1,14 @@
-﻿
+
+using DocumentFormat.OpenXml.Spreadsheet;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using HealthIntelligence.Dtos.CountryUserDto;
 using HealthIntelligence.Dtos.kpiDto;
 using HealthIntelligence.Enums;
 using HealthIntelligence.IServices;
 using HealthIntelligence.Models;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+using HealthIntelligence.Services;
+
 using System.Security.Claims;
 
 namespace HealthIntelligence.Controllers
@@ -89,12 +92,12 @@ namespace HealthIntelligence.Controllers
                 return Unauthorized("You Don't have access.");
             }
 
-            var result = await _kpiService.GetAllKpi(userId.GetValueOrDefault(),userRole);
+            var result = await _kpiService.GetAllKpi(userId.GetValueOrDefault(), userRole);
             return Ok(result);
         }
 
         [HttpPost]
-        [Route("compareCountries")]
+        [Route("CompareCountries")]
         [Authorize(Policy = "StaffOnly")]
         public async Task<IActionResult> CompareCountries([FromBody] CompareCountryRequestDto r)
         {
@@ -110,8 +113,51 @@ namespace HealthIntelligence.Controllers
             {
                 return Unauthorized("You Don't have access.");
             }
-           var result = await _kpiService.CompareCountries(r, userId.GetValueOrDefault(), userRole);
+           var result = await _kpiService.CompareCountries(r, userId.GetValueOrDefault(), userRole, true);
             return Ok(result);
+        }
+
+        [HttpGet("ExportCompareCountries")]
+        public async Task<IActionResult> ExportCompareCountries( string countries, string? kpis, DateTime updatedAt)
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+                return Unauthorized("You Don't have access.");
+
+            var countryIds = countries.Split(',')
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(int.Parse)
+                .ToList();
+
+            var kpiIds = new List<int>();
+
+            if (!string.IsNullOrWhiteSpace(kpis) && kpis.ToLower() != "null")
+            {
+                kpiIds = kpis.Split(',')
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(int.Parse)
+                    .ToList();
+            }
+
+            var request = new CompareCountryRequestDto
+            {
+                Countries = countryIds,
+                Kpis = kpiIds,
+                UpdatedAt = updatedAt
+            };
+
+            var content = await _kpiService.ExportCompareCountries(request, userId.Value, userRole);
+
+            return File(content.Item2,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                content.Item1);
         }
 
 
@@ -148,29 +194,6 @@ namespace HealthIntelligence.Controllers
             }
 
             return Ok(result);
-        }
-
-        [HttpGet("ExportCompareCountries")]
-        [Authorize(Policy = "StaffOnly")]
-        public async Task<IActionResult> ExportCompareCountries([FromQuery] CompareKpiCountryRequest request)
-        {
-            var userId = GetUserIdFromClaims();
-            if (userId == null)
-                return Unauthorized("User ID not found in token.");
-
-            var role = GetRoleFromClaims();
-            if (role == null)
-                return Unauthorized("You Don't have access.");
-
-            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
-                return Unauthorized("You Don't have access.");
-
-
-            var content = await _kpiService.ExportCompareCountries(request, userId.Value, userRole);
-
-            return File(content.Item2,
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                content.Item1);
         }
     }
 }

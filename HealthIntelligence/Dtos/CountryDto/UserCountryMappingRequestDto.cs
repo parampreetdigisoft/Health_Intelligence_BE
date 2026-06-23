@@ -1,4 +1,4 @@
-﻿namespace HealthIntelligence.Dtos.CountryDto
+namespace HealthIntelligence.Dtos.CountryDto
 {
     public class UserCountryMappingRequestDto
     {

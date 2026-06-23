@@ -1,12 +1,10 @@
-﻿using HealthIntelligence.Common.Implementation;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using HealthIntelligence.Common.Implementation;
 using HealthIntelligence.Common.Models.settings;
 using HealthIntelligence.Data;
 using HealthIntelligence.Dtos.chatDto;
-using HealthIntelligence.Dtos.PublicDto;
 using HealthIntelligence.IServices;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-
 namespace HealthIntelligence.Services
 {
     public class AIAnalyzeService : IAIAnalyzeService
@@ -26,18 +24,26 @@ namespace HealthIntelligence.Services
         }
         public async Task RunMonthlyJob()
         {
-            var newCitiesIds = _context.Countries.Where(x => x.IsActive && !x.IsDeleted ).Select(x => x.CountryID).ToList();
-            foreach (var id in newCitiesIds)
+            try
             {
-                await AnalyzeSingleCountryFull(id);
+                var newCountriesIds = _context.Countries.Where(x => x.IsActive && !x.IsDeleted).Select(x => x.CountryID).ToList();
+                foreach (var id in newCountriesIds)
+                {
+                    await AnalyzeSingleCountryFull(id);
+                }
             }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("Error in Run Monthly Job", ex);
+            }
+            
         }
 
         public async Task RunEvery2HoursJob()
         {
             try
             {
-                await ImportAiScore();
+                //await ImportAiScore();
             }
             catch (Exception ex)
             {
@@ -45,7 +51,6 @@ namespace HealthIntelligence.Services
             }
 
         }
-
         public async Task RunDailyJob()
         {
             try
@@ -60,10 +65,9 @@ namespace HealthIntelligence.Services
                 await _appLogger.LogAsync("Error in Running job in Run daily job ", ex);
             }
         }
-
         public async Task ImportAiScore()
         {
-            // if new country added
+            // if new city added
             var totalPillar = await _context.Pillars.CountAsync();
             var allCountriesIds = _context.Countries.Where(x=>x.IsActive && !x.IsDeleted).Select(x=>x.CountryID).ToList();
             var importedCountriesIds = _context.AICountryScores.Select(x => x.CountryID);
@@ -80,150 +84,32 @@ namespace HealthIntelligence.Services
             var date = new DateTime(now.Year, now.Month, 1, 1, 0, 0, DateTimeKind.Utc)
                             .AddMonths(-1);
 
-            var importPillarsCountryIDs = _context.AIPillarScores
+            var importPillarscountryIds = _context.AIPillarScores
                 .GroupBy(x => x.CountryID)
                 .Where(g => g.Max(x => x.UpdatedAt) < date || g.Count() < totalPillar)
                 .Select(g => g.Key)
                 .ToList();
 
 
-            foreach (var id in importPillarsCountryIDs)
+            foreach (var id in importPillarscountryIds)
             {
                 await AnalyzeCountryPillars(id);
             }
 
 
-            var needtoImportCountryIDs = _context.AICountryScores.Where(x => x.UpdatedAt < date && x.Country.IsActive && !x.Country.IsDeleted).Select(x=>x.CountryID);
-            foreach (var id in needtoImportCountryIDs)
+            var needtoImportcountryIds = _context.AICountryScores.Where(x => x.UpdatedAt < date).Select(x=>x.CountryID);
+            foreach (var id in needtoImportcountryIds)
             {
                 await AnalyzeSingleCountry(id);
             }
         }
 
-        public async Task AnalyzeAllCountriesFull()
-        {
-            var url = aiUrl + AiEndpoints.AnalyzeAllCountriesFull;
-            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
-        }
-
-        public async Task AnalyzeSingleCountryFull(int countryId)
-        {
-            var url = aiUrl + AiEndpoints.AnalyzeSingleCountryFull(countryId);
-            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
-        }
-
-        public async Task AnalyzeSingleCountry(int countryId)
-        {
-            var url = aiUrl + AiEndpoints.AnalyzeSingleCountry(countryId);
-            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
-        }
-
-        public async Task AnalyzeCountryPillars(int countryId)
-        {
-            var url = aiUrl + AiEndpoints.AnalyzeCountryPillars(countryId);
-            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
-        }
-        public async Task AnalyzeSinglePillar(int countryId, int pillarId)
-        {
-            var url = aiUrl + AiEndpoints.AnalyzeSinglePillar(countryId, pillarId);
-            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
-        }
-
-        public async Task AnalyzeQuestionsOfCountry(int countryId)
-        {
-            var url = aiUrl + AiEndpoints.AnalyzeCountryQuestions(countryId);
-            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
-        }
-
-        public async Task AnalyzeQuestionsOfCountryPillar(int countryId, int pillarId)
-        {
-            var url = aiUrl + AiEndpoints.AnalyzeCountryPillarQuestions(countryId, pillarId);
-            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
-        }
-
-        public async Task AnalyzeCountryImmediateSituation(int countryId)
-        {
-            var url = aiUrl + AiEndpoints.AnalyzeCountryImmediateSituation(countryId);
-            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
-        }
-
-        public async Task AnalyzeCountryMissingQuestions(MissingCountryQuestionRequest r)
-        {
-            var url = aiUrl + AiEndpoints.AnalyzeCountryMissingQuestions();
-            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, r, headers);
-        }
-
-        public async Task ProcessDocument(int documentID)
-        {
-            var url = aiUrl + AiEndpoints.ProcessDocument(documentID);
-            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
-        }
-        public async Task DeleteDocument(int documentID)
-        {
-            var url = aiUrl + AiEndpoints.DeleteDocument(documentID);
-            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
-        }
-
-        public async Task<ChatCountryAskQuestionResponse> ChatCountryAsk(ChatCountryAskQuestionRequest request)
-        {
-            var url = aiUrl + AiEndpoints.ChatCountryAsk();
-            return await _httpService.SendAsync<ChatCountryAskQuestionResponse>(HttpMethod.Post, url, request, headers) ?? new ChatCountryAskQuestionResponse();            
-        }
-        public async Task<ChatCountryAskQuestionResponse> ChatGlobalAsk(ChatGlobalAskQuestionRequest request)
-        {
-            var url = aiUrl + AiEndpoints.ChatGlobalAsk();
-            return await _httpService.SendAsync<ChatCountryAskQuestionResponse>(HttpMethod.Post, url, request, headers) ?? new ChatCountryAskQuestionResponse();            
-        }
-
-        public async Task<ChatCountryAskQuestionResponse> CrossComparision(CrossComparisionRequest request)
-        {
-            var url = aiUrl + AiEndpoints.CrossComparision();
-            var result = await _httpService.SendAsync<ChatCountryAskQuestionResponse>(HttpMethod.Post, url, request, headers);
-
-            return result;
-        }
-        public async Task<ChatEmergingTrendsResponse?> GetEmergingTrendsAndIssues(int country_count)
-        {
-            var url = aiUrl + AiEndpoints.EmergingTrendsAndIssues(country_count);
-
-            return await _httpService.SendAsync<ChatEmergingTrendsResponse>(
-                HttpMethod.Get,
-                url,
-                null,
-                headers
-            );
-        }
-
-        public async Task<ChatCountryExecutiveSlidesResponse?> GetCountrySlides(int countryId)
-        {
-            var url = aiUrl + AiEndpoints.CountrySlides();
-
-            return await _httpService.SendAsync<ChatCountryExecutiveSlidesResponse>(
-                HttpMethod.Post,
-                url,
-                new CountrySlidesRequest
-                {
-                    CountryId = countryId
-                },
-                headers
-            );
-        }
-
-        public async Task<ChatPillarLiveSignalsResponse?> GetPillarLiveSignals()
-        {
-            var url = aiUrl + AiEndpoints.PillarLiveSignals();
-
-            return await _httpService.SendAsync<ChatPillarLiveSignalsResponse>(
-                HttpMethod.Get,
-                url,
-                null,
-                headers
-            );
-        }
-
         public async Task ImportAllCountryImmediateSummary()
         {
-            var allCountriesIds = await _context.Countries.Where(x => x.IsActive && !x.IsDeleted).Select(x => x.CountryID).ToListAsync();
+            var allCountriesIds = await _context.Countries
+                     .Where(x => x.IsActive && !x.IsDeleted)
+                     .Select(x => x.CountryID)
+                     .ToListAsync();
 
             foreach (var id in allCountriesIds)
             {
@@ -283,7 +169,130 @@ namespace HealthIntelligence.Services
             }
         }
 
+        #region Ai api calls       
 
+        public async Task AnalyzeAllCountriesFull()
+        {
+            var url = aiUrl + AiEndpoints.AnalyzeAllCountriesFull;
+            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
+        }
+
+        public async Task AnalyzeSingleCountryFull(int countryId)
+        {
+            var url = aiUrl + AiEndpoints.AnalyzeSingleCountryFull(countryId);
+            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
+        }
+
+        public async Task AnalyzeSingleCountry(int countryId)
+        {
+            var url = aiUrl + AiEndpoints.AnalyzeSingleCountry(countryId);
+            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
+        }
+
+        public async Task AnalyzeCountryPillars(int countryId)
+        {
+            var url = aiUrl + AiEndpoints.AnalyzeCountryPillars(countryId);
+            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
+        }
+        public async Task AnalyzeSinglePillar(int countryId, int pillarId)
+        {
+            var url = aiUrl + AiEndpoints.AnalyzeSinglePillar(countryId, pillarId);
+            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
+        }
+
+        public async Task AnalyzeQuestionsOfCountry(int countryId)
+        {
+            var url = aiUrl + AiEndpoints.AnalyzeCountryQuestions(countryId);
+            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
+        }
+
+        public async Task AnalyzeQuestionsOfCountryPillar(int countryId, int pillarId)
+        {
+            var url = aiUrl + AiEndpoints.AnalyzeCountryPillarQuestions(countryId, pillarId);
+            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
+        }
+        public async Task AnalyzeCountryImmediateSituation(int countryId)
+        {
+            var url = aiUrl + AiEndpoints.AnalyzeCountryImmediateSituation(countryId);
+            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
+        }
+        public async Task ProcessDocument(int documentID)
+        {
+            var url = aiUrl + AiEndpoints.ProcessDocument(documentID);
+            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
+        }
+        public async Task DeleteDocument(int documentID)
+        {
+            var url = aiUrl + AiEndpoints.DeleteDocument(documentID);
+            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, null, headers);
+        }
+        public async Task<ChatCountryAskQuestionResponse> ChatCountryAsk(ChatCountryAskQuestionRequest request)
+        {
+            var url = aiUrl + AiEndpoints.ChatCountryAsk();
+            var result =  await _httpService.SendAsync<ChatCountryAskQuestionResponse>(HttpMethod.Post, url, request, headers);
+
+            return result;
+        }
+        public async Task<ChatCountryAskQuestionResponse> ChatGlobalAsk(ChatGlobalAskQuestionRequest request)
+        {
+                var url = aiUrl + AiEndpoints.ChatGlobalAsk();
+                var result = await _httpService.SendAsync<ChatCountryAskQuestionResponse>(HttpMethod.Post, url, request, headers);
+    
+                return result;
+        }
+        public async Task<ChatCountryAskQuestionResponse> CrossComparision(CrossComparisionRequest request)
+        {
+            var url = aiUrl + AiEndpoints.CrossComparision();
+            var result = await _httpService.SendAsync<ChatCountryAskQuestionResponse>(HttpMethod.Post, url, request, headers);
+
+            return result;
+        }
+        public async Task<ChatCountryExecutiveSlidesResponse?> GetCountrySlides(int countryId)
+        {
+            var url = aiUrl + AiEndpoints.CountrySlides();
+
+            return await _httpService.SendAsync<ChatCountryExecutiveSlidesResponse>(
+                HttpMethod.Post,
+                url,
+                new CountrySlidesRequest
+                {
+                    CountryId = countryId
+                },
+                headers
+            );
+        }
+
+        public async Task<ChatEmergingTrendsResponse?> GetEmergingTrendsAndIssues(int countryCount)
+        {
+            var url = aiUrl + AiEndpoints.EmergingTrendsAndIssues(countryCount);
+
+            return await _httpService.SendAsync<ChatEmergingTrendsResponse>(
+                HttpMethod.Get,
+                url,
+                null,
+                headers
+            );
+        }
+
+        public async Task<ChatPillarLiveSignalsResponse?> GetPillarLiveSignals()
+        {
+            var url = aiUrl + AiEndpoints.PillarLiveSignals();
+
+            return await _httpService.SendAsync<ChatPillarLiveSignalsResponse>(
+                HttpMethod.Get,
+                url,
+                null,
+                headers
+            );
+        }
+
+        public async Task AnalyzeCountryMissingQuestions(MissingCountryQuestionRequest r)
+        {
+            var url = aiUrl + AiEndpoints.AnalyzeCityMissingQuestions();
+            await _httpService.SendAsync<dynamic>(HttpMethod.Post, url, r, headers);
+        }
+
+        #endregion Ai api calls 
     }
 
     #region AiEndpoints
@@ -313,33 +322,36 @@ namespace HealthIntelligence.Services
 
         public static string AnalyzeCountryPillarQuestions(int countryId, int pillarId) =>
             $"{BasePath}/analyze/{countryId}/pillars/{pillarId}/questions";
-
         public static string AnalyzeCountryImmediateSituation(int countryId) =>
-           $"{BasePath}/analyze/{countryId}/immediateSituation";       
-
-        public static string AnalyzeCountryMissingQuestions() =>
-          $"{BasePath}/analyze/missing-pillar-questions";
+            $"{BasePath}/analyze/{countryId}/immediateSituation";
 
         public static string ProcessDocument(int documentId) =>
             $"{DocumentPath}/process-document/{documentId}";
         public static string DeleteDocument(int documentId) =>
             $"{DocumentPath}/delete-document/{documentId}";
+
         public static string ChatCountryAsk() => $"{ChatPath}/country";
         public static string ChatGlobalAsk() => $"{ChatPath}/global";
-
         public static string CrossComparision() => $"{ChatPath}/cross-comparision";
-
         public static string CountrySlides() => $"{ChatPath}/executive-slides";
-
+        public static string EmergingTrendsAndIssues(int countryCount) =>
+            $"{ChatPath}/emerging-trends-and-issues?countryCount={countryCount}";
         public static string PillarLiveSignals() => $"{ChatPath}/pillar-live-signals";
-        public static string EmergingTrendsAndIssues(int country_count) =>
-            $"{ChatPath}/emerging-trends-and-issues?country_count={country_count}";
-    }
+        public static string AnalyzeCityMissingQuestions() =>
+          $"{BasePath}/analyze/missing-pillar-questions";
 
+
+    }
     #endregion
 
 
     #region Ai Models 
+
+    public class MissingCountryQuestionRequest 
+    {
+        public int CountryID { get; set; }
+        public int? PillarID { get; set; }
+    }
 
     public class ChatCountryAskQuestionRequest : ChatGlobalAskQuestionRequest
     {
@@ -352,18 +364,19 @@ namespace HealthIntelligence.Services
         public string? HistoryText { get; set; }
         public int? FAQID { get; set; }
     }
+
+    public class CrossComparisionRequest
+    {
+        public List<int> CountryIDs { get; set; }
+        public string QuestionText { get; set; }
+        public string? HistoryText { get; set; }
+    }
     public class ChatCountryAskQuestionResponse
     {
         public bool Success { get; set; }
         public string? Message { get; set; }
         public string? Result { get; set; }
     }
-    public class MissingCountryQuestionRequest
-    {
-        public int CountryID { get; set; }
-        public int? PillarID { get; set; }
-    }
-
 
     #endregion
 }

@@ -1,17 +1,11 @@
-﻿
 
+using Microsoft.Extensions.Caching.Memory;
 using HealthIntelligence.Common.Interface;
 using HealthIntelligence.Common.Models;
 using HealthIntelligence.Data;
 using HealthIntelligence.Dtos.chatDto;
-using HealthIntelligence.Dtos.PillarDto;
 using HealthIntelligence.IServices;
 using HealthIntelligence.Models;
-using DocumentFormat.OpenXml.Spreadsheet;
-using Microsoft.Extensions.Caching.Memory;
-using System.Diagnostics.Metrics;
-
-
 
 namespace HealthIntelligence.Services
 {
@@ -23,8 +17,8 @@ namespace HealthIntelligence.Services
         private readonly IAIAnalyzeService _aIAnalyzeService;
         private readonly IMemoryCache _cache;
         private readonly ICommonService _commonService;
-        public ChatService(ApplicationDbContext context,
-            IAppLogger appLogger, IAIAnalyzeService aIAnalyzeService, IMemoryCache cache, ICommonService commonService)
+        public ChatService(ApplicationDbContext context, IMemoryCache cache,
+            IAppLogger appLogger, IAIAnalyzeService aIAnalyzeService, ICommonService commonService)
         {
             _context = context;
             _appLogger = appLogger;
@@ -57,10 +51,19 @@ namespace HealthIntelligence.Services
             }
         }
 
-        public async Task<ResultResponseDto<ChatResponseDto>> AskAboutCountry(CountryChatRequestDto request)
+        public async Task<ResultResponseDto<ChatResponseDto>> AskAboutCountry(CountryChatRequestDto request, int userId, UserRole userRole)
         {
             try
             {
+                if(userRole == UserRole.CountryUser)
+                {
+                    var isValidCountry = _context.PublicUserCountryMappings.Where(x => x.UserID == userId).Any(c => c.CountryID == request.CountryID);
+                    if (!isValidCountry)
+                    {
+                        return ResultResponseDto<ChatResponseDto>.Failure(new[] { "You don't have access to this country data." });
+                    }
+                }
+
                 var r = new ChatCountryAskQuestionRequest
                 {
                     CountryID = request.CountryID,
@@ -75,7 +78,7 @@ namespace HealthIntelligence.Services
                 if (resutl == null || resutl.Success != true)
                 {
                     return ResultResponseDto<ChatResponseDto>.Failure(
-                        new[] { resutl?.Message ?? "Failed to query request from AHSIP Aevum." }
+                        new[] { resutl?.Message ?? "Failed to query request from PEM Aevum." }
                     );
                 }
 
@@ -93,33 +96,116 @@ namespace HealthIntelligence.Services
                 await _appLogger.LogAsync("An error occurred while processing the AskAboutCountry request.", ex);
                 return ResultResponseDto<ChatResponseDto>.Failure(new[] { "An error occurred while processing your request. Please try again later." });
             }
-        }     
+        }
 
-
-        public async Task<ResultResponseDto<ChatCountryExecutiveSlidesResponse>> GetCountrySlides(int countryId, int userId, UserRole userRole)
+        public async Task<ResultResponseDto<ChatResponseDto>> AskAboutGlobal(ChatGlobalAskQuestionRequestDto request, int userId, UserRole userRole)
         {
-            string cacheKey = $"CountrySlides_{countryId}";
+            try
+            {
+                var r = new ChatGlobalAskQuestionRequest
+                {  
+                    QuestionText = request.QuestionText,
+                    FAQID = request.FAQID,
+                    HistoryText = request.HistoryText
+                };
+
+                var resutl = await _aIAnalyzeService.ChatGlobalAsk(r);
+
+                if (resutl == null || resutl.Success != true)
+                {
+                    return ResultResponseDto<ChatResponseDto>.Failure(
+                        new[] { resutl?.Message ?? "Failed to query request from PEM Aevum." }
+                    );
+                }
+
+                return ResultResponseDto<ChatResponseDto>.Success(new ChatResponseDto
+                {       
+                    QuestionText = request.QuestionText,
+                    FAQID = request.FAQID,
+                    ResponseText = resutl.Result ?? "An error occurred or we do not have an answer for that."
+                });
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("An error occurred while processing the AskAboutGlobal request.", ex);
+                return ResultResponseDto<ChatResponseDto>.Failure(new[] { "An error occurred while processing your request. Please try again later." });
+            }
+        }
+
+        public async Task<ResultResponseDto<ChatResponseDto>> CrossComparision(CrossComparisionRequestDto request, int userId, UserRole userRole)
+        {
+            try
+            {
+                if (userRole == UserRole.CountryUser)
+                {
+                    var userCountryIds = _context.PublicUserCountryMappings
+                        .Where(x=>x.UserID == userId)
+                        .Select(x => x.CountryID)
+                        .ToList();
+
+                    var isValidCountry = request.CountryIDs
+                        .All(id => userCountryIds.Contains(id));
+
+                    if (!isValidCountry)
+                    {
+                        return ResultResponseDto<ChatResponseDto>
+                            .Failure(new[] { "You don't have access to this country data." });
+                    }
+                }
+                var r = new CrossComparisionRequest
+                {  
+                    CountryIDs = request.CountryIDs,
+                    QuestionText = request.QuestionText,
+                    HistoryText = request.HistoryText
+                };
+
+                var resutl = await _aIAnalyzeService.CrossComparision(r);
+
+                if (resutl == null || resutl.Success != true)
+                {
+                    return ResultResponseDto<ChatResponseDto>.Failure(
+                        new[] { resutl?.Message ?? "Failed to query request from PEM Aevum." }
+                    );
+                }
+
+                return ResultResponseDto<ChatResponseDto>.Success(new ChatResponseDto
+                {       
+                    QuestionText = request.QuestionText,
+                    FAQID = null,
+                    ResponseText = resutl.Result ?? "An error occurred or we do not have an answer for that."
+                });
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("An error occurred while processing the AskAboutGlobal request.", ex);
+                return ResultResponseDto<ChatResponseDto>.Failure(new[] { "An error occurred while processing your request. Please try again later." });
+            }
+        }
+        public async Task<ResultResponseDto<ChatCountryExecutiveSlidesResponse>> GetCountrySlides(int CountryId, int userId, UserRole userRole)
+        {
+            string cacheKey = $"CountrySlides_{CountryId}";
 
             try
             {
                 if (userRole == UserRole.CountryUser)
                 {
-                    var isValidCountry = _context.PublicUserCountryMappings.Where(x => x.UserID == userId).Any(c => c.CountryID == countryId);
+                    var isValidCountry = _context.PublicUserCountryMappings.Where(x => x.UserID == userId).Any(c => c.CountryID == CountryId);
                     if (!isValidCountry)
                     {
                         return ResultResponseDto<ChatCountryExecutiveSlidesResponse>.Failure(new[] { "You don't have access to this country data." });
                     }
                 }
+
                 var year = DateTime.UtcNow.Year;
 
-                var countryExists = await _commonService.GetCountriesRankings(countryId, year);
+                var countryExists = await _commonService.GetCountriesRankings(CountryId, year);
 
-                var country = countryExists.FirstOrDefault(x => x.CountryID == countryId);
+                var country = countryExists.FirstOrDefault(x=>x.CountryID == CountryId);
 
                 if (country == null)
                 {
-                    return ResultResponseDto<ChatCountryExecutiveSlidesResponse>.Failure(new[] { "Country not found." });
-                }
+                   return ResultResponseDto<ChatCountryExecutiveSlidesResponse>.Failure(new[] { "Country not found." });
+                }                
 
                 var pillars = (
                     from p in _context.Pillars
@@ -131,7 +217,7 @@ namespace HealthIntelligence.Services
 
                     from score in pillarScores.DefaultIfEmpty()
 
-                    select new PillarsUserHistoryResponseDto
+                    select new PillarsUserHistroyResponseDto
                     {
                         PillarID = p.PillarID,
                         PillarName = p.PillarName ?? "",
@@ -146,12 +232,15 @@ namespace HealthIntelligence.Services
                     var validPillars = _context.CountryUserPillarMappings.Where(x => x.UserID == userId).Select(x => x.PillarID);
                     pillars = pillars.Where(x => validPillars.Contains(x.PillarID)).ToList();
                 }
+                
+
+
                 var countryResult = new CountryRankingResponseDto
                 {
                     Continent = country.Continent,
                     CountryID = country.CountryID,
                     CountryName = country.CountryName,
-                    CountryRank = country.CountryRank,                    
+                    CountryRank = country.CountryRank,
                     CountryAIScore = country.CountryAIScore,
                     DataYear = country.DataYear,
                     Region = country.Region,
@@ -160,9 +249,11 @@ namespace HealthIntelligence.Services
                     TotalCountryInRegion = country.TotalCountryInRegion,
                     Pillars = pillars.OrderBy(p => p.DisplayOrder).ToList()
                 };
+
                 if (_cache.TryGetValue(cacheKey, out ChatCountryExecutiveSlidesResponse cachedResult))
                 {
                     cachedResult.Result.Country = countryResult;
+
                     return ResultResponseDto<ChatCountryExecutiveSlidesResponse>.Success(
                         cachedResult,
                         new List<string>
@@ -171,8 +262,9 @@ namespace HealthIntelligence.Services
                         }
                     );
                 }
-                // ✅ Fetch from AI service
-                var result = await _aIAnalyzeService.GetCountrySlides(countryId);
+
+                // ? Fetch from AI service
+                var result = await _aIAnalyzeService.GetCountrySlides(CountryId);
 
                 if (result == null || result.Success != true)
                 {
@@ -185,14 +277,15 @@ namespace HealthIntelligence.Services
                     );
                 }
 
-                // ✅ Store in cache
-                _cache.Set(cacheKey, result,
+                // ? Store in cache
+                _cache.Set(cacheKey,  result,
                     new MemoryCacheEntryOptions
-                    {
+                    { 
                         AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(12),
                         SlidingExpiration = TimeSpan.FromHours(10),
                         Priority = CacheItemPriority.High
                     });
+
                 result.Result.Country = countryResult;
                 return ResultResponseDto<ChatCountryExecutiveSlidesResponse>.Success(
                     result,
@@ -215,74 +308,6 @@ namespace HealthIntelligence.Services
                         "An error occurred while processing your request. Please try again later."
                     }
                 );
-            }
-        }
-
-        public async Task<ResultResponseDto<ChatResponseDto>> AskAboutGlobal(ChatGlobalAskQuestionRequestDto request)
-        {
-            try
-            {
-                var r = new ChatGlobalAskQuestionRequest
-                {  
-                    QuestionText = request.QuestionText,
-                    FAQID = request.FAQID,
-                    HistoryText = request.HistoryText
-                };
-
-                var result = await _aIAnalyzeService.ChatGlobalAsk(r);
-
-                if (result == null || result.Success != true)
-                {
-                    return ResultResponseDto<ChatResponseDto>.Failure(
-                        new[] { result?.Message ?? "Failed to query request from AHSIP Aevum." }
-                    );
-                }
-
-                return ResultResponseDto<ChatResponseDto>.Success(new ChatResponseDto
-                {       
-                    QuestionText = request.QuestionText,
-                    FAQID = request.FAQID,
-                    ResponseText = result.Result ?? "An error occurred or we do not have an answer for that."
-                });
-            }
-            catch (Exception ex)
-            {
-                await _appLogger.LogAsync("An error occurred while processing the AskAboutGlobal request.", ex);
-                return ResultResponseDto<ChatResponseDto>.Failure(new[] { "An error occurred while processing your request. Please try again later." });
-            }
-        }
-
-        public async Task<ResultResponseDto<ChatResponseDto>> CrossComparision(CrossComparisionRequestDto request)
-        {
-            try
-            {
-                var r = new CrossComparisionRequest
-                {
-                    CountryIDs = request.CountryIDs,
-                    QuestionText = request.QuestionText,
-                    HistoryText = request.HistoryText
-                };
-
-                var resutl = await _aIAnalyzeService.CrossComparision(r);
-
-                if (resutl == null || resutl.Success != true)
-                {
-                    return ResultResponseDto<ChatResponseDto>.Failure(
-                        new[] { resutl?.Message ?? "Failed to query request from AHSIP Aevum." }
-                    );
-                }
-
-                return ResultResponseDto<ChatResponseDto>.Success(new ChatResponseDto
-                {
-                    QuestionText = request.QuestionText,
-                    FAQID = null,
-                    ResponseText = resutl.Result ?? "An error occurred or we do not have an answer for that."
-                });
-            }
-            catch (Exception ex)
-            {
-                await _appLogger.LogAsync("An error occurred while processing the CrossComparision request.", ex);
-                return ResultResponseDto<ChatResponseDto>.Failure(new[] { "An error occurred while processing your request. Please try again later." });
             }
         }
 

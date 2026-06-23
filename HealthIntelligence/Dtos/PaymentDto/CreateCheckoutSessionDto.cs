@@ -1,4 +1,4 @@
-﻿using HealthIntelligence.Enums;
+using HealthIntelligence.Enums;
 
 namespace HealthIntelligence.Dtos.PaymentDto
 {

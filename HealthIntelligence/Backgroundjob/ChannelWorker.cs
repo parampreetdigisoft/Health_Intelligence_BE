@@ -1,10 +1,9 @@
-﻿using HealthIntelligence.Data;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
+using HealthIntelligence.Data;
 using HealthIntelligence.IServices;
 using HealthIntelligence.Models;
 using HealthIntelligence.Services;
-using DocumentFormat.OpenXml.Bibliography;
-using Microsoft.Data.SqlClient;
-using Microsoft.EntityFrameworkCore;
 using System.Collections.Concurrent;
 
 namespace HealthIntelligence.Backgroundjob
@@ -17,7 +16,7 @@ namespace HealthIntelligence.Backgroundjob
         private readonly IServiceProvider _serviceProvider;
         private readonly Dictionary<string, Func<Download, Task>> _actionHandlers;
         private readonly ConcurrentDictionary<int, CancellationTokenSource> _debounceTokens = new();
-        private static readonly ConcurrentDictionary<int, SemaphoreSlim> _countryLocks = new();
+        private static readonly ConcurrentDictionary<int, SemaphoreSlim> _cityLocks = new();
         private readonly TimeSpan _debounceInterval = TimeSpan.FromMinutes(2);
 
         public ChannelWorker(ChannelService channelService, IServiceProvider serviceProvider)
@@ -78,7 +77,7 @@ namespace HealthIntelligence.Backgroundjob
             {
                 await Task.Delay(_debounceInterval, cts.Token);
 
-                var semaphore = _countryLocks.GetOrAdd(countryId, _ => new SemaphoreSlim(1, 1));
+                var semaphore = _cityLocks.GetOrAdd(countryId, _ => new SemaphoreSlim(1, 1));
                 await semaphore.WaitAsync(cts.Token);
 
                 try
@@ -92,7 +91,7 @@ namespace HealthIntelligence.Backgroundjob
             }
             catch (TaskCanceledException)
             {
-                // debounce cancelled – expected
+                // debounce cancelled � expected
             }
             finally
             {
@@ -121,7 +120,7 @@ namespace HealthIntelligence.Backgroundjob
                     },
                     onFinalFailure: ex =>
                     {
-                       
+
                         _appLogger.LogAsync("ChannelWorker", ex);
                     });
 
@@ -139,11 +138,11 @@ namespace HealthIntelligence.Backgroundjob
                 await ExecuteWithRetry(
                     async () =>
                     {
-                        await dbContext.Database.ExecuteSqlRawAsync("EXEC sp_AiInsertAnalyticalLayerResults @CountryID",countryIdParam);
+                        await dbContext.Database.ExecuteSqlRawAsync("EXEC sp_AiInsertAnalyticalLayerResults @CountryID", countryIdParam);
                     },
                     onFinalFailure: ex =>
                     {
-                         _appLogger.LogAsync("sp_AiInsertAnalyticalLayerResults", ex);
+                        _appLogger.LogAsync("sp_AiInsertAnalyticalLayerResults", ex);
                     });
             }
             catch (Exception ex)
@@ -179,7 +178,7 @@ namespace HealthIntelligence.Backgroundjob
 
 
         #endregion
-        
+
         #region AiResearchByCountryId
 
         private async Task AiResearchByCountryId(Download channel)
@@ -198,17 +197,17 @@ namespace HealthIntelligence.Backgroundjob
 
                     if (channel.CountryEnable)
                         await aiService.AnalyzeSingleCountry(channel.CountryID.Value);
+
                     if (!channel.CountryEnable && channel.ImmediateSummaryEnable)
                         await aiService.AnalyzeCountryImmediateSituation(channel.CountryID.Value);
+
                     if (channel.RegenerateMissingQuestionsEnable && !channel.QuestionEnable)
                     {
-                        var request = new MissingCountryQuestionRequest
-                        {
-                            CountryID = channel.CountryID.Value,
-                            PillarID = channel.PillarId
-                        };
-                        await aiService.AnalyzeCountryMissingQuestions(request);
+                        var p = new MissingCountryQuestionRequest { CountryID = channel.CountryID.Value };
+
+                        await aiService.AnalyzeCountryMissingQuestions(p);
                     }
+
                 }
 
                 
@@ -223,3 +222,4 @@ namespace HealthIntelligence.Backgroundjob
         #endregion
     }
 }
+    

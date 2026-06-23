@@ -1,4 +1,4 @@
-﻿namespace HealthIntelligence.Dtos.kpiDto
+namespace HealthIntelligence.Dtos.kpiDto
 {
     public class GetAllKpisResponseDto
     {

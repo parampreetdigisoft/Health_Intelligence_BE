@@ -118,14 +118,14 @@ namespace HealthIntelligence.Controllers
             return Ok(content);
         }
         /// <summary>
-        /// This API is used to get the country question history  global history for admin
+        /// This API is used to get the country question history  gloabal history for admin
         /// </summary>
         /// <param name="countryID"></param>
         /// <returns></returns>
         [HttpGet]
         [Route("getCountryQuestionHistory")]
         [Authorize]
-        public async Task<IActionResult> GetCountryQuestionHistory([FromQuery] UserCountryRequstDto userCountryRequstDto)
+        public async Task<IActionResult> GetCountryQuestionHistory([FromQuery] UserCountryRequestDto userCountryRequestDto)
         {
             var userId = GetUserIdFromClaims();
             if (userId == null)
@@ -139,7 +139,7 @@ namespace HealthIntelligence.Controllers
             {
                 return Unauthorized("You Don't have access.");
             }
-            var result = await _responseService.GetCountryQuestionHistory(userCountryRequstDto);
+            var result = await _responseService.GetCountryQuestionHistory(userCountryRequestDto);
             return Ok(result);
         }
         [HttpGet]
@@ -183,14 +183,14 @@ namespace HealthIntelligence.Controllers
         }
 
         /// <summary>
-        /// This API is used to get the country pillar history  global history for admin
+        /// This API is used to get the country pillar history  gloabal history for admin
         /// </summary>
         /// <param name="countryID"></param>
         /// <returns></returns>
         [HttpGet]
         [Route("getCountryPillarHistory")]
         [Authorize]
-        public async Task<IActionResult> GetCountryPillarHistory([FromQuery] UserCountryDashBoardRequstDto userCountryRequstDto)
+        public async Task<IActionResult> GetCountryPillarHistory([FromQuery] UserCountryDashBoardRequestDto userCountryDashBoardRequestDto)
         {
             var userId = GetUserIdFromClaims();
             if (userId == null)
@@ -204,7 +204,7 @@ namespace HealthIntelligence.Controllers
             {
                 return Unauthorized("You Don't have access.");
             }
-            var result = await _responseService.GetCountryPillarHistory(userCountryRequstDto, userId.GetValueOrDefault(), userRole);
+            var result = await _responseService.GetCountryPillarHistory(userCountryDashBoardRequestDto, userId.GetValueOrDefault(), userRole);
             return Ok(result);
         }
 

@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using System.Text.Json;
 
 namespace HealthIntelligence.Common.Implementation
@@ -12,7 +12,7 @@ namespace HealthIntelligence.Common.Implementation
             _httpClient = httpClient;
         }
 
-        public async Task<T?> SendAsync<T>(HttpMethod method, string url, object? body = null, Dictionary<string, string>? headers = null)
+        public async Task<T?> SendAsync<T>(HttpMethod method,string url,object? body = null, Dictionary<string, string>? headers = null)
         {
             // Add headers if provided
             if (headers != null)
@@ -31,14 +31,14 @@ namespace HealthIntelligence.Common.Implementation
 
             if (body != null)
             {
-                var json = JsonSerializer.Serialize(body, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+                var json = JsonSerializer.Serialize(body , new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
                 request.Content = new StringContent(json, Encoding.UTF8, "application/json");
             }
 
             // Execute
             var response = await _httpClient.SendAsync(request);
 
-            // If status is success ✔
+            // If status is success ?
             if (response.IsSuccessStatusCode)
             {
                 try

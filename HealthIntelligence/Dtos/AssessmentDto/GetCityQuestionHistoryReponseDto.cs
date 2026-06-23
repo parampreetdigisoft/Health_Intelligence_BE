@@ -1,10 +1,10 @@
-﻿namespace HealthIntelligence.Dtos.AssessmentDto
+namespace HealthIntelligence.Dtos.AssessmentDto
 {
-    public class GetCountryQuestionHistoryReponseDto : GetCountrySubmitionHistoryReponseDto
+    public class GetCountryQuestionHistoryResponseDto : GetCountrySubmitionHistoryResponseDto
     {
-        public List<CountryPillarQuestionHistoryReponseDto> Pillars { get; set; } = new();
+        public List<CountryPillarQuestionHistoryResponseDto> Pillars { get; set; } = new();
     }
-    public class GetCountrySubmitionHistoryReponseDto
+    public class GetCountrySubmitionHistoryResponseDto
     {
         public int CountryID { get; set; }
         public int TotalAssessment { get; set; } = 0;
@@ -16,12 +16,12 @@
         public int TotalQuestion { get; set; } = 0;
         public int AnsQuestion { get; set; } = 0;
     }
-    public class GetCountriesSubmitionHistoryReponseDto : GetCountrySubmitionHistoryReponseDto
+    public class GetCountriesSubmitionHistoryResponseDto : GetCountrySubmitionHistoryResponseDto
     {
         public string CountryName { get; set; }
     }
 
-    public class CountryPillarQuestionHistoryReponseDto
+    public class CountryPillarQuestionHistoryResponseDto
     {
         public int PillarID { get; set; }
         public string PillarName { get; set; }
@@ -44,7 +44,7 @@
         public double CurrentProgress { get; set; }
     }
 
-    public class CountryPillarUserHistoryReponseDto : CountryPillarQuestionHistoryReponseDto
+    public class CountryPillarUserHistoryResponseDto : CountryPillarQuestionHistoryResponseDto
     {
         public int UserID { get; set; }
         public string FullName { get; set; }

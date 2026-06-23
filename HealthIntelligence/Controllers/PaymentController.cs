@@ -1,4 +1,4 @@
-﻿using HealthIntelligence.Dtos.PaymentDto;
+using HealthIntelligence.Dtos.PaymentDto;
 using HealthIntelligence.IServices;
 using Microsoft.AspNetCore.Mvc;
 using Stripe;

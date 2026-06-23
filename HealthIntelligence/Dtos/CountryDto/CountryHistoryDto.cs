@@ -1,8 +1,8 @@
-﻿namespace HealthIntelligence.Dtos.CountryDto
+namespace HealthIntelligence.Dtos.CountryDto
 {
     public class CountryHistoryDto
     {
-        public int TotalCountry { get; set; }
+        public int TotalCountry{ get; set; }
         public int TotalAnalyst { get; set; }
         public int TotalEvaluator { get; set; }
         public int ActiveCountry { get; set; }

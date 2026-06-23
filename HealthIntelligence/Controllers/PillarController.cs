@@ -38,7 +38,24 @@ namespace HealthIntelligence.Controllers
         [HttpGet]
         [Authorize]
         [Route("Pillars")]
-        public async Task<IActionResult> GetAll() => Ok(await _pillarService.GetAllAsync());
+        [Authorize]
+        public async Task<IActionResult> GetAll()
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                return Unauthorized("You Don't have access.");
+            }
+
+            return Ok(await _pillarService.GetAllAsync(userId.GetValueOrDefault(), userRole));
+        }
 
         [HttpGet("{id}")]
         [Authorize]
@@ -56,15 +73,18 @@ namespace HealthIntelligence.Controllers
             var result = await _pillarService.AddAsync(pillar);
             return Created($"/api/pillar/{result.PillarID}", result);
         }
-
-        [HttpPut("{id}")]
+       
+        [HttpPost("edit/{id}")]
+        [Consumes("multipart/form-data")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(int id, [FromBody] UpdatePillarDto pillar)
-        {
+        public async Task<IActionResult> Update( int id, [FromForm] UpdatePillarDto pillar)
+        {          
+
             var result = await _pillarService.UpdateAsync(id, pillar);
             if (result == null) return NotFound();
             return Ok(result);
         }
+
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
@@ -85,19 +105,22 @@ namespace HealthIntelligence.Controllers
 
             var content = await _pillarService.ExportPillarsHistoryByUserId(requestDto);
 
-            string fileName = content.Item1;
-            string contentType;
+            var fileName = content.Item1;
+            var fileBytes = content.Item2 ?? new byte[1];
 
-            if (requestDto.ExportType == "pdf")
+            // Detect content type based on file extension
+            string contentType = "application/octet-stream";
+
+            if (fileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
             {
-                contentType = "application/pdf";            
+                contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
             }
-            else
+            else if (fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
             {
-                contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";               
+                contentType = "application/pdf";
             }
 
-            return File(content.Item2 ?? new byte[1], contentType, fileName);
+            return File(fileBytes, contentType, fileName);
         }
         [HttpPost("GetResponsesByUserId")]
         public async Task<IActionResult> GetResponsesByUserId([FromBody] GetPillarResponseHistoryRequestNewDto requestDto)
@@ -120,4 +143,4 @@ namespace HealthIntelligence.Controllers
             return Ok(response);
         }
     }
-} 
+}

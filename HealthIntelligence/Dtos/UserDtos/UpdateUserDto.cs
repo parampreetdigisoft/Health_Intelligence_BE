@@ -1,4 +1,4 @@
-﻿using HealthIntelligence.Enums;
+using HealthIntelligence.Enums;
 using HealthIntelligence.Models;
 
 namespace HealthIntelligence.Dtos.UserDtos

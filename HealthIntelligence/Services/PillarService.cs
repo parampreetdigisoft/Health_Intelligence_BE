@@ -8,8 +8,8 @@ using HealthIntelligence.IServices;
 using HealthIntelligence.Models;
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
-using QuestPDF.Fluent;
 using System.Linq.Expressions;
+using QuestPDF.Fluent;
 
 namespace HealthIntelligence.Services
 {
@@ -25,11 +25,25 @@ namespace HealthIntelligence.Services
             _download = download;
         }
 
-        public async Task<List<Pillar>> GetAllAsync()
+        public async Task<List<Pillar>> GetAllAsync(int userId, UserRole userRole)
         {
             try
             {
-                return await _context.Pillars.OrderBy(p => p.DisplayOrder).ToListAsync();
+                if(userRole != UserRole.CountryUser)
+                {
+                    return await _context.Pillars.OrderBy(p => p.DisplayOrder).ToListAsync();
+                }
+                else
+                {
+                    var userPillar = await _context.CountryUserPillarMappings
+                        .Where(x => x.IsActive && x.UserID == userId)
+                        .Select(x => x.Pillar)
+                        .Where(x => x != null)
+                        .Distinct()
+                        .ToListAsync();
+
+                    return userPillar ?? new List<Pillar>();
+                }                
             }
             catch (Exception ex)
             {
@@ -39,7 +53,7 @@ namespace HealthIntelligence.Services
 
         }
 
-        public async Task<Pillar?> GetByIdAsync(int id)
+        public async Task<Pillar> GetByIdAsync(int id)
         {
             try
             {
@@ -75,9 +89,29 @@ namespace HealthIntelligence.Services
             {
                 var existing = await _context.Pillars.FindAsync(id);
                 if (existing == null) return null;
-                existing.PillarName = pillar.PillarName;
-                existing.Description = pillar.Description;
+                existing.PillarName = pillar.PillarName ?? "";
+                existing.Description = pillar.Description ?? "";
                 existing.DisplayOrder = pillar.DisplayOrder;
+
+                if (pillar.ImageFile != null)
+                {
+                    if (!string.IsNullOrEmpty(existing.ImagePath))
+                    {
+                        var oldFilePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", existing.ImagePath);
+                        if (File.Exists(oldFilePath))
+                        {
+                            File.Delete(oldFilePath);
+                        }
+                    }
+                    var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/assets/pillars");
+                    if (!Directory.Exists(uploadsFolder))
+                        Directory.CreateDirectory(uploadsFolder);
+                    var fileName = Guid.NewGuid() + Path.GetExtension(pillar.ImageFile.FileName);
+                    var filePath = Path.Combine(uploadsFolder, fileName);
+                    using var stream = new FileStream(filePath, FileMode.Create);
+                    await pillar.ImageFile.CopyToAsync(stream);
+                    existing.ImagePath = $"assets/pillars/{fileName}";
+                }
 
                 if (existing.Weight != pillar.Weight || existing.Reliability != pillar.Reliability)
                 {
@@ -86,15 +120,15 @@ namespace HealthIntelligence.Services
                     _download.InsertAnalyticalLayerResults();
                 }
                 await _context.SaveChangesAsync();
-
                 return existing;
             }
             catch (Exception ex)
             {
-                await _appLogger.LogAsync("Error Occure", ex);
+                await _appLogger.LogAsync("Error Occured", ex);
                 return new Pillar();
             }
         }
+
 
         public async Task<bool> DeleteAsync(int id)
         {
@@ -247,14 +281,14 @@ namespace HealthIntelligence.Services
                             // ? Inject AI answer
                             if (aiDict.TryGetValue((p.PillarID, q.QuestionID), out var aiAnswer))
                             {
-                                if(aiAnswer !=null)
+                                if (aiAnswer !=null)
                                 {
                                     var option = q.QuestionOptions
                                     .FirstOrDefault(o => o.ScoreValue == aiAnswer.Score);
 
                                     aiAnswer.OptionText = option?.OptionText ?? "";
                                     userAnswers[int.MaxValue] = aiAnswer;
-                                }                                
+                                }
                             }
 
                             return new QuestionWithUserDto
@@ -266,7 +300,6 @@ namespace HealthIntelligence.Services
                             };
                         }).ToList()
                 }).ToList();
-
                 return ResultResponseDto<List<PillarWithQuestionsDto>>.Success(result);
             }
             catch (Exception ex)
@@ -281,9 +314,10 @@ namespace HealthIntelligence.Services
             try
             {
                 var response = await GetPillarsWithQuestions(requestDto);
-                var country = await _context.Countries.FirstOrDefaultAsync(x => x.CountryID == requestDto.CountryID);
+                var country = await _context.Countries
+                    .FirstOrDefaultAsync(x => x.CountryID == requestDto.CountryID);
 
-                if (!response.Succeeded)
+                if (!response.Succeeded || response.Result == null)
                 {
                     return new Tuple<string, byte[]>("", Array.Empty<byte>());
                 }
@@ -291,7 +325,7 @@ namespace HealthIntelligence.Services
                 byte[] fileBytes;
                 string fileName;
 
-                if (requestDto.ExportType?.ToLower() == "pdf")
+                if (requestDto.ExportType == Enums.ExportType.Pdf)
                 {
                     // ? Use structured data directly (NO flattening)
                     fileBytes = GeneratePdf(response.Result, country, requestDto.UpdatedAt.Year);
@@ -305,7 +339,7 @@ namespace HealthIntelligence.Services
                     fileName = $"ExportPillarsHistory_{requestDto.CountryID}_{requestDto.PillarID}.xlsx";
                 }
 
-                return new("ExportPillarsHistory"+ requestDto.CountryID+""+requestDto.PillarID, fileBytes);
+                return new Tuple<string, byte[]>(fileName, fileBytes);
             }
             catch (Exception ex)
             {
@@ -317,7 +351,7 @@ namespace HealthIntelligence.Services
         {
             var logoPath = Path.Combine(
                 Directory.GetCurrentDirectory(),
-                "wwwroot/assets/images/Logo-health.png");
+                "wwwroot/assets/images/pem.png");
 
             return Document.Create(container =>
             {
@@ -453,6 +487,7 @@ namespace HealthIntelligence.Services
                 });
             }).GeneratePdf();
         }
+
         private byte[] MakePillarSheet(List<PillarWithQuestionsDto> pillars, Models.Country? country)
         {
             using (var workbook = new XLWorkbook())
@@ -507,16 +542,28 @@ namespace HealthIntelligence.Services
 
                     foreach (var user in names)
                     {
-                        var score = pillar.Questions
+                        var userData = pillar.Questions
                             .SelectMany(x => x.Users)
                             .Where(x => x.Key == user.UserID)
-                            .Sum(x => x.Value.Score) ?? 0;
+                            .ToList(); // materialize once
+
+                        var count = userData.Count;
+
+                        decimal score = 0;
+
+                        if (count > 0)
+                        {
+                            var totalScore = userData.Sum(x => x.Value.Score) ?? 0;
+                            var answeredCount = userData.Count(x => x.Value.Score.HasValue);
+                            score = totalScore * 100m / (answeredCount * 4);
+                        }
 
                         var richText = ws.Cell(row, c++).GetRichText();
 
                         richText.AddText("Total Score:  ")
                             .SetBold().SetFontColor(XLColor.DarkGray);
-                        richText.AddText($"{score}\n")
+
+                        richText.AddText($"{Math.Round(score, 2)}\n")
                             .SetFontColor(XLColor.Black);
                     }
 
@@ -548,7 +595,7 @@ namespace HealthIntelligence.Services
                         ws.Cell(row, c++).Value = $"{pillarCounter - 1}.{questionCounter++}";
                         ws.Cell(row, 1).Style.Font.Bold = true;
                         ws.Cell(row, c++).Value = question.QuestionText;
-    
+
 
                         foreach (var user in names)
                         {
@@ -587,6 +634,7 @@ namespace HealthIntelligence.Services
                 }
             }
         }
+
         public async Task<PaginationResponse<PillarsHistroyResponseDto>> GetResponsesByUserId(GetPillarResponseHistoryRequestNewDto request, UserRole userRole)
         {
             try
@@ -594,7 +642,6 @@ namespace HealthIntelligence.Services
                 var year = request.UpdatedAt.Year;
                 var startDate = new DateTime(year, 1, 1);
                 var endDate = new DateTime(year + 1, 1, 1);
-
                 // Role based filter
                 IQueryable<UserCountryMapping> userCountryMappings = _context.UserCountryMappings
                     .AsNoTracking()
@@ -602,31 +649,32 @@ namespace HealthIntelligence.Services
 
                 userCountryMappings = userRole switch
                 {
-                    UserRole.Analyst => userCountryMappings.Where(x => x.AssignedByUserId == request.UserId || x.UserID == request.UserId),
+                    UserRole.Analyst => userCountryMappings.Where(x => x.AssignedByUserId == request.UserId),
                     UserRole.Evaluator => userCountryMappings.Where(x => x.UserID == request.UserId),
                     _ => userCountryMappings
                 };
 
-                // =========================
-                // 1. USER DATA
-                // =========================
+                // Main query (single DB round-trip)
                 var rawData = await (
                     from ucm in userCountryMappings
                     join a in _context.Assessments on ucm.UserCountryMappingID equals a.UserCountryMappingID
-                    where a.IsActive &&
-                          (a.UpdatedAt >= startDate && a.UpdatedAt <= endDate &&
-                           (a.AssessmentPhase == AssessmentPhase.Completed
-                            || a.AssessmentPhase == AssessmentPhase.EditRejected
-                            || a.AssessmentPhase == AssessmentPhase.EditRequested))
+                    where a.IsActive && (a.UpdatedAt >= startDate && a.UpdatedAt <= endDate && (a.AssessmentPhase == AssessmentPhase.Completed || a.AssessmentPhase == AssessmentPhase.EditRejected || a.AssessmentPhase == AssessmentPhase.EditRequested))
                     from pa in a.PillarAssessments
                     where !request.PillarID.HasValue || pa.PillarID == request.PillarID
+                    join p in _context.Pillars on pa.PillarID equals p.PillarID
                     select new
                     {
-                        pa.PillarID,
+                        p.PillarID,
+                        p.PillarName,
+                        p.DisplayOrder,
                         UserID = ucm.UserID,
+                        TotalQuestion = p.Questions.Count(),
                         Responses = pa.Responses
                     }
                 ).ToListAsync();
+
+                if (!rawData.Any())
+                    return new PaginationResponse<PillarsHistroyResponseDto>();
 
                 // Users dictionary
                 var userIds = rawData.Select(x => x.UserID).Distinct().ToList();
@@ -652,6 +700,10 @@ namespace HealthIntelligence.Services
                     })
                     .ToListAsync();
 
+
+                // =========================
+                // 3. ALL PILLARS (MAIN FIX)
+                // =========================
                 var pillars = await _context.Pillars
                     .Where(p => !request.PillarID.HasValue || p.PillarID == request.PillarID)
                     .Select(p => new
@@ -677,75 +729,82 @@ namespace HealthIntelligence.Services
                     }
                 );
 
+
+                // =========================
+                // 4. FINAL RESULT (FROM PILLARS)
+                // =========================
                 var result = pillars
-                     .Select(p =>
-                     {
-                         var pillarRawData = rawData
-                             .Where(x => x.PillarID == p.PillarID)
-                             .ToList();
+                    .Select(p =>
+                    {
+                        var pillarRawData = rawData
+                            .Where(x => x.PillarID == p.PillarID)
+                            .ToList();
 
-                         var users = pillarRawData
-                             .GroupBy(x => x.UserID)
-                             .Select(userGroup =>
-                             {
-                                 var responses = userGroup
-                                     .SelectMany(x => x.Responses)
-                                     .Where(r => r.Score.HasValue &&
-                                                 (int)r.Score.Value <= (int)ScoreValue.Four)
-                                     .ToList();
+                        var users = pillarRawData
+                            .GroupBy(x => x.UserID)
+                            .Select(userGroup =>
+                            {
+                                var responses = userGroup
+                                    .SelectMany(x => x.Responses)
+                                    .Where(r => r.Score.HasValue &&
+                                                (int)r.Score.Value <= (int)ScoreValue.Four)
+                                    .ToList();
 
-                                 var score = responses.Sum(r => (int?)r.Score ?? 0);
-                                 var scoreCount = responses.Count;
+                                var score = responses.Sum(r => (int?)r.Score ?? 0);
+                                var scoreCount = responses.Count;
 
-                                 decimal progress = scoreCount > 0
-                                     ? score * 100m / (scoreCount * 4m)
-                                     : 0m;
+                                decimal progress = scoreCount > 0
+                                    ? score * 100m / (scoreCount * 4m)
+                                    : 0m;
 
-                                 return new PillarsUserHistroyResponseDto
-                                 {
-                                     UserID = userGroup.Key,
-                                     FullName = usersDict.GetValueOrDefault(userGroup.Key, ""),
-                                     Score = score,
-                                     ScoreProgress = progress,
-                                     TotalQuestion = p.TotalQuestion,
-                                     AnsQuestion = responses.Count,
-                                     AnsPillar = responses.Any() ? 1 : 0
-                                 };
-                             })
-                             .ToList();
+                                return new PillarsUserHistroyResponseDto
+                                {
+                                    UserID = userGroup.Key,
+                                    FullName = usersDict.GetValueOrDefault(userGroup.Key, ""),
+                                    Score = score,
+                                    ScoreProgress = progress,
+                                    TotalQuestion = p.TotalQuestion,
+                                    AnsQuestion = responses.Count,
+                                    AnsPillar = responses.Any() ? 1 : 0
+                                };
+                            })
+                            .ToList();
 
-                         // ? Insert AI row (always)
-                         if (aiData.TryGetValue(p.PillarID, out var aiPillar))
-                         {
-                             users.Insert(0, aiPillar);
-                         }
-                         else
-                         {
-                             users.Insert(0, new PillarsUserHistroyResponseDto
-                             {
-                                 UserID = int.MaxValue,
-                                 FullName = "AI_Result",
-                                 Score = 0,
-                                 ScoreProgress = 0,
-                                 TotalQuestion = p.TotalQuestion,
-                                 AnsQuestion = 0,
-                                 AnsPillar = 0
-                             });
-                         }
+                        // ? Insert AI row (always)
+                        if (aiData.TryGetValue(p.PillarID, out var aiPillar))
+                        {
+                            users.Insert(0, aiPillar);
+                        }
+                        else
+                        {
+                            users.Insert(0, new PillarsUserHistroyResponseDto
+                            {
+                                UserID = int.MaxValue,
+                                FullName = "AI_Result",
+                                Score = 0,
+                                ScoreProgress = 0,
+                                TotalQuestion = p.TotalQuestion,
+                                AnsQuestion = 0,
+                                AnsPillar = 0
+                            });
+                        }
 
-                         return new PillarsHistroyResponseDto
-                         {
-                             PillarID = p.PillarID,
-                             PillarName = p.PillarName,
-                             DisplayOrder = p.DisplayOrder,
-                             Users = users
-                         };
-                     })
-                     .OrderBy(x => x.DisplayOrder)
-                     .ToList();
+                        return new PillarsHistroyResponseDto
+                        {
+                            PillarID = p.PillarID,
+                            PillarName = p.PillarName,
+                            DisplayOrder = p.DisplayOrder,
+                            Users = users
+                        };
+                    })
+                    .OrderBy(x => x.DisplayOrder)
+                    .ToList();
+
+
                 // =========================
                 // 5. PAGINATION
                 // =========================
+
                 var count = 0;
                 var valid = 0;
                 var totalRecords = 0;
@@ -753,13 +812,12 @@ namespace HealthIntelligence.Services
                 foreach (var r in result)
                 {
                     totalRecords += r.Users.Count;
-                    if (count + r.Users.Count <= request.PageSize)
+                    if (count+ r.Users.Count <= request.PageSize)
                     {
                         count += r.Users.Count;
                         valid++;
                     }
                 }
-
                 var filterResult = result.Skip((request.PageNumber - 1) * valid);
 
                 return new PaginationResponse<PillarsHistroyResponseDto>
@@ -769,10 +827,12 @@ namespace HealthIntelligence.Services
                     PageNumber = request.PageNumber,
                     PageSize = request.PageSize
                 };
+
             }
             catch (Exception ex)
             {
-                await _appLogger.LogAsync("Error occurred in GetPillarsHistoryByUserId", ex);
+                await _appLogger.LogAsync(
+                    "Error occurred in GetPillarsHistoryByUserId", ex);
 
                 return new PaginationResponse<PillarsHistroyResponseDto>();
             }

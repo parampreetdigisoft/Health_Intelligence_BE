@@ -1,4 +1,4 @@
-﻿namespace HealthIntelligence.Dtos.kpiDto
+namespace HealthIntelligence.Dtos.kpiDto
 {
     public class CompareCountryResponseDto
     {
@@ -19,7 +19,8 @@
         public int LayerID { get; set; }
         public string LayerCode { get; set; }
         public string LayerName { get; set; }
-        public string? Definition { get; set; }
+
+        public string Purpose { get; set; }
         public List<CountryValueDto> CountryValues { get; set; }
         public decimal PeerCountryScore { get; set; }
     }

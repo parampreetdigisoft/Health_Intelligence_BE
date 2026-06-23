@@ -1,8 +1,9 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using HealthIntelligence.Dtos.UserDtos;
 using HealthIntelligence.IServices;
 using HealthIntelligence.Models;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace HealthIntelligence.Controllers
 {
@@ -31,15 +32,28 @@ namespace HealthIntelligence.Controllers
 
             return null;
         }
+        private string? GetRoleFromClaims()
+        {
+            return User.FindFirst(ClaimTypes.Role)?.Value;
+        }
         [HttpGet]
         [Route("GetUserByRoleWithAssignedCountry")]
         public async Task<IActionResult> GetUserByRoleWithAssignedCountry([FromQuery] GetUserByRoleRequestDto request)
         {
-            var claimUserId = GetUserIdFromClaims();
-            if (claimUserId == null || claimUserId != request.UserID)
-                return Unauthorized("User ID not found.");
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
 
-            return Ok(await _userService.GetUserByRoleWithAssignedCountry(request));
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                return Unauthorized("You Don't have access.");
+            }
+
+            return Ok(await _userService.GetUserByRoleWithAssignedCountry(request, userId.GetValueOrDefault(), userRole));
         }
 
         [HttpGet]
@@ -51,7 +65,7 @@ namespace HealthIntelligence.Controllers
                 return Unauthorized("User ID not found.");
 
             return Ok(await _userService.GetEvaluatorByAnalyst(request));
-        }
+        }       
 
         [HttpGet]
         [Route("getUserInfo")]
@@ -77,6 +91,7 @@ namespace HealthIntelligence.Controllers
         public string Email { get; set; }
         public string Phone { get; set; }
         public string Password { get; set; }
+        public Enums.TieredAccessPlan? Tier { get; set; } = Enums.TieredAccessPlan.Pending;
         public UserRole Role { get; set; }
     }
 } 

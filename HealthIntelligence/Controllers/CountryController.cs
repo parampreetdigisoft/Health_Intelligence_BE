@@ -1,10 +1,11 @@
-﻿using HealthIntelligence.Dtos.CountryDto;
+
 using HealthIntelligence.Dtos.CommonDto;
 using HealthIntelligence.IServices;
 using HealthIntelligence.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using HealthIntelligence.Dtos.CountryDto;
 
 namespace HealthIntelligence.Controllers
 {
@@ -14,9 +15,9 @@ namespace HealthIntelligence.Controllers
     public class CountryController : ControllerBase
     {
         private readonly ICountryService _countryService;
-        public CountryController(ICountryService countryService)
+        public CountryController(ICountryService CountryService)
         {
-            _countryService = countryService;
+            _countryService = CountryService;
         }
         private int? GetUserIdFromClaims()
         {
@@ -36,7 +37,7 @@ namespace HealthIntelligence.Controllers
         }
 
         [HttpGet("countries")]
-        public async Task<IActionResult> GetCountries([FromQuery] PaginationRequest request)
+        public async Task<IActionResult> GetCountries([FromQuery] CountryPaginationRequest request)
         {
             var userId = GetUserIdFromClaims();
             if (userId == null)
@@ -188,7 +189,7 @@ namespace HealthIntelligence.Controllers
         [HttpGet]
         [Authorize]
         [Route("getCountriesProgressByUserId/{updatedAt}")]
-        public async Task<IActionResult> GetCountriesProgressByUserId(DateTime updatedAt)
+        public async Task<IActionResult> getCountriesProgressByUserId(DateTime updatedAt)
         {
             var userId = GetUserIdFromClaims();
             if (userId == null)
@@ -230,7 +231,7 @@ namespace HealthIntelligence.Controllers
 
         [HttpGet("exportCountries")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> ExportCountries([FromQuery] ExportCountryWithOptionDto request )
+        public async Task<IActionResult> ExportCountries([FromQuery] ExportCountryWithOptionDto request)
         {
             var claimUserId = GetUserIdFromClaims();
             if (claimUserId == null)

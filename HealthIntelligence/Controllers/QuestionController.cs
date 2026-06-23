@@ -94,7 +94,7 @@ namespace HealthIntelligence.Controllers
 
             return Ok(result);
         }
-
+        
         [HttpGet("ExportAssessment/{userCountryMappingID}")]
         [Authorize]
         public async Task<IActionResult> ExportAssessment(int userCountryMappingID)
@@ -114,7 +114,6 @@ namespace HealthIntelligence.Controllers
 
             return Ok(content);
         }
-
         [HttpGet("getQuestionsByCountryMappingIdForAnalyst")]
         [Authorize]
         public async Task<IActionResult> GetQuestionsByCountryMappingIdForAnalyst([FromQuery] CountryPillerRequestDto requestDto)

@@ -1,10 +1,13 @@
-﻿
+
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+	<RootNamespace>HealthIntelligence</RootNamespace>
+	<AssemblyName>HealthIntelligence</AssemblyName>
+	<StartupObject>HealthIntelligence.Program</StartupObject>
   </PropertyGroup>
 
   <ItemGroup>
@@ -34,9 +37,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="wwwroot\aidocuments\" />
     <Folder Include="wwwroot\assets\countries\" />
     <Folder Include="wwwroot\pdf\" />
     <Folder Include="wwwroot\uploads\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Dtos\CountryDto\SendRequestMailToUpdateCountry.cs" />
   </ItemGroup>
 
 </Project>

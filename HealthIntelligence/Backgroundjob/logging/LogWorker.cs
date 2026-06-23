@@ -1,4 +1,4 @@
-﻿using HealthIntelligence.Data;
+using HealthIntelligence.Data;
 using HealthIntelligence.Models;
 namespace HealthIntelligence.Backgroundjob.logging
 {

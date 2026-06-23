@@ -1,4 +1,4 @@
-﻿namespace HealthIntelligence.Dtos.AiDto
+namespace HealthIntelligence.Dtos.AiDto
 {
     public class AiCrossCountryResponseDto
     {

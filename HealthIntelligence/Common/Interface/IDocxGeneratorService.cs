@@ -1,6 +1,8 @@
+
+
 using HealthIntelligence.Dtos.AiDto;
 using HealthIntelligence.Models;
-using HealthIntelligence.Services;
+using static HealthIntelligence.Services.AIComputationService;
 
 namespace HealthIntelligence.Common.Interface
 {
@@ -13,18 +15,18 @@ namespace HealthIntelligence.Common.Interface
     {
         Task<byte[]> GenerateCountryDetailsDocx(
             AiCountrySummeryDto country,
-            List<AiCountryPillarReponse> pillars,
+            List<AiCountryPillarResponse> pillars,
             List<KpiChartItem> kpis,
             List<PeerCountryHistoryReportDto> peerCountries,
             UserRole userRole);
 
         Task<byte[]> GeneratePillarDetailsDocx(
-            AiCountryPillarReponse pillarData,
+            AiCountryPillarResponse pillarData,
             UserRole userRole);
 
         Task<byte[]> GenerateAllCountriesDetailsDocx(
             List<AiCountrySummeryDto> countries,
-            Dictionary<int, List<AiCountryPillarReponse>> pillarsDict,
+            Dictionary<int, List<AiCountryPillarResponse>> pillarsDict,
             List<KpiChartItem> kpis,
             UserRole userRole);
     }

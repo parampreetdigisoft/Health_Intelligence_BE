@@ -1,4 +1,4 @@
-﻿namespace HealthIntelligence.Dtos.PaymentDto
+namespace HealthIntelligence.Dtos.PaymentDto
 {
     public class VerifySessionDto
     {

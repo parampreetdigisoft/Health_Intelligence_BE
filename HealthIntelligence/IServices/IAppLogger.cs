@@ -1,4 +1,4 @@
-﻿namespace HealthIntelligence.IServices
+namespace HealthIntelligence.IServices
 {
     public interface IAppLogger
     {

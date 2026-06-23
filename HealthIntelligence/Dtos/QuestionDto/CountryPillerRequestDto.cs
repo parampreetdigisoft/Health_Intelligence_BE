@@ -1,4 +1,4 @@
-﻿namespace HealthIntelligence.Dtos.QuestionDto
+namespace HealthIntelligence.Dtos.QuestionDto
 {
     public class CountryPillerRequestDto
     {

@@ -1,10 +1,10 @@
-﻿using HealthIntelligence.Models;
+using HealthIntelligence.Models;
 
 namespace HealthIntelligence.Dtos.AiDto
 {
     public class GetCountryDocumentResponseDto
     {
-        public int CountryID { get; set; }
+        public int? CountryID { get; set; }
         public string CountryName { get; set; }
         public int NoOfUsers { get; set; }
         public int NoOfFiles { get; set; }

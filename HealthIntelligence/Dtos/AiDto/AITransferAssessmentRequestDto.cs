@@ -1,4 +1,4 @@
-﻿namespace HealthIntelligence.Dtos.AiDto
+﻿namespace AssessmentPlatform.Dtos.AiDto
 {
     public class AITransferAssessmentRequestDto
     {
@@ -6,3 +6,4 @@
         public int TransferToUserID { get; set; }
     }
 }
+    

@@ -1,4 +1,4 @@
-﻿namespace HealthIntelligence.Common.Interface
+namespace HealthIntelligence.Common.Interface
 {
     public interface IEmailService
     {

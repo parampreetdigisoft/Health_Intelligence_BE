@@ -1,18 +1,21 @@
-﻿using HealthIntelligence.Backgroundjob;
+using AssessmentPlatform.Dtos.AiDto;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using HealthIntelligence.Backgroundjob;
 using HealthIntelligence.Common.Implementation;
 using HealthIntelligence.Common.Interface;
 using HealthIntelligence.Common.Models;
 using HealthIntelligence.Common.Models.settings;
 using HealthIntelligence.Data;
 using HealthIntelligence.Dtos.AiDto;
-using HealthIntelligence.Dtos.CountryDto;
 using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.Dtos.CountryDto;
 using HealthIntelligence.IServices;
 using HealthIntelligence.Models;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using System.Linq.Expressions;
+using System.Net;
+using System.Text.RegularExpressions;
 
 namespace HealthIntelligence.Services
 {
@@ -24,28 +27,30 @@ namespace HealthIntelligence.Services
         private readonly IAppLogger _appLogger;
         private readonly ICommonService _commonService;
         private readonly Download _download;
-        private readonly IAIAnalyzeService _iAIAnalayzeService;
+        private readonly IAIAnalyzeService _iAIAnalayzeService;        
         private readonly IDocumentGeneratorService _documentGeneratorService;
-        private readonly IWebHostEnvironment _env;
         private readonly AppSettings _appSettings;
-        public AIComputationService(ApplicationDbContext context, IAppLogger appLogger, ICommonService commonService,
-            Download download, IAIAnalyzeService iAIAnalayzeService, IDocumentGeneratorService documentGeneratorService,
-            IWebHostEnvironment env, IOptions<AppSettings> appSettings)
+        private readonly IWebHostEnvironment _env;
+        public AIComputationService(ApplicationDbContext context, IAppLogger appLogger,
+            ICommonService commonService, 
+            Download download, IAIAnalyzeService iAIAnalayzeService
+            ,  IDocumentGeneratorService documentGeneratorService, 
+            IOptions<AppSettings> appSettings, IWebHostEnvironment env)
         {
             _context = context;
             _appLogger = appLogger;
             _commonService = commonService;
             _download = download;
-            _iAIAnalayzeService = iAIAnalayzeService;
+            _iAIAnalayzeService = iAIAnalayzeService;          
             _documentGeneratorService = documentGeneratorService;
-            _env = env;
             _appSettings = appSettings.Value;
+            _env = env;
         }
         #endregion
 
         #region implementation
 
-
+     
         public async Task<ResultResponseDto<List<AITrustLevel>>> GetAITrustLevels()
         {
             var r = await _context.AITrustLevels.ToListAsync();
@@ -57,26 +62,48 @@ namespace HealthIntelligence.Services
         {
             try
             {
+                int pillarCount = _appSettings.PillarCount;
                 IQueryable<AiCountrySummeryDto> query = await GetCountryAiSummeryDetails(userID, userRole, request.CountryID, request.Year);
 
+                var progress = await _commonService.GetCountriesProgressAsync(userID, (int)userRole, DateTime.Now.Year);
+                var countryRanks = CalculateCountryRanks(progress, pillarCount);
+
                 var result = await query.ApplyPaginationAsync(request);
+
+                ApplyCountryRanking(result.Data.ToList(), countryRanks);
+
+                var ids = result.Data.Select(x => x.CountryID);
+                var countries = progress.Where(x => ids.Contains(x.CountryID));
+
+
                 var analyticalLayers = _context.AnalyticalLayers.AsQueryable();
-                int pillarCount = _appSettings.PillarCount;
+
+                if (userRole == UserRole.CountryUser)
+                {
+                    analyticalLayers =
+                        from ar in _context.AnalyticalLayers
+                        join alp in _context.AnalyticalLayerPillarMappings
+                            on ar.LayerID equals alp.LayerID
+                        join cup in _context.CountryUserPillarMappings
+                            on alp.PillarID equals cup.PillarID
+                        join puc in _context.PublicUserCountryMappings
+                            on cup.UserID equals puc.UserID
+                        where cup.IsActive
+                              && puc.IsActive
+                              && cup.UserID == userID
+                              && puc.UserID == userID
+                        select ar;
+                }
+
                 var totalValidKpis = await analyticalLayers.Distinct().CountAsync();
 
                 foreach (var c in result.Data)
-                {
+                {                 
                     c.EvidenceSummary = CommonService.InitailLineOfExecutiveSummery(c.EvidenceSummary, c.ImmediateSituationSummary, c.AIProgress, c.CountryName, pillarCount, totalValidKpis);
                 }
 
                 if (userRole != UserRole.CountryUser)
                 {
-                    var progress = await _commonService.GetCountriesProgressAsync(userID, (int)userRole, request.Year);
-
-                    var ids = result.Data.Select(x => x.CountryID);
-                    var countries = progress.Where(x => ids.Contains(x.CountryID));
-
-
                     var counts = await _context.Pillars
                         .Select(p => p.Questions.Count()).ToListAsync();
 
@@ -94,16 +121,13 @@ namespace HealthIntelligence.Services
                         })
                         .ToListAsync();
 
-
                     foreach (var c in result.Data)
                     {
                         var pillars = countries.Where(x => x.CountryID == c.CountryID);
-
-                        var countryScore = Math.Round(pillars.Sum(x => x.ScoreProgress) / _appSettings.PillarCount,2);
-
-                        c.EvaluatorProgress = countryScore;
+                        var countryScore = Math.Round(pillars.Sum(x => x.ScoreProgress) / (decimal)pillarCount, 2);
+                        c.EvaluatorScore = countryScore;
                         c.Discrepancy = Math.Abs(countryScore - (c.AIProgress ?? 0));
-                        c.AICompletionRate = answeredQuestions.FirstOrDefault(x=>x.CountryID== c.CountryID)?.CompletionRate;
+                        c.AICompletionRate = answeredQuestions.FirstOrDefault(x=>x.CountryID == c.CountryID)?.CompletionRate;                         
                     }
                 }
 
@@ -117,43 +141,43 @@ namespace HealthIntelligence.Services
         }
         public async Task<IQueryable<AiCountrySummeryDto>> GetCountryAiSummeryDetails(int userID, UserRole userRole, int? countryID, int currentYear=0)
         {
-            currentYear = currentYear ==0 ? DateTime.Now.Year : currentYear;
+            currentYear = currentYear == 0 ? DateTime.Now.Year : currentYear;
             var firstDate = new DateTime(currentYear, 1, 1); 
-            var endDate = new DateTime(currentYear+1, 1, 1); 
-            IQueryable<AICountryScore> baseQuery = _context.AICountryScores.Where(x=> x.UpdatedAt >= firstDate && x.UpdatedAt < endDate && x.Year== currentYear && x.Country.IsActive && !x.Country.IsDeleted);
+            var endDate = new DateTime(currentYear + 1, 1, 1); 
+            IQueryable<AICountryScore> baseQuery = _context.AICountryScores.Where(x=> x.UpdatedAt >= firstDate && x.UpdatedAt < endDate && x.Year== currentYear);
 
-            List<int> allowedCountryIDs = new();
+            List<int> allowedCountryIds = new();
             if (userRole == UserRole.Analyst)
             {
                 // Allowed country IDs
-                 allowedCountryIDs = await _context.UserCountryMappings
+                allowedCountryIds = await _context.UserCountryMappings
                             .Where(x => !x.IsDeleted && x.UserID == userID && (!countryID.HasValue || x.CountryID == countryID.Value))
                             .Select(x => x.CountryID)
                             .Distinct()
                             .ToListAsync();
 
-                baseQuery = baseQuery.Where(x => allowedCountryIDs.Contains(x.CountryID));
+                baseQuery = baseQuery.Where(x => allowedCountryIds.Contains(x.CountryID));
             }
             else if (userRole == UserRole.Evaluator)
             {
                 // Allowed country IDs
-                 allowedCountryIDs = await _context.AIUserCountryMappings
+                allowedCountryIds = await _context.AIUserCountryMappings
                             .Where(x => x.IsActive && x.UserID == userID && (!countryID.HasValue || x.CountryID == countryID.Value))
                             .Select(x => x.CountryID)
                             .Distinct()
                             .ToListAsync();
 
-                baseQuery = baseQuery.Where(x => allowedCountryIDs.Contains(x.CountryID));
+                baseQuery = baseQuery.Where(x => allowedCountryIds.Contains(x.CountryID));
             }
             else if (userRole == UserRole.CountryUser)
             {
-                 allowedCountryIDs = await _context.PublicUserCountryMappings
+                allowedCountryIds = await _context.PublicUserCountryMappings
                             .Where(x => x.IsActive && x.UserID == userID && (!countryID.HasValue || x.CountryID == countryID.Value))
                             .Select(x => x.CountryID)
                             .Distinct()
                             .ToListAsync();
 
-                baseQuery = baseQuery.Where(x => allowedCountryIDs.Contains(x.CountryID) && x.IsVerified);
+                baseQuery = baseQuery.Where(x => allowedCountryIds.Contains(x.CountryID) && x.IsVerified);
             }
             else
             {
@@ -161,7 +185,7 @@ namespace HealthIntelligence.Services
                 if (countryID.HasValue)
                 {
                     baseQuery = baseQuery.Where(x => x.CountryID == countryID.Value);
-                    allowedCountryIDs = new() { countryID.Value };
+                    allowedCountryIds = new() { countryID.Value };
                 }
             }
             var commentQuery = _context.AIUserCountryMappings
@@ -184,8 +208,7 @@ namespace HealthIntelligence.Services
 
             var query =
                 from c in _context.Countries
-                where allowedCountryIDs.Contains(c.CountryID) || (userRole == UserRole.Admin && !countryID.HasValue) && c.IsActive && !c.IsDeleted
-
+                where !c.IsDeleted && (allowedCountryIds.Contains(c.CountryID) || (userRole == UserRole.Admin && !countryID.HasValue))
                 join score in baseQuery
                     on c.CountryID equals score.CountryID
                     into scoreJoin
@@ -200,48 +223,66 @@ namespace HealthIntelligence.Services
                 {
                     CountryID = c.CountryID,
                     Continent = c.Continent ?? string.Empty,
-                    CountryName = c.CountryName ?? string.Empty,                    
+                    CountryName = c.CountryName ?? string.Empty,
+                    //Country = c.Country ?? string.Empty,
                     Image = c.Image ?? string.Empty,
                     Region = c.Region ?? string.Empty,
-                    ScoringYear = score != null ? score.Year : currentYear,
-                    AIScore = score != null ? score.AIScore : 0,
+                    Year = score != null ? score.Year : currentYear,
                     AIProgress = score != null ? score.AIProgress : null,
-                    EvaluatorProgress = score != null ? score.EvaluatorProgress : null,
+                    EvaluatorScore = score != null ? score.EvaluatorScore : null,
                     Discrepancy = score != null ? score.Discrepancy : null,
-                    ConfidenceLevel = score != null ? score.ConfidenceLevel : string.Empty,
 
-                    EvidenceSummary = score != null ? score.EvidenceSummary : string.Empty,
-                    CrossPillarPatterns = score != null ? score.CrossPillarPatterns : string.Empty,
-                    InstitutionalCapacity = score != null ? score.InstitutionalCapacity : string.Empty,
-                    EquityAssessment = score != null ? score.EquityAssessment : string.Empty,
-                    SustainabilityOutlook = score != null ? score.SustainabilityOutlook : string.Empty,
-                    StrategicRecommendations = score != null ? score.StrategicRecommendations : string.Empty,
-                    DataTransparencyNote = score != null ? score.DataTransparencyNote : string.Empty,
+                    ConfidenceLevel = score != null ? score.ConfidenceLevel ?? string.Empty : string.Empty,
+                    EvidenceSummary = score != null ? score.EvidenceSummary ?? string.Empty : string.Empty,
 
-                    UpdatedAt = score != null ? score.UpdatedAt : null,
-                    IsVerified = score != null ? score.IsVerified : false,
+                    StructuralEvidence = score != null ? score.StructuralEvidence : null,
+                    OperationalEvidence = score != null ? score.OperationalEvidence : null,
+                    OutcomeEvidence = score != null ? score.OutcomeEvidence : null,
+                    PerceptionEvidence = score != null ? score.PerceptionEvidence : null,
 
-                    Comment = cmt != null ? cmt.Comment : null,
+                    TemporalScope = score != null ? score.TemporalScope : null,
+                    DistortionScreening = score != null ? score.DistortionScreening : null,
+
+                    PoliticalShock = score != null ? score.PoliticalShock : null,
+                    EconomicShock = score != null ? score.EconomicShock : null,
+                    NarrativeShock = score != null ? score.NarrativeShock : null,
+
+                    OverallStressResilience = score != null ? score.OverallStressResilience : null,
+                    StressScoreAdjustment = score != null ? score.StressScoreAdjustment : null,
+                    InequalityAdjustment = score != null ? score.InequalityAdjustment : null,
+                    OpacityRisk = score != null ? score.OpacityRisk : null,
+                    NonCompensationNote = score != null ? score.NonCompensationNote : null,
+
+                    CrossPillarPatterns = score != null ? score.CrossPillarPatterns : null,
+                    RelationalIntegrity = score != null ? score.RelationalIntegrity : null,
+                    InstitutionalCapacity = score != null ? score.InstitutionalCapacity : null,
+                    EquityAssessment = score != null ? score.EquityAssessment : null,
+                    ConflictRiskOutlook = score != null ? score.ConflictRiskOutlook : null,
+
+                    StrategicRecommendation = score != null ? score.StrategicRecommendation : null,
+                    DataTransparencyNote = score != null ? score.DataTransparencyNote : null,
+                    PrimarySource = score != null ? score.PrimarySource : null,
+
+                    UpdatedAt = score != null ? score.UpdatedAt : default(DateTime),
+
+                    IsVerified = score != null && score.IsVerified,
                     ImmediateSituationSummary = score != null ? score.ImmediateSituationSummary : null,
                     KeyDevelopments = score != null ? score.KeyDevelopments : null,
                     CriticalRisks = score != null ? score.CriticalRisks : null,
                     Gaps = score != null ? score.Gaps : null
                 };
-
-
-
             return query;
         }
     
-        public async Task<ResultResponseDto<AiCountryPillarReponseDto>> GetAICountryPillars(int countryID, int userID, UserRole userRole, int currentYear = 0)
+        public async Task<ResultResponseDto<AiCountryPillarResponseDto>> GetAICountryPillars(int CountryID, int userID, UserRole userRole, int currentYear = 0)
         {
             try
             {
                 currentYear = currentYear == 0 ? DateTime.Now.Year : currentYear;
                 var firstDate = new DateTime(currentYear, 1, 1);
-
+                int pillarCount = _appSettings.PillarCount;
                 var res = await _context.AIPillarScores
-                    .Where(x => x.CountryID == countryID && x.UpdatedAt >= firstDate && x.Year == currentYear)
+                    .Where(x => x.CountryID == CountryID && x.UpdatedAt >= firstDate && x.Year == currentYear)
                     .Include(x=>x.Country)
                     .Include(x => x.DataSourceCitations)
                     .ToListAsync();
@@ -275,13 +316,12 @@ namespace HealthIntelligence.Services
                 {
                     var isAccess = pillarIds.Count == 0 || pillarIds.Contains(x.pillar.PillarID);
 
-                    var r = new AiCountryPillarReponse
+                    var r = new AiCountryPillarResponse
                     {
                         PillarScoreID = x.score?.PillarScoreID ?? 0,
-                        CountryID = x.score?.CountryID ?? countryID,
+                        CountryID = x.score?.CountryID ?? CountryID,
                         CountryName = x.score?.Country?.CountryName ?? "",
-                        Continent = x.score?.Country?.Continent ?? "",
-                        Region = x.score?.Country?.Region ?? "",
+                        Continent = x.score?.Country?.Continent ?? "",                        
                         PillarID = x.pillar.PillarID,
                         PillarName = x.pillar.PillarName,
                         DisplayOrder = x.pillar.DisplayOrder,
@@ -294,15 +334,29 @@ namespace HealthIntelligence.Services
                         r.AIDataYear = x.score.Year;
                         r.AIScore = x.score.AIScore;
                         r.AIProgress = x.score.AIProgress;
-                        r.EvaluatorProgress = x.score.EvaluatorProgress;
+                        r.EvaluatorScore = x.score.EvaluatorScore;
                         r.Discrepancy = x.score.Discrepancy;
                         r.ConfidenceLevel = x.score.ConfidenceLevel;
                         r.EvidenceSummary = x.score.EvidenceSummary;
-                        r.RedFlags = x.score.RedFlags;
+                        r.StructuralEvidence = x.score.StructuralEvidence;
+                        r.OperationalEvidence = x.score.OperationalEvidence;
+                        r.OutcomeEvidence = x.score.OutcomeEvidence;
+                        r.PerceptionEvidence = x.score.PerceptionEvidence;
+                        r.TemporalScope = x.score.TemporalScope;
+                        r.DistortionScreening = x.score.DistortionScreening;
+                        r.RelationalIntegrity = x.score.RelationalIntegrity;
+                        r.StressPoliticalShock = x.score.StressPoliticalShock;
+                        r.StressEconomicShock = x.score.StressEconomicShock;
+                        r.StressNarrativeShock = x.score.StressNarrativeShock;
+                        r.StressOverallResilience = x.score.StressOverallResilience;
+                        r.StressScoreAdjustment = x.score.StressScoreAdjustment;
+                        r.InequalityAdjustment = x.score.InequalityAdjustment;
+                        r.OpacityRisk = x.score.OpacityRisk;
+                        r.NonCompensationNote = x.score.NonCompensationNote;
                         r.GeographicEquityNote = x.score.GeographicEquityNote;
                         r.InstitutionalAssessment = x.score.InstitutionalAssessment;
                         r.DataGapAnalysis = x.score.DataGapAnalysis;
-                        r.AnalystDataGapAnalysis = x.score.AnalystDataGapAnalysis ?? string.Empty;
+                        r.RedFlag = x.score.RedFlag;
                         r.DataSourceCitations = x.score.DataSourceCitations;
                         r.UpdatedAt = x.score.UpdatedAt;
                     }
@@ -312,12 +366,13 @@ namespace HealthIntelligence.Services
                 .ThenBy(x => x.DisplayOrder)
                 .ToList();
 
+
                 var progress = await _commonService.GetCountriesProgressAsync(userID, (int)userRole, currentYear);
 
-                var countries = progress.Where(x => x.CountryID == countryID);
+                var countries = progress.Where(x => x.CountryID== CountryID);
 
                 var answeredQuestions = await _context.AIEstimatedQuestionScores
-               .Where(x => x.Year == currentYear && x.CountryID == countryID)
+               .Where(x => x.Year == currentYear && x.CountryID == CountryID)
                .GroupBy(x => x.PillarID)
                .Select(g => new
                {
@@ -328,34 +383,32 @@ namespace HealthIntelligence.Services
 
                 foreach (var c in result)
                 {
-                    var totalQuestions = pillars.FirstOrDefault(x => x.PillarID == c.PillarID)?.TotalQuestions ?? 1;
+                    var totalQuestions = pillars.FirstOrDefault(x => x.PillarID == c.PillarID)?.TotalQuestions ?? 0;
                     var answeredQuestion = answeredQuestions.FirstOrDefault(x => x.PillarID == c.PillarID)?.AnsweredQuestions ?? 0;
-
                     var pillarScore = countries
                         .Where(x => x.PillarID == c.PillarID)
                         .Select(x => x.ScoreProgress)
                         .DefaultIfEmpty(0)
                         .Sum();
-
-
-                    c.EvaluatorProgress = pillarScore;
+                    c.EvaluatorScore = pillarScore;
                     c.Discrepancy = Math.Abs(pillarScore - (c.AIProgress ?? 0));
                     c.AICompletionRate = answeredQuestion * 100.0M / totalQuestions;
                 }
 
-                var finalResutl = new AiCountryPillarReponseDto
+                var finalResutl = new AiCountryPillarResponseDto
                 {
+
                     Pillars = result
                 };
 
-                var resposne = ResultResponseDto<AiCountryPillarReponseDto>.Success(finalResutl, new[] { "Pillar get successfully", });
+                var resposne = ResultResponseDto<AiCountryPillarResponseDto>.Success(finalResutl, new[] { "Pillar get successfully", });
 
                 return resposne;
             }
             catch (Exception ex)
             {
-                await _appLogger.LogAsync("Error Occured in GetAICountryPillars", ex);
-                return ResultResponseDto<AiCountryPillarReponseDto>.Failure(new[] { "Error in getting pillar details", });
+                await _appLogger.LogAsync("Error Occured in GetAICityPillars", ex);
+                return ResultResponseDto<AiCountryPillarResponseDto>.Failure(new[] { "Error in getting pillar details", });
             }
         }
         public async Task<PaginationResponse<AIEstimatedQuestionScoreDto>> GetAIPillarsQuestion(AiCountryPillarSummeryRequestDto request, int userID, UserRole userRole)
@@ -368,10 +421,10 @@ namespace HealthIntelligence.Services
                                 .Where(x => x.IsActive && x.UserID == userID)
                                 .Select(x => x.PillarID).Contains(request.PillarID.Value);
 
-                    var isCountryAccess = _context.PublicUserCountryMappings
+                    var isCityAccess = _context.PublicUserCountryMappings
                                .Where(x => x.IsActive && x.UserID == userID)
                                .Select(x => x.CountryID).Contains(request.CountryID.Value);
-                    if (!(isCountryAccess && isPillarAccess))
+                    if (!(isCityAccess && isPillarAccess))
                     {
                         return new PaginationResponse<AIEstimatedQuestionScoreDto>();
                     }
@@ -390,27 +443,43 @@ namespace HealthIntelligence.Services
                     from x in qs.DefaultIfEmpty() // LEFT JOIN
                     select new AIEstimatedQuestionScoreDto
                     {
-                        CountryID = x == null ? request.CountryID ??0  : x.CountryID,
+                        CountryID = x == null ? request.CountryID ?? 0 : x.CountryID,
                         PillarID = x == null ? request.PillarID ?? 0 : x.PillarID,
                         QuestionID = q.QuestionID,
-                        DataYear = x == null ? currentYear : x.Year,
+                        Year = x == null ? currentYear : x.Year,
                         AIScore = x == null ? null : x.AIScore,
                         AIProgress = x == null ? null : x.AIProgress,
-                        EvaluatorProgress = x == null ? null : x.EvaluatorProgress,
+                        EvaluatorScore = x == null ? null : x.EvaluatorScore,
                         Discrepancy = x == null ? null : x.Discrepancy,
                         ConfidenceLevel = x == null ? string.Empty : x.ConfidenceLevel,
-                        DataSourcesUsed = x == null ? null : x.DataSourcesUsed,
+                        SourcesConsulted = x == null ? null : x.SourcesConsulted,  // ? renamed
                         EvidenceSummary = x == null ? string.Empty : x.EvidenceSummary,
-                        RedFlags = x == null ? string.Empty : x.RedFlags,
-                        GeographicEquityNote = x == null ? string.Empty : x.GeographicEquityNote,
+                        // Evidence Dimensions
+                        StructuralEvidence = x == null ? string.Empty : x.StructuralEvidence,
+                        OperationalEvidence = x == null ? string.Empty : x.OperationalEvidence,
+                        OutcomeEvidence = x == null ? string.Empty : x.OutcomeEvidence,
+                        PerceptionEvidence = x == null ? string.Empty : x.PerceptionEvidence,
+                        TemporalScope = x == null ? string.Empty : x.TemporalScope,
+                        DistortionScreening = x == null ? string.Empty : x.DistortionScreening,
+                        RelationalDependencies = x == null ? string.Empty : x.RelationalDependencies,
+                        // Stress Tests
+                        StressPoliticalShock = x == null ? string.Empty : x.StressPoliticalShock,
+                        StressEconomicShock = x == null ? string.Empty : x.StressEconomicShock,
+                        StressNarrativeShock = x == null ? string.Empty : x.StressNarrativeShock,
+                        StressOverallResilienceShock = x == null ? string.Empty : x.StressOverallResilienceShock,
+                        InequalityAdjustment = x == null ? string.Empty : x.InequalityAdjustment,   // ? renamed
+                        OpacityRisk = x == null ? string.Empty : x.OpacityRisk,
+                        RedFlag = x == null ? string.Empty : x.RedFlag,   // ? renamed
+                        // Source Metadata
                         SourceType = x == null ? string.Empty : x.SourceType,
                         SourceName = x == null ? string.Empty : x.SourceName,
                         SourceURL = x == null ? string.Empty : x.SourceURL,
                         SourceDataExtract = x == null ? string.Empty : x.SourceDataExtract,
                         SourceDataYear = x == null ? null : x.SourceDataYear,
-                        SourceTrustLevel = x == null ? null : x.SourceTrustLevel,
+                        SourceHierarchyLevel = x == null ? null : x.SourceHierarchyLevel,   // ? renamed
                         UpdatedAt = x == null ? null : x.UpdatedAt,
-                        QuestionText = q.QuestionText == null ? string.Empty : q.QuestionText
+
+                        QuestionText = q.QuestionText ?? string.Empty
                     };
 
                 var r = await res.ApplyPaginationAsync(request);
@@ -422,8 +491,198 @@ namespace HealthIntelligence.Services
                 await _appLogger.LogAsync("Error Occured in GetAICountryPillars", ex);
                 return new PaginationResponse<AIEstimatedQuestionScoreDto>();
             }
+        }        
+        private async Task<List<PeerCountryHistoryReportDto>> GetPeerCountries(int userID, UserRole role, int CountryID, int year, bool isAiScore = true)
+        {
+            var peerCountries = new List<PeerCountryHistoryReportDto>();
+            int pillarCount = _appSettings.PillarCount;
+            var peersCountryIDs = await _context.Countries
+                   .Where(x => x.CountryID == CountryID && x.IsActive && !x.IsDeleted)
+                   .SelectMany(x => x.CountryPeers)
+                   .Where(x => x.IsActive && !x.IsDeleted)
+                   .Select(x => x.PeerCountryID)
+                   .ToListAsync();
+            if (peersCountryIDs.Count > 0)
+            {
+                peersCountryIDs.Add(CountryID);
+            }
+
+            var startYear = year - 5;
+
+            peerCountries = await _context.Countries
+                .Where(c => peersCountryIDs.Contains(c.CountryID))
+                .Select(c => new PeerCountryHistoryReportDto
+                {
+                    CountryID = c.CountryID,
+                    CountryName = c.CountryName,
+                    Continent = c.Continent,
+                    Country = c.CountryName,
+                    Region = c.Region,
+                    CountryCode = c.CountryCode,
+                    UpdatedDate = c.UpdatedDate,
+                    Image = c.Image,
+                    Latitude = c.Latitude,
+                    Longitude = c.Longitude,
+                    Population = c.Population,
+                    Income = c.Income                  
+
+                }).ToListAsync();
+
+            if (isAiScore)
+            {
+                foreach (var c in peerCountries)
+                {
+                    c.CountryHistory = _context.AIPillarScores
+                    .Include(x => x.Pillar)
+                    .Where(x =>
+                        x.CountryID == c.CountryID &&
+                        x.Year >= startYear &&
+                        x.Year <= year)
+                    .GroupBy(x => x.Year)
+                    .Select(yearGroup => new PeerCountryYearHistoryDto
+                    {
+                        CountryID = c.CountryID,
+                        Year = yearGroup.Key,
+
+                        ScoreProgress = yearGroup.Average(x => x.AIProgress ?? 0),
+
+                        Pillars = yearGroup
+                            .GroupBy(p => new
+                            {
+                                p.PillarID,
+                                p.Pillar.PillarName,
+                                p.Pillar.DisplayOrder
+                            })
+                            .Select(pillarGroup => new PeerCountryPillarHistoryReportDto
+                            {
+                                PillarID = pillarGroup.Key.PillarID,
+                                PillarName = pillarGroup.Key.PillarName,
+                                DisplayOrder = pillarGroup.Key.DisplayOrder,
+                                ScoreProgress = pillarGroup.Average(x => x.AIProgress ?? 0)
+                            })
+                            .OrderBy(x => x.DisplayOrder)
+                            .ToList()
+                    })
+                    .OrderBy(x => x.Year)
+                    .ToList();
+                }
+            }
+            else
+            {
+                var pillars = await _context.Pillars.Select(x => new
+                {
+                    x.PillarID,
+                    x.PillarName,
+                    x.DisplayOrder
+                }).ToListAsync();
+
+                var countryProgress = await _commonService
+                    .GetCountriesProgressHistoryAsync(userID, (int)role, year - 5, year);
+
+                var filterCountries = countryProgress
+                    .Where(x => peersCountryIDs.Contains(x.CountryID))
+                    .ToList();
+
+                foreach (var country in peerCountries)
+                {
+                    var progress = filterCountries
+                        .Where(x => x.CountryID == country.CountryID)
+                        .ToList();
+
+                    // ? Build Year-wise history first
+                    country.CountryHistory = progress
+                        .GroupBy(x => x.Year)
+                        .Select(yearGroup => new PeerCountryYearHistoryDto
+                        {
+                            CountryID = country.CountryID,
+                            Year = yearGroup.Key,
+
+                            // City level score
+                            ScoreProgress = Math.Round(
+                                yearGroup.Select(x => x.ScoreProgress)
+                                         .DefaultIfEmpty(0)
+                                         .Sum()/pillarCount, 2),
+
+                            // Pillar level score
+                            Pillars = pillars
+                                .Select(p => new PeerCountryPillarHistoryReportDto
+                                {
+                                    PillarID = p.PillarID,
+                                    PillarName = p.PillarName,
+                                    DisplayOrder = p.DisplayOrder,
+
+                                    ScoreProgress = Math.Round(
+                                        yearGroup
+                                            .Where(x => x.PillarID == p.PillarID)
+                                            .Select(x => x.ScoreProgress)
+                                            .DefaultIfEmpty(0)
+                                            .Average(), 2)
+                                })
+                                .OrderBy(x => x.DisplayOrder)
+                                .ToList()
+                        })
+                        .OrderBy(x => x.Year)
+                        .ToList();
+                }
+            }
+
+            return peerCountries;
         }
-        public async Task<ResultResponseDto<AiCrossCountryResponseDto>> GetAICrossCountryPillars(AiCountryIdsDto countryIds, int userID, UserRole userRole)
+
+        // -----------------------------------------------------------------------------
+        //  ENTRY POINTS  (GeneratecountryDetailsPdf / GeneratePillarDetailsPdf)
+        // -----------------------------------------------------------------------------
+
+        public async Task<byte[]> GenerateCountryDetailsReport(AiCountrySummeryDto countryDetails, UserRole userRole, int userID,
+           IServices.DocumentFormat format = IServices.DocumentFormat.Pdf, string reportType = "ai")
+        {
+            try
+            {
+                var isManual = reportType != "ai" && userRole == UserRole.Admin ? true : false;
+
+                var pillars = await GetAICountryPillars(countryDetails.CountryID, userID, userRole, countryDetails.Year);
+
+                var kpis = await GetAccessKpis(userID, userRole, countryDetails.CountryID, countryDetails.Year, !isManual);
+
+                if (isManual)
+                {
+                    countryDetails.AIProgress = countryDetails.EvaluatorScore;
+
+                    foreach (var pillar in pillars.Result.Pillars)
+                    {
+                        pillar.AIProgress = pillar.EvaluatorScore;
+                    }
+                }
+
+                var peerCountries = await GetPeerCountries(userID, userRole, countryDetails.CountryID, countryDetails.Year, !isManual);
+
+                var document = await _documentGeneratorService.GenerateCountryDetails(countryDetails, pillars.Result.Pillars, kpis, peerCountries, userRole, format);
+
+                return document;
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("Error Occured in GenerateCountryDetailsReport", ex);
+                return Array.Empty<byte>();
+            }
+        }
+        public async Task<byte[]> GeneratePillarDetailsReport(AiCountryPillarResponse pillarData, UserRole userRole, IServices.DocumentFormat format = IServices.DocumentFormat.Pdf)
+        {
+            try
+            {
+                var document = await _documentGeneratorService.GeneratePillarDetails(pillarData, userRole, format);
+
+
+                return document;
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("Error Occured in GeneratePillarDetailsReport", ex);
+                return Array.Empty<byte>();
+            }
+        }
+
+        public async Task<ResultResponseDto<AiCrossCountryResponseDto>> GetAICrossCountryPillars(AiCountryIdsDto CountryIDs, int userID, UserRole userRole)
         {
             try
             {
@@ -433,11 +692,11 @@ namespace HealthIntelligence.Services
                 var firstDate = new DateTime(currentYear, 1, 1);
 
                 var aiPillarScores = await _context.AIPillarScores
-                    .Where(x => countryIds.CountryIDs.Contains(x.CountryID) && x.UpdatedAt >= firstDate)
+                    .Where(x => CountryIDs.CountryIDs.Contains(x.CountryID) && x.UpdatedAt >= firstDate && x.Year== currentYear)
                     .ToListAsync();
 
                 var countries = await _context.Countries
-                    .Where(x => countryIds.CountryIDs.Contains(x.CountryID))
+                    .Where(x => CountryIDs.CountryIDs.Contains(x.CountryID))
                     .ToListAsync();
 
                 // Pillar access based on role
@@ -463,16 +722,16 @@ namespace HealthIntelligence.Services
                 // Per country processing
 
                 var aiCountries = await _context.AICountryScores
-                    .Where(x => countryIds.CountryIDs.Contains(x.CountryID) &&
+                    .Where(x => CountryIDs.CountryIDs.Contains(x.CountryID) &&
                                 x.Year == currentYear && ((userRole == UserRole.CountryUser && x.IsVerified) || userRole != UserRole.CountryUser))
                     .GroupBy(x => x.CountryID)
                     .Select(g => new
                     {
                         CountryID = g.Key,
-                        UpdatedAt = g.Max(x => x.UpdatedAt),
+                        UpdatedAt = g.Max(x=>x.UpdatedAt),
                         AIProgress = g.Max(x => x.AIProgress)
                     })
-                    .ToDictionaryAsync(x => x.CountryID, x => new { x.AIProgress, x.UpdatedAt });
+                    .ToDictionaryAsync(x => x.CountryID, x => new { x.AIProgress ,x.UpdatedAt });
 
 
                 foreach (var country in countries)
@@ -513,6 +772,7 @@ namespace HealthIntelligence.Services
                     {
                         chartRow.Value = aiCountryValue.AIProgress ?? 0;
                         chartRow.UpdatedAt = aiCountryValue.UpdatedAt;
+
                     }
                     response.TableData.Add(chartRow);
 
@@ -534,146 +794,7 @@ namespace HealthIntelligence.Services
                 return ResultResponseDto<AiCrossCountryResponseDto>.Failure(new[] { "Error in getting pillar details" });
             }
         }
-        public async Task<ResultResponseDto<Dictionary<int, List<AiCountryPillarReponse>>>> GetAllCountriesAIPillars(
-         int userID, UserRole userRole, int currentYear = 0)
-        {
-            try
-            {
-                currentYear = currentYear == 0 ? DateTime.Now.Year : currentYear;
-                var firstDate = new DateTime(currentYear, 1, 1);
 
-                var scores = await _context.AIPillarScores
-                    .Where(x => x.UpdatedAt >= firstDate && x.Year == currentYear)
-                    .Include(x => x.Country)
-                    .Include(x => x.DataSourceCitations)
-                    .ToListAsync();
-
-                List<int> pillarIds = new();
-                if (userRole == UserRole.CountryUser)
-                {
-                    pillarIds = await _context.CountryUserPillarMappings
-                        .Where(x => x.IsActive && x.UserID == userID)
-                        .Select(x => x.PillarID)
-                        .Distinct()
-                        .ToListAsync();
-                }
-
-                var pillars = await _context.Pillars.Select(x => new
-                {
-                    x.PillarID,
-                    x.PillarName,
-                    x.DisplayOrder,
-                    x.ImagePath,
-                    TotalQuestions = x.Questions.Count()
-                }).ToListAsync();
-
-                var CountryIDs = scores.Select(x => x.CountryID).Distinct().ToList();
-
-                var result = new Dictionary<int, List<AiCountryPillarReponse>>();
-
-                foreach (var countryId in CountryIDs)
-                {
-                    var countryScores = scores.Where(x => x.CountryID == countryId).ToList();
-
-                    var pillarResults = pillars
-                        .GroupJoin(
-                            countryScores,
-                            p => p.PillarID,
-                            s => s.PillarID,
-                            (pillar, score) => new { pillar, score = score.FirstOrDefault() }
-                        )
-                        .Select(x =>
-                        {
-                            var isAccess = pillarIds.Count == 0 || pillarIds.Contains(x.pillar.PillarID);
-
-                            var r = new AiCountryPillarReponse
-                            {
-                                PillarScoreID = x.score?.PillarScoreID ?? 0,
-                                CountryID = x.score?.CountryID ?? countryId,
-                                CountryName = x.score?.Country?.CountryName ?? "",
-                                Continent = x.score?.Country?.Continent ?? "",
-                                Region = x.score?.Country?.Region ?? "",
-                                PillarID = x.pillar.PillarID,
-                                PillarName = x.pillar.PillarName,
-                                DisplayOrder = x.pillar.DisplayOrder,
-                                ImagePath = x.pillar.ImagePath,
-                                IsAccess = isAccess
-                            };
-
-                            if (isAccess && x.score != null)
-                            {
-                                r.AIDataYear = x.score.Year;
-                                r.AIScore = x.score.AIScore;
-                                r.AIProgress = x.score.AIProgress;
-                                r.EvaluatorProgress = x.score.EvaluatorProgress;
-                                r.Discrepancy = x.score.Discrepancy;
-                                r.ConfidenceLevel = x.score.ConfidenceLevel;
-                                r.EvidenceSummary = x.score.EvidenceSummary;
-                                r.RedFlags = x.score.RedFlags;
-                                r.GeographicEquityNote = x.score.GeographicEquityNote;
-                                r.InstitutionalAssessment = x.score.InstitutionalAssessment;
-                                r.DataGapAnalysis = x.score.DataGapAnalysis;
-                                r.DataSourceCitations = x.score.DataSourceCitations;
-                                r.UpdatedAt = x.score.UpdatedAt;
-                            }
-
-                            return r;
-                        })
-                        .OrderBy(x => !x.IsAccess)
-                        .ThenBy(x => x.DisplayOrder)
-                        .ToList();
-
-                    result.Add(countryId, pillarResults);
-                }
-
-                var progress = await _commonService.GetCountriesProgressAsync(userID, (int)userRole, currentYear);
-
-                var answeredQuestions = await _context.AIEstimatedQuestionScores
-                    .Where(x => x.Year == currentYear)
-                    .GroupBy(x => new { x.CountryID, x.PillarID })
-                    .Select(g => new
-                    {
-                        g.Key.CountryID,
-                        g.Key.PillarID,
-                        AnsweredQuestions = g.Count()
-                    })
-                    .ToListAsync();
-
-                foreach (var country in result)
-                {
-                    foreach (var c in country.Value)
-                    {
-                        var totalQuestions = pillars.FirstOrDefault(x => x.PillarID == c.PillarID)?.TotalQuestions ?? 1;
-
-                        var answeredQuestion = answeredQuestions
-                            .FirstOrDefault(x => x.CountryID == country.Key && x.PillarID == c.PillarID)?.AnsweredQuestions ?? 0;
-
-                        var countryScore = progress
-                            .Where(x => x.CountryID == country.Key && x.PillarID == c.PillarID)
-                            .Select(x => x.ScoreProgress)
-                            .DefaultIfEmpty(0)
-                            .Sum();
-
-
-                        c.EvaluatorProgress = countryScore;
-                        c.Discrepancy = Math.Abs(countryScore - (c.AIProgress ?? 0));
-                        c.AICompletionRate = answeredQuestion * 100.0M / totalQuestions;
-                    }
-                }
-
-                var response = ResultResponseDto<Dictionary<int, List<AiCountryPillarReponse>>>
-                    .Success(result, new[] { "All countries pillars fetched successfully" });
-
-                return response;
-            }
-            catch (Exception ex)
-            {
-                await _appLogger.LogAsync("Error Occured in GetAllCountriesAIPillars", ex);
-
-                return ResultResponseDto<Dictionary<int, List<AiCountryPillarReponse>>>
-                    .Failure(new[] { "Error in getting countries pillar details" });
-            }
-        }
         public async Task<ResultResponseDto<bool>> ChangedAiCountryEvaluationStatus(ChangedAiCountryEvaluationStatusDto dto, int userID, UserRole userRole)
         {
             try
@@ -682,7 +803,7 @@ namespace HealthIntelligence.Services
                 if ((v && userRole == UserRole.Analyst) || userRole == UserRole.Admin)
                 {
 
-                    var aiResponse = await _context.AICountryScores.Where(x => x.CountryID == dto.CountryID && x.Year == DateTime.UtcNow.Year && x.Country.IsActive && !x.Country.IsDeleted).FirstOrDefaultAsync();
+                    var aiResponse = await _context.AICountryScores.Where(x => x.CountryID == dto.CountryID && x.Year == DateTime.UtcNow.Year).FirstOrDefaultAsync();
                     if (aiResponse != null)
                     {
                         aiResponse.IsVerified = dto.IsVerified;
@@ -722,8 +843,9 @@ namespace HealthIntelligence.Services
                 }
 
 
-                await _download.AiResearchByCountryId(dto.CountryID, dto.CountryEnable, dto.PillarEnable, dto.QuestionEnable, dto.ImmediateSummaryEnable, dto.RegenerateMissingQuestionsEnable);
-                var aiResponse = await _context.AICountryScores.FirstOrDefaultAsync(x => x.CountryID == dto.CountryID && x.Country.IsActive && !x.Country.IsDeleted);
+                await _download.AiResearchByCountryId(dto.CountryID, dto.CountryEnable, dto.PillarEnable,
+                    dto.QuestionEnable,dto.ImmediateSummaryEnable, dto.RegenerateMissingQuestionsEnable);
+                var aiResponse = await _context.AICountryScores.FirstOrDefaultAsync(x => x.CountryID == dto.CountryID);
                 if(aiResponse != null)
                 {
                     aiResponse.IsVerified = false;
@@ -735,7 +857,7 @@ namespace HealthIntelligence.Services
                 var um = _context.UserCountryMappings.Where(x => !x.IsDeleted && x.CountryID == dto.CountryID && dto.ViewerUserIDs.Contains(x.UserID));
                 var valid = um.All(x => dto.ViewerUserIDs.Contains(x.UserID));
 
-                string msg = "Evaluator not have access of this country please try again";
+                string msg = "Evaluator not have access of this county please try again";
 
                 if (dto.ViewerUserIDs != null && dto.ViewerUserIDs.Any() && valid)
                 {
@@ -802,10 +924,10 @@ namespace HealthIntelligence.Services
         {
             try
             {
-                var aIUserCountryMappings = await _context.AIUserCountryMappings.FirstOrDefaultAsync(x => x.UserID == userID && x.IsActive && x.CountryID == dto.CountryID);
-                if (aIUserCountryMappings !=null && userRole == UserRole.Evaluator)
+                var aIUserCityMappings = await _context.AIUserCountryMappings.FirstOrDefaultAsync(x => x.UserID == userID && x.IsActive && x.CountryID == dto.CountryID);
+                if (aIUserCityMappings !=null && userRole == UserRole.Evaluator)
                 {
-                    aIUserCountryMappings.Comment = dto.Comment;
+                    aIUserCityMappings.Comment = dto.Comment;
 
                     await _context.SaveChangesAsync();
 
@@ -829,26 +951,27 @@ namespace HealthIntelligence.Services
                 if (channel.QuestionEnable)
                 {
                     var currentYear = DateTime.Now.Year;
-                    var aiQuestionList = await _context.AIEstimatedQuestionScores.Where(x => x.CountryID == channel.CountryID && x.PillarID== channel.PillarID && x.Year == currentYear).ToListAsync();
+                    var aiQuestionList = await _context.AIEstimatedQuestionScores.Where(x => x.CountryID == channel.CountryID && x.PillarID == channel.PillarID && x.Year == currentYear).ToListAsync();
                     if (aiQuestionList.Count > 0)
                     {
                         _context.AIEstimatedQuestionScores.RemoveRange(aiQuestionList);
                         await _context.SaveChangesAsync();
-                    }                   
+                    }
+
                     await _iAIAnalayzeService.AnalyzeQuestionsOfCountryPillar(channel.CountryID, channel.PillarID);
-                                       
                 }
 
                 if (channel.PillarEnable)
                     await _iAIAnalayzeService.AnalyzeSinglePillar(channel.CountryID,channel.PillarID);
+
                 if (!channel.QuestionEnable && channel.RegenerateMissingQuestionsEnable)
                 {
-                    var request = new MissingCountryQuestionRequest
+                    var payload = new MissingCountryQuestionRequest
                     {
-                        CountryID = channel.CountryID,
-                        PillarID = channel.PillarID
+                        PillarID = channel.PillarID,
+                        CountryID = channel.CountryID
                     };
-                    await _iAIAnalayzeService.AnalyzeCountryMissingQuestions(request);
+                    await _iAIAnalayzeService.AnalyzeCountryMissingQuestions(payload);
                 }
 
                 var msglist = new List<string>
@@ -867,42 +990,98 @@ namespace HealthIntelligence.Services
             }
         }
 
-        private void ApplyCountryRanking(List<AiCountrySummeryDto> countriesDetails, List<dynamic> countryRanks, string reportType = "AI")
+        public async Task<AiCountrySummeryDto> GetCountryAiSummeryDetail(int userID, UserRole userRole, int? CountryID, int year, string reportType = "AI")
         {
-            var totalCountryCount = countriesDetails.Count;
+            reportType = reportType.ToUpper();
+            var query = await GetCountryAiSummeryDetails(userID, userRole, null, year);
+            var countresDetails = await query.ToListAsync();
+            var progress = await _commonService.GetCountriesProgressAsync(userID, (int)userRole, year);
 
-            // Recalculate global ranks safely
-            var orderedGlobalRanks = countryRanks
-                .OrderByDescending(x => reportType == "AI"
-                    ? (decimal)(x.AiProgress ?? 0)
-                    : (decimal)(x.ScoreProgress ?? 0))
-                .Select((x, index) => new
+            var analyticalLayers = _context.AnalyticalLayers.AsQueryable();
+
+            if (userRole == UserRole.CountryUser)
+            {
+                analyticalLayers =
+                    from ar in _context.AnalyticalLayers
+                    join alp in _context.AnalyticalLayerPillarMappings
+                        on ar.LayerID equals alp.LayerID
+                    join cup in _context.CountryUserPillarMappings
+                        on alp.PillarID equals cup.PillarID
+                    join puc in _context.PublicUserCountryMappings
+                        on cup.UserID equals puc.UserID
+                    where cup.IsActive
+                          && puc.IsActive
+                          && cup.UserID == userID
+                          && puc.UserID == userID
+                    select ar;
+            }
+
+            var totalValidKpis = await analyticalLayers.Distinct().CountAsync();
+
+            int pillarCount = _appSettings.PillarCount;
+
+            var countryRanks = CalculateCountryRanks(progress, pillarCount, reportType);
+
+            var totalCountryCount = await _context.Countries.Where(x => !x.IsDeleted && x.IsActive).CountAsync();
+
+            ApplyCountryRanking(countresDetails, countryRanks , reportType , totalCountryCount);
+
+            var countries = progress.Where(x => x.CountryID == CountryID);
+
+            var countryDetails = countresDetails.FirstOrDefault(x => x.CountryID == CountryID);
+
+            if (countryDetails != null)
+            {
+                var score =  countryDetails.AIProgress;
+
+                if (userRole != UserRole.CountryUser && countries != null)
                 {
-                    x.CountryID,
-                    Rank = index + 1
-                })
-                .ToList();
+                    var countryScore = countries
+                        .Select(x => x.ScoreProgress)
+                        .DefaultIfEmpty(0)
+                        .Sum();
+                    countryScore = Math.Round(countryScore / (decimal)pillarCount, 2);
 
-            var countryRankLookup = orderedGlobalRanks
-                .ToDictionary(x => x.CountryID);
+                    countryDetails.EvaluatorScore = Math.Round(countryScore, 2);
+                    countryDetails.Discrepancy = Math.Abs(countryScore - (countryDetails.AIProgress ?? 0));
 
-            // Region-wise ranking
+                    if(reportType != "AI")
+                    {
+                        score = countryDetails.EvaluatorScore;
+                    }
+                }
+                countryDetails.EvidenceSummary = CommonService.InitailLineOfExecutiveSummery(countryDetails.EvidenceSummary, countryDetails.ImmediateSituationSummary, score, countryDetails.CountryName, pillarCount, totalValidKpis);
+
+            }
+            return countryDetails ?? new AiCountrySummeryDto();
+        }
+
+        private void ApplyCountryRanking(List<AiCountrySummeryDto> countriesDetails, List<dynamic> countryRanks, string reportType = "AI", int? totalCountryCount = 0)
+        {
+            totalCountryCount = (totalCountryCount == null || totalCountryCount == 0) ?  countriesDetails.Count : totalCountryCount;
+
+            // Global rank lookup
+            var countryRankLookup = countryRanks.ToDictionary(x => x.CountryID);
+
+            // Region -> CountryIDs lookup
+            var regionLookup = countriesDetails
+                .GroupBy(x => x.Region)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(x => x.CountryID).ToList()
+                );
+
+            // Region rank lookup
             var regionRankLookup = new Dictionary<int, (int Rank, int TotalCountry)>();
 
-            var regionGroups = countriesDetails
-                .GroupBy(x => x.Region);
-
-            foreach (var region in regionGroups)
+            foreach (var region in regionLookup)
             {
-                var regionCountryIDs = region
-                    .Select(x => x.CountryID)
-                    .ToHashSet();
-
                 var rankedCountries = countryRanks
-                    .Where(x => regionCountryIDs.Contains((int)x.CountryID))
+                    .Where(x => region.Value.Contains(x.CountryID))
                     .OrderByDescending(x => reportType == "AI"
-                        ? (decimal?)(x.AiProgress ?? 0)
-                        : (decimal?)(x.ScoreProgress ?? 0))
+                        ? (x.AiProgress ?? 0)
+                        : (x.ScoreProgress ?? 0))
+
                     .Select((x, index) => new
                     {
                         x.CountryID,
@@ -914,12 +1093,11 @@ namespace HealthIntelligence.Services
 
                 foreach (var country in rankedCountries)
                 {
-                    regionRankLookup[(int)country.CountryID] =
-                        (country.Rank, regionTotal);
+                    regionRankLookup[country.CountryID] = (country.Rank, regionTotal);
                 }
             }
 
-            // Assign final values
+            // Final mapping
             foreach (var country in countriesDetails)
             {
                 if (countryRankLookup.TryGetValue(country.CountryID, out var globalRank))
@@ -935,7 +1113,6 @@ namespace HealthIntelligence.Services
                 }
             }
         }
-
         private List<dynamic> CalculateCountryRanks(List<EvaluationCountryProgressResultDto> progress, decimal pillarCount, string reportType = "AI")
         {
             var groupedProgress = progress
@@ -943,102 +1120,24 @@ namespace HealthIntelligence.Services
                 .Select(g => new
                 {
                     CountryID = g.Key,
-                    ScoreProgress = Math.Round((g.Select(x => x.ScoreProgress).DefaultIfEmpty(0).Sum()) / pillarCount, 2),
+                    ScoreProgress = Math.Round((g.Select(x => x.ScoreProgress).DefaultIfEmpty(0).Sum()) / (decimal)pillarCount, 2),
                     AiProgress = g.Select(x => x.AIProgress).DefaultIfEmpty(0).Average()
                 });
 
             return groupedProgress
-                .OrderByDescending(x => reportType == "AI" ? x.AiProgress : x.ScoreProgress)
-                .Select((x, index) => new
-                {
-                    x.CountryID,
-                    x.ScoreProgress,
-                    x.AiProgress,
-                    Rank = index + 1
-                })
-                .Cast<dynamic>()
-                .ToList();
-        }
-        public async Task<AiCountrySummeryDto> GetCountryAiSummeryDetail(int userID, UserRole userRole, int? countryID, int year, string reportType = "AI")
-        {
-            reportType = reportType.ToUpper();
-            var query = await GetCountryAiSummeryDetails(userID, userRole, null, year);
-            var countriesDetails = await query.ToListAsync();
-
-            var progress = await _commonService.GetCountriesProgressAsync(userID, (int)userRole, DateTime.Now.Year);
-            var analyticalLayers = _context.AnalyticalLayers.AsQueryable();
-            var totalValidKpis = await analyticalLayers.Distinct().CountAsync();
-
-            int pillarCount = _appSettings.PillarCount;
-            var countryRanks = CalculateCountryRanks(progress, pillarCount, reportType);
-
-            ApplyCountryRanking(countriesDetails, countryRanks, reportType);
-
-            var countryDetails = countriesDetails.FirstOrDefault(x=>x.CountryID==countryID);
-
-            if (countryDetails !=null && userRole != UserRole.CountryUser && countryID.HasValue )
-            {
-                var score = countryDetails.AIProgress;
-                
-                var countryProgress = progress.Where(x => x.CountryID == countryID);
-
-                var countryScore = countryProgress
-                    .Select(x => x.ScoreProgress)
-                    .DefaultIfEmpty(0)
-                    .Sum();
-
-                countryScore = Math.Round(countryScore / (decimal)pillarCount, 2);
-
-                countryDetails.EvaluatorProgress = countryScore;
-                countryDetails.Discrepancy = Math.Abs(countryScore - (countryDetails.AIProgress ?? 0));
-                if (reportType != "AI")
-                {
-                    score = countryDetails.EvaluatorProgress;
-                }
-                countryDetails.EvidenceSummary = CommonService.InitailLineOfExecutiveSummery(countryDetails.EvidenceSummary, countryDetails.ImmediateSituationSummary, score, countryDetails.CountryName, pillarCount, totalValidKpis);
-            }
-
-            return countryDetails ?? new AiCountrySummeryDto();
-        }
-
-        public async Task<List<AiCountrySummeryDto>> GetAllCountryAiSummeryDetail(int userID, UserRole userRole, int year)
-        {
-            var query = await GetCountryAiSummeryDetails(userID, userRole, null, year);
-            var countriesDetails = await query.ToListAsync();
-            var analyticalLayers = _context.AnalyticalLayers.AsQueryable();
-            var totalValidKpis = await analyticalLayers.Distinct().CountAsync();
-            int pillarCount = _appSettings.PillarCount;
-            var progress = await _commonService.GetCountriesProgressAsync(userID, (int)userRole, DateTime.Now.Year);
-
-            var countryRanks = CalculateCountryRanks(progress, pillarCount
-                );
-
-            ApplyCountryRanking(countriesDetails, countryRanks);
-
-            if (userRole != UserRole.CountryUser)
-            {
-                foreach (var country in countriesDetails)
-                {
-                    country.EvidenceSummary = CommonService.InitailLineOfExecutiveSummery(country.EvidenceSummary,
-                    country.ImmediateSituationSummary, country.AIProgress, country.CountryName, pillarCount, totalValidKpis);
-                    var cr = countryRanks.FirstOrDefault(x => x.CountryID == country.CountryID);
-
-                    if (cr != null)
+                    .OrderByDescending(x => reportType == "AI" ? x.AiProgress : x.ScoreProgress)
+                    .Select((x, index) => new
                     {
-                        country.EvaluatorProgress = Math.Round(cr.ScoreProgress, 2);
-                        country.Discrepancy = Math.Abs(cr.ScoreProgress - (country.AIProgress ?? 0));
-                    }
-                }
-            }
-
-            return countriesDetails;
+                        x.CountryID,
+                        x.ScoreProgress,
+                        x.AiProgress,
+                        Rank = index + 1
+                    })
+                    .ToList<dynamic>();
         }
 
-        #endregion
 
-        #region pdf pillars and country report
-
-        private async Task<List<KpiChartItem>> GetAccessKpis(int userID, UserRole role, int? countryID, int year = 0, bool isAiScore =true)
+        private async Task<List<KpiChartItem>> GetAccessKpis(int userID, UserRole role, int? CountryID, int year = 0, bool isAiScore = true)
         {
             var startDate = new DateTime(year, 1, 1);
             var endDate = new DateTime(year + 1, 1, 1);
@@ -1072,7 +1171,7 @@ namespace HealthIntelligence.Services
             }
 
             var kpiRaw = baseQuery
-            .Where(x => !countryID.HasValue || x.CountryID == countryID)
+            .Where(x => !CountryID.HasValue || x.CountryID == CountryID)
             .Select(x => new
             {
                 KpiShortName = x.AnalyticalLayer.LayerCode,
@@ -1080,7 +1179,7 @@ namespace HealthIntelligence.Services
                 CountryID = x.CountryID,
                 AiCalValue5 = x.AiCalValue5,
                 CalValue5 = x.CalValue5,
-                Definition=x.AnalyticalLayer.Definition,
+                Definition = StripHtml(x.AnalyticalLayer.Purpose),
                 AnalyticalLayer = x.AnalyticalLayer
             })
             .Select(x => new
@@ -1102,209 +1201,73 @@ namespace HealthIntelligence.Services
                    i.StrategicAction
                 )).ToList()
 
-            }).OrderBy(x=>x.LayerID);
+            }).OrderBy(x => x.LayerID);
 
             var kpis = await kpiRaw
-                .Select(k => new KpiChartItem(k.KpiShortName, k.KpiName, isAiScore && role == UserRole.Admin ? k.AiCalValue5 : k.CalValue5, k.Definition, k.CountryID,k.Interpretation))
+                .Select(k => new KpiChartItem(k.KpiShortName, k.KpiName, (isAiScore && role == UserRole.Admin ? k.AiCalValue5 : k.CalValue5) ?? 0, k.Definition, k.CountryID, k.Interpretation))
                 .ToListAsync();
 
             return kpis ?? new List<KpiChartItem>();
         }
-        private async Task<List<PeerCountryHistoryReportDto>> GetpeerCountries(int userID, UserRole role, int countryID, int year , bool isAiScore =true)
+        public async Task<List<AiCountrySummeryDto>> GetAllCountryAiSummeryDetail(int userID, UserRole userRole, int year)
         {
-            var peerCountries = new List<PeerCountryHistoryReportDto>();
-            var pillarCount = _appSettings.PillarCount;
+            var query = await GetCountryAiSummeryDetails(userID, userRole, null, year);
+            var countriesDetails = await query.ToListAsync();
+            int pillarCount = _appSettings.PillarCount;
 
-            var peersCountryIds = await _context.Countries
-                   .Where(x => x.CountryID == countryID && x.IsActive && !x.IsDeleted)
-                   .SelectMany(x => x.CountryPeers)
-                   .Where(x => x.IsActive && !x.IsDeleted)
-                   .Select(x => x.PeerCountryID)
-                   .ToListAsync();
-            if (peersCountryIds.Count > 0)
+            var progress = await _commonService.GetCountriesProgressAsync(userID, (int)userRole, DateTime.Now.Year);
+            var countryRanks = CalculateCountryRanks(progress, pillarCount);
+            ApplyCountryRanking(countriesDetails, countryRanks);
+
+            var analyticalLayers = _context.AnalyticalLayers.AsQueryable();
+
+            if (userRole == UserRole.CountryUser)
             {
-                peersCountryIds.Add(countryID);
+                analyticalLayers =
+                    from ar in _context.AnalyticalLayers
+                    join alp in _context.AnalyticalLayerPillarMappings
+                        on ar.LayerID equals alp.LayerID
+                    join cup in _context.CountryUserPillarMappings
+                        on alp.PillarID equals cup.PillarID
+                    join puc in _context.PublicUserCountryMappings
+                        on cup.UserID equals puc.UserID
+                    where cup.IsActive
+                          && puc.IsActive
+                          && cup.UserID == userID
+                          && puc.UserID == userID
+                    select ar;
             }
 
-            var startYear = year - 5;
+            var totalValidKpis = await analyticalLayers.Distinct().CountAsync();
 
-            peerCountries = await _context.Countries
-                .Where(c => peersCountryIds.Contains(c.CountryID))
-                .Select(c => new PeerCountryHistoryReportDto
-                {
-                    CountryID = c.CountryID,
-                    CountryName = c.CountryName,
-                    Continent = c.Continent,                   
-                    Region = c.Region,
-                    CountryCode = c.CountryCode,
-                    UpdatedDate = c.UpdatedDate,
-                    Image = c.Image,
-                    Latitude = c.Latitude,
-                    Longitude = c.Longitude,
-                    Population = c.Population,
-                    Income = c.Income                
-                }).ToListAsync();
 
-            if (isAiScore)
+            foreach (var countryDetails in countriesDetails)
             {
-                foreach(var c in peerCountries)
+                countryDetails.EvidenceSummary = CommonService.InitailLineOfExecutiveSummery(countryDetails.EvidenceSummary, 
+                    countryDetails.ImmediateSituationSummary, countryDetails.AIProgress, countryDetails.CountryName, pillarCount,totalValidKpis);
+
+                if (userRole != UserRole.CountryUser)
                 {
-                    c.CountryHistory = _context.AIPillarScores
-                    .Include(x => x.Pillar)
-                    .Where(x =>
-                        x.CountryID == c.CountryID &&
-                        x.Year >= startYear &&
-                        x.Year <= year)
-                    .GroupBy(x => x.Year)
-                    .Select(yearGroup => new PeerCountryYearHistoryDto
+                    var countries = progress.Where(x => x.CountryID == countryDetails.CountryID);
+
+                    if (countries != null)
                     {
-                        CountryID = c.CountryID,
-                        Year = yearGroup.Key,
+                        var countryScore = countries
+                            .Select(x => x.ScoreProgress)
+                            .DefaultIfEmpty(0)
+                            .Sum();
+                        countryScore = Math.Round(countryScore / (decimal)pillarCount, 2);
 
-                        ScoreProgress = yearGroup.Average(x => x.AIProgress ?? 0),
-
-                        Pillars = yearGroup
-                            .GroupBy(p => new
-                            {
-                                p.PillarID,
-                                p.Pillar.PillarName,
-                                p.Pillar.DisplayOrder
-                            })
-                            .Select(pillarGroup => new PeerCountryPillarHistoryReportDto
-                            {
-                                PillarID = pillarGroup.Key.PillarID,
-                                PillarName = pillarGroup.Key.PillarName,
-                                DisplayOrder = pillarGroup.Key.DisplayOrder,
-                                ScoreProgress = pillarGroup.Average(x => x.AIProgress ?? 0)
-                            })
-                            .OrderBy(x => x.DisplayOrder)
-                            .ToList()
-                    })
-                    .OrderBy(x => x.Year)
-                    .ToList();
-                }
-            }
-            else
-            {
-                var pillars = await _context.Pillars.Select(x => new
-                {
-                    x.PillarID,
-                    x.PillarName,
-                    x.DisplayOrder
-                }).ToListAsync();
-
-                var countryProgress = await _commonService
-                    .GetCountriesProgressHistoryAsync(userID, (int)role, year - 5, year);
-
-                var filterCites = countryProgress
-                    .Where(x => peersCountryIds.Contains(x.CountryID))
-                    .ToList();
-
-                foreach (var country in peerCountries)
-                {
-                    var progress = filterCites
-                        .Where(x => x.CountryID == country.CountryID)
-                        .ToList();
-
-                    // ✅ Build Year-wise history first
-                    country.CountryHistory = progress
-                        .GroupBy(x => x.Year)
-                        .Select(yearGroup => new PeerCountryYearHistoryDto
-                        {
-                            CountryID = country.CountryID,
-                            Year = yearGroup.Key,
-
-                            // Country level score
-                            ScoreProgress = Math.Round(
-                                yearGroup.Select(x => x.ScoreProgress)
-                                         .DefaultIfEmpty(0)
-                                         .Sum()/ (decimal)pillarCount, 2),
-
-                            // Pillar level score
-                            Pillars = pillars
-                                .Select(p => new PeerCountryPillarHistoryReportDto
-                                {
-                                    PillarID = p.PillarID,
-                                    PillarName = p.PillarName,
-                                    DisplayOrder = p.DisplayOrder,
-
-                                    ScoreProgress = Math.Round(
-                                        yearGroup
-                                            .Where(x => x.PillarID == p.PillarID)
-                                            .Select(x => x.ScoreProgress)
-                                            .DefaultIfEmpty(0)
-                                            .Average(), 2)
-                                })
-                                .OrderBy(x => x.DisplayOrder)
-                                .ToList()
-                        })
-                        .OrderBy(x => x.Year)
-                        .ToList();
-                }
-            }                
-
-            return peerCountries;
-        }
-
-        // ─────────────────────────────────────────────────────────────────────────────
-        //  ENTRY POINTS  (GenerateCountryDetailsPdf / GeneratePillarDetailsPdf)
-        // ─────────────────────────────────────────────────────────────────────────────
-
-        public async Task<byte[]> GenerateCountryDetailsReport(AiCountrySummeryDto countryDetails, UserRole userRole, int userID, 
-            Common.Interface.DocumentFormat format = Common.Interface.DocumentFormat.Pdf, string reportType ="ai")
-        {
-            try
-            {
-                var isAi = !(reportType != "ai" && userRole == UserRole.Admin);
-
-                var pillars = await GetAICountryPillars(countryDetails.CountryID, userID, userRole, countryDetails.ScoringYear);
-
-                var kpis = await GetAccessKpis(userID, userRole, countryDetails.CountryID, countryDetails.ScoringYear, isAi);
-
-                if (!isAi)
-                {
-                    countryDetails.AIProgress = countryDetails.EvaluatorProgress;
-
-                    countryDetails.EvidenceSummary = _commonService.ReplacePercentAcross(countryDetails.EvidenceSummary, (int)(countryDetails.EvaluatorProgress ?? 0));
-
-                    foreach (var pillar in pillars.Result.Pillars)
-                    {
-                        pillar.AIProgress = pillar.EvaluatorProgress;
-                        pillar.DataGapAnalysis = pillar.AnalystDataGapAnalysis;
+                        countryDetails.EvaluatorScore = Math.Round(countryScore, 2);
+                        countryDetails.Discrepancy = Math.Abs(countryScore - (countryDetails.AIProgress ?? 0));
                     }
                 }
 
-                var peerCountries = await GetpeerCountries(userID, userRole, countryDetails.CountryID, countryDetails.ScoringYear, isAi);
-
-
-                var document = await _documentGeneratorService.GenerateCountryDetails(countryDetails, pillars.Result.Pillars, kpis, peerCountries, userRole, format);
-
-                return document;
             }
-            catch (Exception ex)
-            {
-                await _appLogger.LogAsync("Error Occured in GenerateCountryDetailsReport", ex);
-                return Array.Empty<byte>();
-            }
-        }
+            return countriesDetails;
+        }        
 
-        public async Task<byte[]> GeneratePillarDetailsReport(AiCountryPillarReponse pillarData, UserRole userRole, Common.Interface.DocumentFormat format = Common.Interface.DocumentFormat.Pdf)
-        {
-            try
-            {
-                var document = await _documentGeneratorService.GeneratePillarDetails(pillarData, userRole, format);
-
-
-                return document;
-            }
-            catch (Exception ex)
-            {
-                await _appLogger.LogAsync("Error Occured in GeneratePillarDetailsReport", ex);
-                return Array.Empty<byte>();
-            }
-        }
-
-        public async Task<byte[]> GenerateAllCountryDetailsReport(List<AiCountrySummeryDto> countriesDetails, UserRole userRole, int userID, int year, Common.Interface.DocumentFormat format = Common.Interface.DocumentFormat.Pdf)
+        public async Task<byte[]> GenerateAllCountryDetailsReport(List<AiCountrySummeryDto> countriesDetails, UserRole userRole, int userID, int year, IServices.DocumentFormat format = IServices.DocumentFormat.Pdf)
         {
             try
             {
@@ -1326,13 +1289,177 @@ namespace HealthIntelligence.Services
             }
             catch (Exception ex)
             {
-                await _appLogger.LogAsync("Error Occured in GenerateCountryDetailsReport", ex);
+                await _appLogger.LogAsync("Error Occured in GeneratecountryDetailsReport", ex);
                 return Array.Empty<byte>();
             }
         }
+        public async Task<ResultResponseDto<Dictionary<int, List<AiCountryPillarResponse>>>> GetAllCountriesAIPillars(
+         int userID, UserRole userRole, int currentYear = 0)
+        {
+            try
+            {
+                int pillarCount = _appSettings.PillarCount;
+                currentYear = currentYear == 0 ? DateTime.Now.Year : currentYear;
+                var firstDate = new DateTime(currentYear, 1, 1);
 
-        #endregion pdf pillars and country report
+                var scores = await _context.AIPillarScores
+                    .Where(x => x.UpdatedAt >= firstDate && x.Year == currentYear)
+                    .Include(x => x.Country)
+                    .Include(x => x.DataSourceCitations)
+                    .ToListAsync();
 
+                List<int> pillarIds = new();
+                if (userRole == UserRole.CountryUser)
+                {
+                    pillarIds = await _context.CountryUserPillarMappings
+                        .Where(x => x.IsActive && x.UserID == userID)
+                        .Select(x => x.PillarID)
+                        .Distinct()
+                        .ToListAsync();
+                }
+
+                var pillars = await _context.Pillars.Select(x => new
+                {
+                    x.PillarID,
+                    x.PillarName,
+                    x.DisplayOrder,
+                    x.ImagePath,
+                    TotalQuestions = x.Questions.Count()
+                }).ToListAsync();
+
+                var CountryIDs = scores.Select(x => x.CountryID).Distinct().ToList();
+
+                var result = new Dictionary<int, List<AiCountryPillarResponse>>();
+
+                foreach (var CountryID in CountryIDs)
+                {
+                    var countryScores = scores.Where(x => x.CountryID == CountryID).ToList();
+
+                    var pillarResults = pillars
+                        .GroupJoin(
+                            countryScores,
+                            p => p.PillarID,
+                            s => s.PillarID,
+                            (pillar, score) => new { pillar, score = score.FirstOrDefault() }
+                        )
+                        .Select(x =>
+                        {
+                            var isAccess = pillarIds.Count == 0 || pillarIds.Contains(x.pillar.PillarID);
+
+                            var r = new AiCountryPillarResponse
+                            {
+                                PillarScoreID = x.score?.PillarScoreID ?? 0,
+                                CountryID = x.score?.CountryID ?? CountryID,
+                                CountryName = x.score?.Country?.CountryName ?? "",
+                                Continent = x.score?.Country?.Continent ?? "",                                
+                                PillarID = x.pillar.PillarID,
+                                PillarName = x.pillar.PillarName,
+                                DisplayOrder = x.pillar.DisplayOrder,
+                                ImagePath = x.pillar.ImagePath,
+                                IsAccess = isAccess
+                            };
+
+                            if (isAccess && x.score != null)
+                            {
+                                r.AIDataYear = x.score.Year;
+                                r.AIScore = x.score.AIScore;
+                                r.AIProgress = x.score.AIProgress;
+                                r.EvaluatorScore = x.score.EvaluatorScore;
+                                r.Discrepancy = x.score.Discrepancy;
+                                r.ConfidenceLevel = x.score.ConfidenceLevel;
+                                r.EvidenceSummary = x.score.EvidenceSummary;
+                                r.StructuralEvidence = x.score.StructuralEvidence;
+                                r.OperationalEvidence = x.score.OperationalEvidence;
+                                r.OutcomeEvidence = x.score.OutcomeEvidence;
+                                r.PerceptionEvidence = x.score.PerceptionEvidence;
+                                r.TemporalScope = x.score.TemporalScope;
+                                r.DistortionScreening = x.score.DistortionScreening;
+                                r.RelationalIntegrity = x.score.RelationalIntegrity;
+                                r.StressPoliticalShock = x.score.StressPoliticalShock;
+                                r.StressEconomicShock = x.score.StressEconomicShock;
+                                r.StressNarrativeShock = x.score.StressNarrativeShock;
+                                r.StressOverallResilience = x.score.StressOverallResilience;
+                                r.StressScoreAdjustment = x.score.StressScoreAdjustment;
+                                r.InequalityAdjustment = x.score.InequalityAdjustment;
+                                r.OpacityRisk = x.score.OpacityRisk;
+                                r.NonCompensationNote = x.score.NonCompensationNote;
+                                r.GeographicEquityNote = x.score.GeographicEquityNote;
+                                r.InstitutionalAssessment = x.score.InstitutionalAssessment;
+                                r.DataGapAnalysis = x.score.DataGapAnalysis;
+                                r.RedFlag = x.score.RedFlag;
+                                r.DataSourceCitations = x.score.DataSourceCitations;
+                                r.UpdatedAt = x.score.UpdatedAt;
+                            }
+
+                            return r;
+                        })
+                        .OrderBy(x => !x.IsAccess)
+                        .ThenBy(x => x.DisplayOrder)
+                        .ToList();
+
+                    result.Add(CountryID, pillarResults);
+                }
+
+                var progress = await _commonService.GetCountriesProgressAsync(userID, (int)userRole, currentYear);
+
+                var answeredQuestions = await _context.AIEstimatedQuestionScores
+                    .Where(x => x.Year == currentYear)
+                    .GroupBy(x => new { x.CountryID, x.PillarID })
+                    .Select(g => new
+                    {
+                        g.Key.CountryID,
+                        g.Key.PillarID,
+                        AnsweredQuestions = g.Count()
+                    })
+                    .ToListAsync();
+
+                foreach (var country in result)
+                {
+                    foreach (var c in country.Value)
+                    {
+                        var totalQuestions = pillars.FirstOrDefault(x => x.PillarID == c.PillarID)?.TotalQuestions ?? 1;
+
+                        var answeredQuestion = answeredQuestions
+                            .FirstOrDefault(x => x.CountryID == country.Key && x.PillarID == c.PillarID)?.AnsweredQuestions ?? 0;
+
+                        var countryScore = progress
+                            .Where(x => x.CountryID == country.Key && x.PillarID == c.PillarID)
+                            .Select(x => x.ScoreProgress)
+                            .DefaultIfEmpty(0)
+                            .Sum();
+
+                        countryScore = Math.Round(countryScore / (decimal)pillarCount, 2);
+
+                        c.EvaluatorScore = countryScore;
+                        c.Discrepancy = Math.Abs(countryScore - (c.AIProgress ?? 0));
+                        c.AICompletionRate = answeredQuestion * 100.0M / totalQuestions;
+                    }
+                }
+
+                var response = ResultResponseDto<Dictionary<int, List<AiCountryPillarResponse>>>
+                    .Success(result, new[] { "All countries pillars fetched successfully" });
+
+                return response;
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("Error Occured in getAllCountriesAIPillars", ex);
+
+                return ResultResponseDto<Dictionary<int, List<AiCountryPillarResponse>>>
+                    .Failure(new[] { "Error in getting countries pillar details" });
+            }
+        }
+        public record KpiChartItem(string ShortName, string Name, decimal Value, string? Definition, int? CountryID, List<FiveLevelInterpretationsDto> InterPretation);
+
+        public record FiveLevelInterpretationsDto(
+        int InterpretationID,
+        int LayerID,
+        decimal? MinRange,
+        decimal? MaxRange,
+        string Condition,
+        string StrategicAction
+   );
+        public record PillarChartItem(string ShortName, string Name, decimal? Value);
         #region TransferAssessment
         public async Task<ResultResponseDto<string>> AITransferAssessment(AITransferAssessmentRequestDto r, int userID, UserRole userRole)
         {
@@ -1346,15 +1473,15 @@ namespace HealthIntelligence.Services
                     return ResultResponseDto<string>.Failure(new[] { "Failed to transfer assessment, You don't have access." });
                 }
 
-                if(userRole == UserRole.Analyst)
+                if (userRole == UserRole.Analyst)
                 {
                     r.TransferToUserID = userID;
 
-                    var validCountry = _context.UserCountryMappings.Any(x => !x.IsDeleted && x.CountryID == r.CountryID && x.UserID == userID);
+                    var validCity = _context.UserCountryMappings.Any(x => !x.IsDeleted && x.CountryID == r.CountryID && x.UserID == userID);
 
-                    if (!validCountry)
+                    if (!validCity)
                     {
-                        return ResultResponseDto<string>.Failure(new[] { "This assessment can’t be imported because the selected user hasn’t been assigned to this country yet." });
+                        return ResultResponseDto<string>.Failure(new[] { "This assessment can�t be imported because the selected user hasn�t been assigned to this country yet." });
                     }
                 }
 
@@ -1372,8 +1499,8 @@ namespace HealthIntelligence.Services
 
                 var userCountryMapping = await _context.UserCountryMappings.FirstOrDefaultAsync(x => !x.IsDeleted && x.CountryID == r.CountryID && x.UserID == r.TransferToUserID);
 
-                if(userCountryMapping == null)
-                    return ResultResponseDto<string>.Failure(new[] { "This assessment can’t be imported because the selected user hasn’t been assigned to this country yet." });
+                if (userCountryMapping == null)
+                    return ResultResponseDto<string>.Failure(new[] { "This assessment can�t be imported because the selected user hasn�t been assigned to this country yet." });
 
 
                 // Load existing assessment for that user/country/year (with pillars/responses)
@@ -1391,7 +1518,7 @@ namespace HealthIntelligence.Services
                         CreatedAt = currentDate,
                         UpdatedAt = currentDate,
                         IsActive = true,
-                        AssessmentPhase = userRole == UserRole.Admin ? AssessmentPhase.Completed: AssessmentPhase.InProgress,
+                        AssessmentPhase = userRole == UserRole.Admin ? AssessmentPhase.Completed : AssessmentPhase.InProgress,
                         PillarAssessments = new List<PillarAssessment>()
                     };
 
@@ -1403,7 +1530,7 @@ namespace HealthIntelligence.Services
                     existingAssessment.AssessmentPhase =  AssessmentPhase.InProgress;
                 }
 
-                var questions = await _context.Questions.Include(x=>x.QuestionOptions).ToDictionaryAsync(q => q.QuestionID, q => q);
+                var questions = await _context.Questions.Include(x => x.QuestionOptions).ToDictionaryAsync(q => q.QuestionID, q => q);
 
                 // Transfer pillar data
                 foreach (var pillar in aiAssessmentQuestions)
@@ -1438,7 +1565,7 @@ namespace HealthIntelligence.Services
                             continue;
 
                         if (existingResponse == null)
-                        {                           
+                        {
 
                             existingPillar.Responses.Add(new AssessmentResponse
                             {
@@ -1482,10 +1609,10 @@ namespace HealthIntelligence.Services
                     //existingAssessment.PillarAssessments.Remove(pillar);
                     _context.PillarAssessments.Remove(pillar);
                 }
-                if(existingAssessment.AssessmentPhase == AssessmentPhase.Completed)
+                if (existingAssessment.AssessmentPhase == AssessmentPhase.Completed)
                 {
                     _download.InsertAnalyticalLayerResults(r.CountryID);
-                }
+                }                
                 await _context.SaveChangesAsync();
 
                 return ResultResponseDto<string>.Success("", new[] { "Assessment transferred successfully." });
@@ -1497,8 +1624,6 @@ namespace HealthIntelligence.Services
             }
         }
         #endregion TransferAssessment
-
-
         public async Task<ResultResponseDto<string>> ReCalculateKpis(int userID, UserRole userRole)
         {
             try
@@ -1514,7 +1639,7 @@ namespace HealthIntelligence.Services
 
                 await _context.Database.ExecuteSqlRawAsync("EXEC sp_AiInsertAnalyticalLayerResults");
 
-                return ResultResponseDto<string>.Success("", new[] { "KPI recalculation has been initiated successfully." } );
+                return ResultResponseDto<string>.Success("", new[] { "KPI recalculation has been initiated successfully." });
             }
             catch (Exception ex)
             {
@@ -1523,6 +1648,20 @@ namespace HealthIntelligence.Services
             }
         }
 
+        public static string StripHtml(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return string.Empty;
+
+            // Remove HTML tags
+            var noTags = Regex.Replace(input, "<.*?>", string.Empty);
+
+            // Decode HTML entities (e.g., &mdash;)
+            return WebUtility.HtmlDecode(noTags);
+        }
+
+
+        #region ai document for local context
 
         public async Task<ResultResponseDto<string>> UploadAiDocuments(
             UploadAiDocumentRequest request,
@@ -1537,7 +1676,7 @@ namespace HealthIntelligence.Services
                         new[] { "Failed to Upload Ai Documents, You don't have access." });
                 }
 
-                var basePath = Path.Combine(_env.WebRootPath, "aidocuments");
+                var basePath = Path.Combine(_env.WebRootPath,"aidocuments");
 
                 if (!Directory.Exists(basePath))
                     Directory.CreateDirectory(basePath);
@@ -1558,20 +1697,20 @@ namespace HealthIntelligence.Services
                     var storedFileName = $"{Guid.NewGuid()}{ext}";
                     var fullPath = Path.Combine(basePath, storedFileName);
 
-                    // ✅ Save file
+                    // ? Save file
                     using (var stream = new FileStream(fullPath, FileMode.Create))
                     {
                         await file.CopyToAsync(stream);
                     }
 
-                    // ✅ Save DB record
+                    // ? Save DB record
                     var doc = new CountryDocument
                     {
                         FileName = file.FileName,
                         StoredFileName = storedFileName,
                         FilePath = fullPath,
                         CountryID = request.CountryID,
-                        PillarID = pillarId == 0 ? null : pillarId,
+                        PillarID = pillarId == 0 || request.CountryID == null ? null : pillarId,
                         FileType = ext,
                         FileSize = file.Length / 1024,//kb file will be store now
                         ProcessingStatus = DocumentProcessingStatus.Pending,
@@ -1585,11 +1724,9 @@ namespace HealthIntelligence.Services
                     await _iAIAnalayzeService.ProcessDocument(doc.CountryDocumentID);
                 }
 
-                
-
-                return ResultResponseDto<string>.Success(
-                    "",
-                    new[] { "Upload Ai Documents has been initiated successfully." });
+               return ResultResponseDto<string>.Success(
+                   "",
+                   new[] { "Upload Ai Documents has been initiated successfully." });            
             }
             catch (Exception ex)
             {
@@ -1597,6 +1734,22 @@ namespace HealthIntelligence.Services
 
                 return ResultResponseDto<string>.Failure(
                     new[] { "Failed to Upload Ai Documents, please try again later." });
+            }
+        }
+
+        static string GetDocumentLevel(int? countryID,int? pillarID)
+        {
+            if (countryID == null)
+            {
+                return "Global";
+            }
+            else if(countryID > 0 && (pillarID == null || pillarID == 0))
+            {
+                return "Country_Pillar";
+            }
+            else
+            {
+                return "Country";
             }
         }
 
@@ -1615,23 +1768,23 @@ namespace HealthIntelligence.Services
                     _ => x => false
                 };
 
-                var userCountryIDs = await _context.UserCountryMappings
+                var userCountryIds = await _context.UserCountryMappings
                     .Where(filter)
                     .Select(x => x.CountryID)
                     .Distinct()
                     .ToListAsync();
 
                 var query = _context.Countries
-                     .Where(c =>
+                    .Where(c =>
                         (
                             !request.CountryID.HasValue
                             || c.CountryID == request.CountryID
                         )
-                        && (userCountryIDs.Contains(c.CountryID) || userRole == UserRole.Admin)
+                        && (userCountryIds.Contains(c.CountryID) || userRole == UserRole.Admin)
                         && c.IsActive
                         && !c.IsDeleted
                     )
-                    .Select(x => new GetCountryDocumentResponseDto 
+                    .Select(x => new GetCountryDocumentResponseDto
                     {
                         CountryID = x.CountryID,
                         CountryName = x.CountryName,
@@ -1640,21 +1793,22 @@ namespace HealthIntelligence.Services
 
                 var result = await query.ApplyPaginationAsync(request);
 
-                // 🔥 FileTypes (optimized for selected countries only)
-                var CountryIDs = result.Data.Select(x => x.CountryID).ToList();
+                // ?? FileTypes (optimized for selected countries only)
+                var countryIds = result.Data.Select(x => x.CountryID).ToList();
 
-                var fileTypesData = await _context.CountryDocuments.Where(x =>!x.IsDeleted && x.CountryID.HasValue &&
-                                     CountryIDs.Contains(x.CountryID.Value)).GroupBy(x => x.CountryID)
-                                    .Select(g => new
-                                    {
-                                        CountryID = g.Key,
-                                        FileTypes = g.Select(x => x.FileType).Distinct().ToList(),
+                var fileTypesData = await _context.CountryDocuments
+                    .Where(x => !x.IsDeleted && countryIds.Contains(x.CountryID))
+                    .GroupBy(x => x.CountryID)
+                    .Select(g => new
+                    {
+                        CountryID = g.Key,
+                        FileTypes = g.Select(x => x.FileType).Distinct().ToList(),
 
-                                        NoOfFiles = g.Count(),
-                                        NoOfUsers = g.Select(d => d.UploadedByUserID).Distinct().Count(),
-                                        FilesSize = g.Sum(d => (long?)d.FileSize) ?? 0,
-                                    })
-                            .ToListAsync();
+                        NoOfFiles = g.Count(),
+                        NoOfUsers = g.Select(d => d.UploadedByUserID).Distinct().Count(),
+                        FilesSize = g.Sum(d => (long?)d.FileSize) ?? 0,
+                    })
+                    .ToListAsync();
 
                 foreach (var item in result.Data)
                 {
@@ -1665,7 +1819,7 @@ namespace HealthIntelligence.Services
                         item.NoOfFiles = ft.NoOfFiles;
                         item.NoOfUsers = ft.NoOfUsers;
                         item.FilesSize = ft.FilesSize;
-                    }
+                    }                   
                 }
 
                 return result;
@@ -1679,9 +1833,9 @@ namespace HealthIntelligence.Services
         }
 
         public async Task<ResultResponseDto<List<GetCountryPillarDocumentResponseDto>>> GetAICountryPillarDocuments(
-              AiCountryPillarDocumentRequestDto request,
-              int userID,
-              UserRole userRole)
+             AiCountryPillarDocumentRequestDto request,
+             int userID,
+             UserRole userRole)
         {
             try
             {
@@ -1714,9 +1868,9 @@ namespace HealthIntelligence.Services
                 var users = _context.Users
                     .Where(x => result.Select(x => x.UploadedByUserID)
                     .Contains(x.UserID) && !x.IsDeleted)
-                    .ToDictionary(x => x.UserID, y => y.FullName);
+                    .ToDictionary(x=>x.UserID , y=>y.FullName); 
 
-                foreach (var r in result)
+                foreach(var r in result)
                 {
                     r.UploadedBy = users.TryGetValue(r.UploadedByUserID, out var userName) ? userName : "";
                 }
@@ -1726,7 +1880,7 @@ namespace HealthIntelligence.Services
             catch (Exception ex)
             {
                 await _appLogger.LogAsync("Error Occured in GetAIDocuments", ex);
-                return ResultResponseDto<List<GetCountryPillarDocumentResponseDto>>.Failure(new[] { "Failed to get Documents, please try again later." });
+                return  ResultResponseDto<List<GetCountryPillarDocumentResponseDto>>.Failure(new[] { "Failed to get Documents, please try again later." });
             }
         }
 
@@ -1738,19 +1892,13 @@ namespace HealthIntelligence.Services
             try
             {
                 var query = _context.CountryDocuments
-                    .Where(x => !x.IsDeleted && x.CountryID == request.CountryID);
+                    .Where(x => !x.IsDeleted && x.CountryID == request.CountryID || (!request.CountryDocumentID.HasValue || x.CountryDocumentID == request.CountryDocumentID));
 
-                // 🔷 If not admin → only own documents
+                // ?? If not admin ? only own documents
                 if (userRole != UserRole.Admin)
                 {
-                    query = query.Where(x => x.UploadedByUserID == userID && (!request.CountryDocumentID.HasValue || x.CountryDocumentID == request.CountryDocumentID));
-                }
-
-                // 🔷 If NOT delete all → filter by document id
-                if (!request.IsAll && request.CountryDocumentID.HasValue)
-                {
-                    query = query.Where(x => x.CountryDocumentID == request.CountryDocumentID.Value);
-                }
+                    query = query.Where(x => x.UploadedByUserID == userID );
+                }              
 
                 var documents = await query.ToListAsync();
 
@@ -1760,7 +1908,7 @@ namespace HealthIntelligence.Services
                         new[] { "No documents found or you don't have permission." });
                 }
 
-                // 🔥 Soft delete
+                // ?? Soft delete
                 foreach (var doc in documents)
                 {
                     doc.IsDeleted = true;
@@ -1783,59 +1931,48 @@ namespace HealthIntelligence.Services
         }
         public async Task<FileResult> DownloadDocument(int countryDocumentID, int userID, UserRole userRole)
         {
-            var doc = await _context.CountryDocuments
+            try
+            {
+                var doc = await _context.CountryDocuments
                 .FirstOrDefaultAsync(x => x.CountryDocumentID == countryDocumentID && !x.IsDeleted);
 
-            if (doc == null)
-                throw new Exception("Document not found.");
+                if (doc == null)
+                    throw new Exception("Document not found.");
 
-            if (!System.IO.File.Exists(doc.FilePath))
-                throw new Exception("File not found on server.");
+                if (!System.IO.File.Exists(doc.FilePath))
+                    throw new Exception("File not found on server.");
 
-            var ext = Path.GetExtension(doc.FileName).ToLower();
+                var ext = Path.GetExtension(doc.FileName).ToLower();
 
-            var contentType = ext switch
-            {
-                ".pdf" => "application/pdf",
-                ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                _ => "application/octet-stream"
-            };
+                var contentType = ext switch
+                {
+                    ".pdf" => "application/pdf",
+                    ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    _ => "application/octet-stream"
+                };
 
-            var stream = new FileStream(doc.FilePath, FileMode.Open, FileAccess.Read);
+                var stream = new FileStream(doc.FilePath, FileMode.Open, FileAccess.Read);
 
-            return new FileStreamResult(stream, contentType)
-            {
-                FileDownloadName = doc.FileName
-            };
-        }
-        static string GetDocumentLevel(int? countryID, int? pillarID)
-        {
-            if (countryID == null)
-            {
-                return "Global";
+                return new FileStreamResult(stream, contentType)
+                {
+                    FileDownloadName = doc.FileName
+                };
             }
-            else if (countryID > 0 && (pillarID == null || pillarID == 0))
+            catch(Exception ex)
             {
-                return "Country_Pillar";
-            }
-            else
-            {
-                return "Country";
+                await _appLogger.LogAsync("Error Occured in getDocument", ex);
+
+                var emptyStream = new MemoryStream();
+
+                return new FileStreamResult(emptyStream, "application/pdf")
+                {
+                    FileDownloadName ="file.txt"
+                };
             }
         }
 
+        #endregion ai document
+
+        #endregion
     }
-  
-    public record PillarChartItem(string ShortName, string Name, decimal? Value);
-    public record KpiChartItem(string ShortName, string Name, decimal? Value,string? Definition, int? CountryID, List<FiveLevelInterpretationsDto> InterPretation);
-    public record FiveLevelInterpretationsDto ( 
-         int InterpretationID ,
-         int LayerID ,
-         decimal? MinRange ,
-         decimal? MaxRange ,
-         string Condition ,
-         string StrategicAction 
-    );
-
-
 }

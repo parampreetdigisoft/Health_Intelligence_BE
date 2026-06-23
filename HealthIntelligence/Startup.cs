@@ -26,6 +26,7 @@ namespace HealthIntelligence
         {
             // Controllers
             services.AddControllers();
+            services.AddMemoryCache();
 
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(
@@ -58,10 +59,12 @@ namespace HealthIntelligence
                 {
                     builder.WithOrigins(
                         "http://localhost:4200",
-                        "http://veridianurbansystems.com",
-                        "https://veridianurbansystems.com",
-                        "http://portal.veridianurbansystems.com",
-                        "https://portal.veridianurbansystems.com"
+                        "http://peacemappers.ai",
+                        "https://peacemappers.ai",
+                        "http://portal.peacemappers.ai",
+                        "https://portal.peacemappers.ai",
+                        "https://app.peacemappers.ai",
+                        "https://app.peacemappers.ai"
                         )
                         .AllowAnyHeader()
                         .AllowAnyMethod()
@@ -87,7 +90,7 @@ namespace HealthIntelligence
             {
                 c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
                 {
-                    Title = "HealthIntelligenceApi",
+                    Title = "Peace Enablers Api",
                     Version = "v1"
                 });
 
@@ -143,7 +146,7 @@ namespace HealthIntelligence
 
             services.AddAuthorization(options =>
             {
-                // CountryUser with Standard or higher
+                // CityUser with Standard or higher
                 options.AddPolicy("PaidCountryUserOnly", policy =>
                 {
                     policy.RequireRole("CountryUser");
@@ -162,7 +165,7 @@ namespace HealthIntelligence
                 options.AddPolicy("StaffOnly", policy =>
                     policy.RequireRole(UserRole.Admin.ToString(),UserRole.Analyst.ToString(), UserRole.Evaluator.ToString()));
             });
-            services.AddMemoryCache();
+
         }
 
 
@@ -181,14 +184,15 @@ namespace HealthIntelligence
             // Enable middleware to serve Swagger UI (HTML, JS, CSS, etc.)
             app.UseSwaggerUI(c =>
             {
-                c.SwaggerEndpoint("/swagger/v1/swagger.json", "HealthIntelligenceApi v1");
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "Peace Enablers Api");
                 c.RoutePrefix = string.Empty; // Swagger UI at root URL (e.g. https://localhost:5001/)
-            });
-            app.UseCors("AllowAngularApp");
+            });           
 
             app.UseHttpsRedirection();
 
             app.UseRouting();
+
+            app.UseCors("AllowAngularApp");
 
             app.UseAuthentication();
             app.UseAuthorization();

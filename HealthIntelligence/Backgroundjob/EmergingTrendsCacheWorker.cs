@@ -1,11 +1,10 @@
-using HealthIntelligence.IServices;
 using Microsoft.Extensions.Configuration;
 using HealthIntelligence.IServices;
 
 namespace HealthIntelligence.Backgroundjob
 {
     /// <summary>
-    /// Refreshes emerging trends in memory on a schedule. Retries every 10s until success (no cache on failure).
+    /// Refreshes emerging trends in memory on a schedule. Failed refreshes keep serving the last good snapshot.
     /// </summary>
     public class EmergingTrendsCacheWorker : BackgroundService
     {
@@ -31,16 +30,10 @@ namespace HealthIntelligence.Backgroundjob
             var retryDelay = TimeSpan.FromSeconds(
                 _configuration.GetValue("EmergingTrendsCache:RetryDelaySeconds", 10));
 
-            _logger.LogInformation(
-                "Emerging trends cache worker started (countryCount={CountryCount}, refresh={RefreshMinutes}m, retry={RetrySeconds}s)",
-                countryCount,
-                refreshInterval.TotalMinutes,
-                retryDelay.TotalSeconds);
+            await RefreshUntilCachedAsync(countryCount, retryDelay, stoppingToken);
 
             while (!stoppingToken.IsCancellationRequested)
             {
-                await RefreshUntilSuccessAsync(countryCount, retryDelay, stoppingToken);
-
                 try
                 {
                     await Task.Delay(refreshInterval, stoppingToken);
@@ -49,45 +42,21 @@ namespace HealthIntelligence.Backgroundjob
                 {
                     break;
                 }
+
+                await TryRefreshAsync(countryCount, stoppingToken);
             }
         }
 
-        private async Task RefreshUntilSuccessAsync(
+        private async Task RefreshUntilCachedAsync(
             int countryCount,
             TimeSpan retryDelay,
             CancellationToken stoppingToken)
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                try
+                if (await TryRefreshAsync(countryCount, stoppingToken))
                 {
-                    using var scope = _serviceProvider.CreateScope();
-                    var publicService = scope.ServiceProvider.GetRequiredService<IPublicService>();
-
-                    var cached = await publicService.RefreshEmergingTrendsCacheAsync(
-                        countryCount,
-                        stoppingToken);
-
-                    if (cached)
-                    {
-                        _logger.LogInformation(
-                            "Emerging trends cache refreshed successfully (countryCount={CountryCount})",
-                            countryCount);
-                        return;
-                    }
-
-                    _logger.LogWarning(
-                        "Emerging trends refresh returned no data (countryCount={CountryCount}); retry in {RetrySeconds}s",
-                        countryCount,
-                        retryDelay.TotalSeconds);
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    _logger.LogError(
-                        ex,
-                        "Emerging trends cache refresh failed (countryCount={CountryCount}); retry in {RetrySeconds}s",
-                        countryCount,
-                        retryDelay.TotalSeconds);
+                    return;
                 }
 
                 try
@@ -98,6 +67,27 @@ namespace HealthIntelligence.Backgroundjob
                 {
                     break;
                 }
+            }
+        }
+
+        private async Task<bool> TryRefreshAsync(int countryCount, CancellationToken stoppingToken)
+        {
+            try
+            {
+                using var scope = _serviceProvider.CreateScope();
+                var publicService = scope.ServiceProvider.GetRequiredService<IPublicService>();
+
+                return await publicService.RefreshEmergingTrendsCacheAsync(
+                    countryCount,
+                    stoppingToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Emerging trends cache refresh failed (countryCount={CountryCount})",
+                    countryCount);
+                return false;
             }
         }
     }

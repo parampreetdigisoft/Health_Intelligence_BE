@@ -1,4 +1,4 @@
-ï»¿@model HealthIntelligence.Views.EmailModels.EmailInvitationSendRequestDto
+@model HealthIntelligence.Views.EmailModels.EmailInvitationSendRequestDto
 @{
     Layout = null;
 }
@@ -17,8 +17,8 @@
                     <tr>
                         <td align="center" style="background:#efbf04;padding:40px 30px 25px;">
 
-                            <img src="@($"{Model.ApiUrl}/assets/images/Large-health.png")"
-                                 alt="AHSIP Logo"
+                            <img src="@($"{Model.ApiUrl}/assets/images/pem.png")"
+                                 alt="PEM Logo"
                                  style="height:75px;margin-bottom:20px;">
 
                             <div style="font-size:26px;font-weight:600;color:#304a43;text-align:center;">
@@ -31,10 +31,10 @@
                     <tr>
                         <td style="padding:35px 40px 25px;font-size:15px;color:#444;line-height:1.7;">
 
-                            <p>Dear Colleague,</p>
+                            <p>@Model.Name,</p>
 
                             <p>
-                                Your analyst account for the <strong>Africa Health Systems Intelligence Platform (AHSIP)</strong> platform is now active.
+                                Your analyst account for the <strong>Peace Enablers Matrix (PEM)</strong> platform is now active. 
                                 You have been added to the assessment workspace for the countries assigned to you and can begin coordinating the evaluation process.
                             </p>
 
@@ -53,10 +53,10 @@
                             <p style="margin:0 0 16px;"><strong>As an analyst, you will be able to:</strong></p>
 
                             <div style="margin:20px 0;padding:18px;background:#e6eceb;border-left:4px solid #304A43;border-radius:6px;color:#304a43;font-size:14px;">
-                                â€¢ Complete and submit country assessment questionnaires<br>
-                                â€¢ Add or manage evaluators where neededs<br>
-                                â€¢ Add or manage evaluators where needed<br>
-                                â€¢ Review submissions and prepare materials for administrative review
+                                • Complete and submit country assessment questionnaires<br>
+                                • Add or manage evaluators where neededs<br>
+                                • Add or manage evaluators where needed<br>
+                                • Review submissions and prepare materials for administrative review
                             </div>
 
                             <p style="margin:0 0 18px;">
@@ -81,7 +81,7 @@
 
                             <p style="color:#304a43;">Warm regards,</p>
                             <p style="color:#304a43;font-weight:600;">
-                                Africa Health Systems Intelligence Platform (AHSIP) Administration
+                                Peace Enablers Matrix – Platform Administration
                             </p>
 
                         </td>

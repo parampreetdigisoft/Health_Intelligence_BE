@@ -1,4 +1,4 @@
-﻿using HealthIntelligence.Models;
+using HealthIntelligence.Models;
 
 namespace HealthIntelligence.Dtos.CountryDto
 {
@@ -12,6 +12,6 @@ namespace HealthIntelligence.Dtos.CountryDto
     {
         public int UserCountryMappingID { get; set; }
         public double? Distance { get; set; }
-        public List<int>? PeerCountriesIDs { get; set; }
+        public List<int>? PeerCountryIDs { get; set; }
     }
 }

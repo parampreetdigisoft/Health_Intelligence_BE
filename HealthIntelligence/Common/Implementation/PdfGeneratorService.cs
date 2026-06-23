@@ -1,33 +1,37 @@
-﻿using HealthIntelligence.Common.Interface;
+
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
+using HealthIntelligence.Common.Interface;
+using HealthIntelligence.Common.Models.settings;
 using HealthIntelligence.Dtos.AiDto;
 using HealthIntelligence.IServices;
 using HealthIntelligence.Models;
-using HealthIntelligence.Services;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using SkiaSharp;
-using System.Security.AccessControl;
 using System.Text;
-using System.Text.RegularExpressions;
+using static HealthIntelligence.Services.AIComputationService;
 
 namespace HealthIntelligence.Common.Implementation
 {
-    public partial class PdfGeneratorService : IPdfGeneratorService
+    public partial class PdfGeneratorService : Interface.IPdfGeneratorService
     {
         #region constructor
 
         private readonly IAppLogger _appLogger;
-        public PdfGeneratorService(IAppLogger appLogger)
+        private readonly AppSettings _appSettings;
+        public PdfGeneratorService(IAppLogger appLogger, IOptions<AppSettings> appSettings)
         {
             _appLogger = appLogger;
+            _appSettings = appSettings.Value;
         }
         #endregion
 
 
         #region pdf pillars and country report
 
-        public async Task<byte[]> GenerateAllCountriesDetailsPdf(List<AiCountrySummeryDto> countries, Dictionary<int, List<AiCountryPillarReponse>> pillarsDict, List<KpiChartItem> kpis, UserRole userRole)
+        public async Task<byte[]> GenerateAllCountriesDetailsPdf(List<AiCountrySummeryDto> countries, Dictionary<int, List<AiCountryPillarResponse>> pillarsDict, List<KpiChartItem> kpis, UserRole userRole)
         {
             try
             {
@@ -56,7 +60,7 @@ namespace HealthIntelligence.Common.Implementation
             }
         }
 
-        public async Task<byte[]> GenerateCountryDetailsPdf(AiCountrySummeryDto countryDetails, List<AiCountryPillarReponse> pillars, List<KpiChartItem> kpis, List<PeerCountryHistoryReportDto> peerCountry, UserRole userRole)
+        public async Task<byte[]> GenerateCountryDetailsPdf(AiCountrySummeryDto countryDetails, List<AiCountryPillarResponse> pillars, List<KpiChartItem> kpis, List<PeerCountryHistoryReportDto> peerCountry, UserRole userRole)
         {
             try
             {
@@ -76,7 +80,7 @@ namespace HealthIntelligence.Common.Implementation
             }
         }
 
-        public async Task<byte[]> GeneratePillarDetailsPdf(AiCountryPillarReponse pillarData, UserRole userRole)
+        public async Task<byte[]> GeneratePillarDetailsPdf(AiCountryPillarResponse pillarData, UserRole userRole)
         {
             try
             {
@@ -106,27 +110,21 @@ namespace HealthIntelligence.Common.Implementation
             }
         }
 
-        public void AddCountryDetailsPdf(IDocumentContainer container, AiCountrySummeryDto countryDetails, List<AiCountryPillarReponse> pillars, List<KpiChartItem> kpis,
+        public void AddCountryDetailsPdf(IDocumentContainer container, AiCountrySummeryDto countryDetails, List<AiCountryPillarResponse> pillars, List<KpiChartItem> kpis,
             List<PeerCountryHistoryReportDto> peerCountries, UserRole userRole, bool isAllCountries = false)
         {
             var kpiChartItems = kpis.ToList();
-           countryDetails = SanitizeCountrySummary(countryDetails);
-           SanitizePillars(pillars);            
-            // Build pillar chart items (max 14)
-            var pillarChartItems = pillars
-            .Take(14)
-            .Select(p => new PillarChartItem(
-                p.PillarName?.Length > 20 ? p.PillarName[..20] : p.PillarName ?? "—",
-                p.PillarName ?? "—",
-                p.AIProgress))
-            .ToList();
 
-            // ── Section 1 : Global Dashboard ─────────────────────────────────
+            // Build pillar chart items (max 14)
+            var pillarChartItems = pillars.Select(p => new PillarChartItem( SanitizeText(p.PillarName)?.Length > 20   ? SanitizeText(p.PillarName)[..20]
+                  : SanitizeText(p.PillarName) ?? "-",  SanitizeText(p.PillarName) ?? "-", p.AIProgress)).ToList();
+
+            // -- Section 1 : Global Dashboard ---------------------------------
             if (!isAllCountries)
                 AddGlobalDashboardPage(container, countryDetails, pillarChartItems, kpis, userRole);
 
 
-            // ── Section 2 : Country Summary ─────────────────────────────────────
+            // -- Section 2 : Country Summary -------------------------------------
             container.Page(page =>
             {
                 ApplyPageDefaults(page);
@@ -145,7 +143,7 @@ namespace HealthIntelligence.Common.Implementation
             });
 
 
-            // ── Section 3 : Pillar Radial Overview ───────────────────────────
+            // -- Section 3 : Pillar Radial Overview ---------------------------
             if (pillars.Any())
             {
                 container.Page(page =>
@@ -159,14 +157,14 @@ namespace HealthIntelligence.Common.Implementation
                 });
             }
 
-            // ── Section 1 : Global Dashboard ─────────────────────────────────
+            // -- Section 1 : Global Dashboard ---------------------------------
             if (!isAllCountries)
             {
                 AddPeerCountryComparisonSection(container, peerCountries, countryDetails, userRole);
                 AddPerformanceTrendsSection(container, peerCountries, countryDetails, userRole);
             }
 
-            // ── Section 4+ : Per-Pillar Detail ──────────────────────────────
+            // -- Section 4+ : Per-Pillar Detail ------------------------------
             var accessiblePillars = pillars.Where(x => x.IsAccess && UserRole.CountryUser == userRole || UserRole.CountryUser != userRole).ToList();
             foreach (var p in accessiblePillars)
             {
@@ -174,7 +172,7 @@ namespace HealthIntelligence.Common.Implementation
                 {
                     ApplyPageDefaults(page);
                     page.Header().Element(x =>
-                        CountryComposeHeader(x, countryDetails, userRole, p.PillarName));
+                        CountryComposeHeader(x, countryDetails, userRole, SanitizeText(p.PillarName)));
                     page.Content().Element(content =>
                     {
                         content.Column(column =>
@@ -189,7 +187,7 @@ namespace HealthIntelligence.Common.Implementation
             }
 
 
-            // ── Section 5 : KPI Dashboard ────────────────────────────────────
+            // -- Section 5 : KPI Dashboard ------------------------------------
             if (kpiChartItems.Any() || !isAllCountries)
             {
                 container.Page(page =>
@@ -204,144 +202,9 @@ namespace HealthIntelligence.Common.Implementation
             }
         }
 
-        private AiCountrySummeryDto SanitizeCountrySummary(AiCountrySummeryDto country)
-        {
-            country.Continent = Clean(country.Continent);
-            country.CountryName = Clean(country.CountryName);            
-            country.Region =Clean(country.Region);
-
-            country.ConfidenceLevel = Clean(country.ConfidenceLevel);
-            country.EvidenceSummary = Clean(country.EvidenceSummary);
-            country.CrossPillarPatterns = Clean(country.CrossPillarPatterns);
-            country.InstitutionalCapacity = Clean(country.InstitutionalCapacity);
-            country.EquityAssessment = Clean(country.EquityAssessment);
-            country.SustainabilityOutlook = Clean(country.SustainabilityOutlook);
-            country.StrategicRecommendations = Clean(country.StrategicRecommendations);
-            country.DataTransparencyNote = Clean(country.DataTransparencyNote);
-
-            country.Comment = Clean(country.Comment);
-
-            country.ImmediateSituationSummary = Clean(country.ImmediateSituationSummary);
-            country.KeyDevelopments = Clean(country.KeyDevelopments);
-            country.CriticalRisks = Clean(country.CriticalRisks);
-            country.Gaps = Clean(country.Gaps);
-
-            return country;
-        }
-        public string Clean(string? input)
-        {
-            if (string.IsNullOrWhiteSpace(input))
-                return string.Empty;
-
-            string text = input.Normalize(NormalizationForm.FormKC);
-
-            // Normalize line endings
-            text = text.Replace("\r\n", "\n");
-            text = text.Replace("\r", "\n");
-
-            // Replace dangerous Unicode glyphs
-            text = text
-
-                // Hyphens / dashes
-                .Replace('\u2010', '-')
-                .Replace('\u2011', '-')
-                .Replace('\u2012', '-')
-                .Replace('\u2013', '-')
-                .Replace('\u2014', '-')
-                .Replace('\u2212', '-')
-
-                // Quotes
-                .Replace('\u2018', '\'')
-                .Replace('\u2019', '\'')
-                .Replace('\u201A', '\'')
-                .Replace('\u201B', '\'')
-
-                .Replace('\u201C', '"')
-                .Replace('\u201D', '"')
-                .Replace('\u201E', '"')
-
-                // Bullets
-                .Replace('\u2022', '-')
-                .Replace('\u25CF', '-')
-                .Replace('\u25AA', '-')
-
-                // Ellipsis
-                .Replace("\u2026", "...")
-
-                // Spaces
-                .Replace('\u00A0', ' ')
-                .Replace("\u200B", "")
-                .Replace("\u200C", "")
-                .Replace("\u200D", "")
-                .Replace("\u2060", "")
-                .Replace("\uFEFF", "");
-
-            // Remove invalid control chars
-            text = Regex.Replace(
-                text,
-                @"[\u0000-\u0008\u000B\u000C\u000E-\u001F]",
-                "");
-
-            return text.Trim();
-        }
-
-
-        private void SanitizePillars(List<AiCountryPillarReponse> pillars)
-        {
-            foreach (var p in pillars)
-            {
-                p.Continent = Clean(p.Continent);
-                p.CountryName = Clean(p.CountryName);
-                p.Region = Clean(p.Region);
-
-                p.PillarName = Clean(p.PillarName);
-
-                p.ConfidenceLevel =
-                    Clean(p.ConfidenceLevel);
-
-                p.EvidenceSummary =
-                    Clean(p.EvidenceSummary);
-
-                p.RedFlags =
-                    Clean(p.RedFlags);
-
-                p.GeographicEquityNote =
-                    Clean(p.GeographicEquityNote);
-
-                p.InstitutionalAssessment =
-                    Clean(p.InstitutionalAssessment);
-
-                p.DataGapAnalysis =
-                    Clean(p.DataGapAnalysis);
-
-                p.AnalystDataGapAnalysis =
-                    Clean(p.AnalystDataGapAnalysis);
-
-                p.ImagePath =
-                    Clean(p.ImagePath);
-
-                if (p.DataSourceCitations != null)
-                {
-                    foreach (var citation in p.DataSourceCitations)
-                    {
-                        citation.SourceType =
-                            Clean(citation.SourceType);
-
-                        citation.SourceName =
-                            Clean(citation.SourceName);
-
-                        citation.SourceURL =
-                            Clean(citation.SourceURL);
-
-                        citation.DataExtract =
-                            Clean(citation.DataExtract);
-                    }
-                }
-            }
-        }
-        // ─────────────────────────────────────────────────────────────────────────────
+        // -----------------------------------------------------------------------------
         //  PAGE LAYOUT HELPERS  (reusable)
-        // ─────────────────────────────────────────────────────────────────────────────
+        // -----------------------------------------------------------------------------
 
         /// <summary>Applies standard A4 + font defaults to any page.</summary>
         static void ApplyPageDefaults(PageDescriptor page)
@@ -359,13 +222,7 @@ namespace HealthIntelligence.Common.Implementation
             {
                 x.CurrentPageNumber(); x.Span(" / "); x.TotalPages();
             });
-        }
-
-
-        /// <summary>
-        /// Inserts the attractive full-page dashboard as page 1 of the country report.
-        /// Pillars: max 14 · KPIs: max 107
-        /// </summary>
+        }        
         void AddGlobalDashboardPage(
             IDocumentContainer doc,
             AiCountrySummeryDto country,
@@ -373,8 +230,7 @@ namespace HealthIntelligence.Common.Implementation
             List<KpiChartItem> kpis,      // already filtered to max 107
             UserRole userRole)
         {
-            var vPillars = pillars.Where(p => p.Value.HasValue).ToList();
-            //var vKpis = kpis.Where(k => k.Value.HasValue).ToList();
+            var vPillars = pillars.ToList();
 
             doc.Page(page =>
             {
@@ -406,62 +262,65 @@ namespace HealthIntelligence.Common.Implementation
             {
                 col.Spacing(10);
 
-                // ── Row 1 : Score Donut (left)  +  Pillar Radar (right) ──────────
+                // -- Row 1 : Score Donut (left)  +  Pillar Radar (right) ----------
                 col.Item().Height(280).Row(row =>
                 {
-                    row.RelativeItem(4).Element(x =>
+                    row.RelativeItem(5).Element(x =>
                         RenderScoreDonutCard(x, country, pillars.Count, kpis.Count, best, worst));
 
                     row.ConstantItem(10);
 
-                    row.RelativeItem(6).Element(x =>
+                    row.RelativeItem(5).Element(x =>
                         RenderPillarRadarCard(x, pillars));
                 });
 
-                // ── Row 2 : KPI distribution stat cards ──────────────────────────
-                var topKpis = kpis
-                    .Where(x =>
-                        string.Equals(x.ShortName, "UDRI", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(x.ShortName, "PRUPS", StringComparison.OrdinalIgnoreCase))
-                    .ToList();
+                // -- Row 2 : KPI distribution stat cards --------------------------
+                //var topKpis = kpis
+                //    .Where(x =>
+                //        string.Equals(x.ShortName, "UDRI", StringComparison.OrdinalIgnoreCase) ||
+                //        string.Equals(x.ShortName, "PRUPS", StringComparison.OrdinalIgnoreCase))
+                //    .ToList();
 
-                if (topKpis.Any())
-                    col.Item().Height(155).Element(x =>
-                    DrawTopKpiBand(x, topKpis));
+                //if (topKpis.Any())
+                //    col.Item().Height(130).Element(x =>
+                //    DrawTopKpiBand(x, topKpis));
 
                 col.Item().Height(100).Element(x =>
                     RenderKpiDistributionBand(x, kpis.Count, kpiGreen, kpiAmber, kpiRed));
 
-                // ── Row 3 : KPI sorted sparkline ─────────────────────────────────
+                // -- Row 3 : KPI sorted sparkline ---------------------------------
                 if (kpis.Any())
                     col.Item().Height(120).Element(x =>
                         RenderKpiSparklineCard(x, kpis));
             });
         }
+        
 
-        // ─────────────────────────────────────────────────────────────────────────────
-        //  DASHBOARD WIDGET — Score Donut Card
-        // ─────────────────────────────────────────────────────────────────────────────
+        // -----------------------------------------------------------------------------
+        //  DASHBOARD WIDGET � Score Donut Card
+        // -----------------------------------------------------------------------------
 
-        void RenderScoreDonutCard( IContainer container, AiCountrySummeryDto country, int pillarCount, int kpiCount,PillarChartItem? best,PillarChartItem? worst)
+        void RenderScoreDonutCard(
+            IContainer container,
+            AiCountrySummeryDto country,
+            int pillarCount,
+            int kpiCount,
+            PillarChartItem? best,
+            PillarChartItem? worst)
         {
-            var score = (float)country.AIProgress.GetValueOrDefault();
 
-            // ── Global rank label ───────────────────────────────
-            var globalRankLabel =
-                country.Rank.HasValue &&
-                country.TotalCountry.HasValue &&
-                country.TotalCountry > 1
-                    ? $"Global Rank: {country.Rank} / {country.TotalCountry}"
-                    : "Global Rank: N/A";
+            float score = (float)country.AIProgress.GetValueOrDefault();
 
-            // ── Regional rank label ─────────────────────────────
-            var regionRankLabel =
-                country.RegionRank.HasValue &&
-                country.RegionTotalCountry.HasValue &&
-                country.RegionTotalCountry > 1
-                    ? $"{country.Region} Region: {country.RegionRank} / {country.RegionTotalCountry}"
-                    : $"{country.Region} Region: N/A";
+            // Overall rank label
+            var globalRankLabel = country.Rank.HasValue && country.TotalCountry.HasValue && country.TotalCountry > 1
+                ? $"Global Rank: {country.Rank} / {country.TotalCountry}"
+                : "Global Rank: N/A";
+
+            // Regional rank label
+            var regionRankLabel = country.RegionRank.HasValue && country.RegionTotalCountry.HasValue && country.RegionTotalCountry >= 1
+                ? $"{country.Region} Region: {country.RegionRank} / {country.RegionTotalCountry}"
+                : $"{country.Region} Region: N/A";
+
 
             container
                 .Background(Colors.White)
@@ -472,9 +331,9 @@ namespace HealthIntelligence.Common.Implementation
                 {
                     col.Spacing(0);
 
-                    // ─────────────────────────────────────────────
+                    // ---------------------------------------------
                     // Title
-                    // ─────────────────────────────────────────────
+                    // ---------------------------------------------
                     col.Item()
                         .AlignCenter()
                         .Text("Overall Country Score")
@@ -482,9 +341,9 @@ namespace HealthIntelligence.Common.Implementation
                         .Bold()
                         .FontColor("#12352f");
 
-                    // ─────────────────────────────────────────────
+                    // ---------------------------------------------
                     // Donut chart
-                    // ─────────────────────────────────────────────
+                    // ---------------------------------------------
                     col.Item()
                         .Height(130)
                         .Canvas((canvas, size) =>
@@ -495,9 +354,9 @@ namespace HealthIntelligence.Common.Implementation
                         .Height(1)
                         .Background("#E8F0EC");
 
-                    // ─────────────────────────────────────────────
+                    // ---------------------------------------------
                     // Pillars + KPI Counts
-                    // ─────────────────────────────────────────────
+                    // ---------------------------------------------
                     col.Item()
                         .PaddingTop(5)
                         .Row(row =>
@@ -545,9 +404,9 @@ namespace HealthIntelligence.Common.Implementation
                                 });
                         });
 
-                    // ─────────────────────────────────────────────
+                    // ---------------------------------------------
                     // Best Pillar + Global Rank
-                    // ─────────────────────────────────────────────
+                    // ---------------------------------------------
                     if (best != null)
                     {
                         col.Item()
@@ -560,7 +419,7 @@ namespace HealthIntelligence.Common.Implementation
                                     .PaddingVertical(3)
                                     .PaddingHorizontal(5)
                                     .Text(
-                                        $"▲ {Shorten(best.Name, 16)} ({best.Value:F0})")
+                                        $"? {Shorten(best.Name, 16)} ({best.Value:F0})")
                                     .FontSize(7)
                                     .FontColor("#1B5E20");
 
@@ -578,9 +437,9 @@ namespace HealthIntelligence.Common.Implementation
                             });
                     }
 
-                    // ─────────────────────────────────────────────
+                    // ---------------------------------------------
                     // Worst Pillar + Region Rank
-                    // ─────────────────────────────────────────────
+                    // ---------------------------------------------
                     if (worst != null)
                     {
                         col.Item()
@@ -593,7 +452,7 @@ namespace HealthIntelligence.Common.Implementation
                                     .PaddingVertical(3)
                                     .PaddingHorizontal(5)
                                     .Text(
-                                        $"▼ {Shorten(worst.Name, 16)} ({worst.Value:F0})")
+                                        $"? {Shorten(worst.Name, 16)} ({worst.Value:F0})")
                                     .FontSize(7)
                                     .FontColor("#B71C1C");
 
@@ -639,7 +498,7 @@ namespace HealthIntelligence.Common.Implementation
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = thick,
-                Color = GetColor(score),
+                Color = SKColor.Parse("#003160"),
                 IsAntialias = true,
                 StrokeCap = SKStrokeCap.Round
             };
@@ -661,7 +520,7 @@ namespace HealthIntelligence.Common.Implementation
             // Center: score value
             using var bigTxt = new SKPaint
             {
-                Color = GetColor(score),
+                Color = SKColor.Parse("#003160"),
                 TextSize = 26,
                 IsAntialias = true,
                 TextAlign = SKTextAlign.Center,
@@ -677,19 +536,19 @@ namespace HealthIntelligence.Common.Implementation
                 IsAntialias = true,
                 TextAlign = SKTextAlign.Center
             };
-            canvas.DrawText("total score", cx, cy + 21, subTxt);
+            canvas.DrawText("country score", cx, cy + 21, subTxt);
         }
 
-        // ─────────────────────────────────────────────────────────────────────────────
-        //  DASHBOARD WIDGET — Pillar Radar / Spider Card
-        // ─────────────────────────────────────────────────────────────────────────────
+        // -----------------------------------------------------------------------------
+        //  DASHBOARD WIDGET � Pillar Radar / Spider Card
+        // -----------------------------------------------------------------------------
 
         void RenderPillarRadarCard(IContainer container, List<PillarChartItem> pillars)
         {
             container
                 .Background(Colors.White)
-                .Border(1).BorderColor("#D8E8E2")
-                .Padding(8)
+                .Border(1).BorderColor("#afc4db")
+                .Padding(4)
                 .Column(col =>
                 {
                     col.Item().AlignCenter()
@@ -711,11 +570,11 @@ namespace HealthIntelligence.Common.Implementation
             float cy = size.Height / 2f;
             float radius = Math.Min(cx, cy) - 42f;
 
-            // ── concentric grid rings ────────────────────────────────────────────
+            // -- concentric grid rings --------------------------------------------
             using var ringPaint = new SKPaint
             {
                 Style = SKPaintStyle.Stroke,
-                Color = SKColor.Parse("#DDE8E3"),
+                Color = SKColor.Parse("#D6E3F0"),
                 StrokeWidth = 0.7f,
                 IsAntialias = true
             };
@@ -736,10 +595,10 @@ namespace HealthIntelligence.Common.Implementation
                 canvas.DrawText($"{r * 25}", cx + rr + 2, cy - 2, ringLblPaint);
             }
 
-            // ── spoke axes ──────────────────────────────────────────────────────
+            // -- spoke axes ------------------------------------------------------
             using var axisPaint = new SKPaint
             {
-                Color = SKColor.Parse("#C8D8D0"),
+                Color = SKColor.Parse("#B8CCE0"),
                 StrokeWidth = 0.7f,
                 IsAntialias = true
             };
@@ -749,7 +608,7 @@ namespace HealthIntelligence.Common.Implementation
                 canvas.DrawLine(cx, cy, tip.X, tip.Y, axisPaint);
             }
 
-            // ── data polygon ─────────────────────────────────────────────────────
+            // -- data polygon -----------------------------------------------------
             var dataPath = new SKPath();
             for (int i = 0; i < n; i++)
             {
@@ -763,24 +622,24 @@ namespace HealthIntelligence.Common.Implementation
             using var fillPaint = new SKPaint
             {
                 Style = SKPaintStyle.Fill,
-                Color = SKColor.Parse("#336b58").WithAlpha(55),
+                Color = SKColor.Parse("#2C6EA3").WithAlpha(55),
                 IsAntialias = true
             };
             using var edgePaint = new SKPaint
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = 2f,
-                Color = SKColor.Parse("#2E7D32"),
+                Color = SKColor.Parse("#1F4E79"),
                 IsAntialias = true
             };
             canvas.DrawPath(dataPath, fillPaint);
             canvas.DrawPath(dataPath, edgePaint);
 
-            // ── data-point dots ──────────────────────────────────────────────────
+            // -- data-point dots --------------------------------------------------
             using var dotPaint = new SKPaint
             {
                 Style = SKPaintStyle.Fill,
-                Color = SKColor.Parse("#2E7D32"),
+                Color = SKColor.Parse("#1F4E79"),
                 IsAntialias = true
             };
             using var dotBorder = new SKPaint
@@ -798,17 +657,17 @@ namespace HealthIntelligence.Common.Implementation
                 canvas.DrawCircle(pt.X, pt.Y, 4f, dotBorder);
             }
 
-            // ── axis labels ──────────────────────────────────────────────────────
+            // -- axis labels ------------------------------------------------------
             using var lblPaint = new SKPaint
             {
-                Color = SKColor.Parse("#2c3e35"),
+                Color = SKColor.Parse("#1B2F44"),
                 TextSize = 8f,
                 IsAntialias = true,
                 TextAlign = SKTextAlign.Center
             };
             using var valPaint = new SKPaint
             {
-                Color = SKColor.Parse("#558a70"),
+                Color = SKColor.Parse("#4F7FA8"),
                 TextSize = 7f,
                 IsAntialias = true,
                 TextAlign = SKTextAlign.Center
@@ -817,12 +676,12 @@ namespace HealthIntelligence.Common.Implementation
             {
                 var tip = RadarPt(cx, cy, radius + 26f, i, n);
                 canvas.DrawText(
-                    Shorten(pillars[i].ShortName ?? pillars[i].Name, 10),
+                    Shorten(pillars[i].ShortName ?? pillars[i].Name, 5),
                     tip.X, tip.Y + 3f, lblPaint);
             }
         }
 
-        // ── Radar geometry helpers ───────────────────────────────────────────────────
+        // -- Radar geometry helpers ---------------------------------------------------
 
         static SKPoint RadarPt(float cx, float cy, float r, int i, int n)
         {
@@ -844,16 +703,16 @@ namespace HealthIntelligence.Common.Implementation
             return p;
         }
 
-        // ─────────────────────────────────────────────────────────────────────────────
-        //  DASHBOARD WIDGET — KPI Distribution Band  (4 stat cards)
-        // ─────────────────────────────────────────────────────────────────────────────
+        // -----------------------------------------------------------------------------
+        //  DASHBOARD WIDGET � KPI Distribution Band  (4 stat cards)
+        // -----------------------------------------------------------------------------
 
         static void RenderKpiDistributionBand(
             IContainer container, int total, int green, int amber, int red)
         {
             container
                 .Background(Colors.White)
-                .Border(1).BorderColor("#D8E8E2")
+                .Border(1).BorderColor("#afc4db")
                 .Padding(10)
                 .Column(col =>
                 {
@@ -864,10 +723,10 @@ namespace HealthIntelligence.Common.Implementation
                     col.Item().PaddingTop(7).Row(row =>
                     {
                         DashboardStatCard(row.RelativeItem(),
-                            green.ToString(), "Performing ≥70%", "#E8F5E9", "#2E7D32");
+                            green.ToString(), "Performing =70%", "#E8F5E9", "#2E7D32");
                         row.ConstantItem(8);
                         DashboardStatCard(row.RelativeItem(),
-                            amber.ToString(), "Developing 40–69%", "#FFF8E1", "#E65100");
+                            amber.ToString(), "Developing 40�69%", "#FFF8E1", "#E65100");
                         row.ConstantItem(8);
                         DashboardStatCard(row.RelativeItem(),
                             red.ToString(), "Needs Improvement < 40 %", "#FDECEA", "#C62828");
@@ -877,6 +736,8 @@ namespace HealthIntelligence.Common.Implementation
                     });
                 });
         }
+
+       
 
         /// <summary>Single coloured stat card used inside the distribution band.</summary>
         static void DashboardStatCard(IContainer container, string value, string label, string bg, string textColor)
@@ -893,24 +754,24 @@ namespace HealthIntelligence.Common.Implementation
                 });
         }
 
-        // ─────────────────────────────────────────────────────────────────────────────
-        //  DASHBOARD WIDGET — KPI Sparkline (gradient area chart)
-        // ─────────────────────────────────────────────────────────────────────────────
+        // -----------------------------------------------------------------------------
+        //  DASHBOARD WIDGET � KPI Sparkline (gradient area chart)
+        // -----------------------------------------------------------------------------
 
         void RenderKpiSparklineCard(IContainer container, List<KpiChartItem> kpis)
         {
-            float avg = (float)kpis.Average(k => k.Value ?? 0);
+            float avg = (float)kpis.Average(k => k.Value);
 
             container
                 .Background(Colors.White)
-                .Border(1).BorderColor("#D8E8E2")
+                .Border(1).BorderColor("#afc4db")
                 .Padding(10)
                 .Column(col =>
                 {
                     col.Item().Row(hdr =>
                     {
                         hdr.RelativeItem()
-                            .Text("KPI Overview — All Indicators (sorted high → low)")
+                            .Text("KPI Overview � All Indicators (sorted high ? low)")
                             .FontSize(9).Bold().FontColor("#12352f");
                         hdr.AutoItem()
                             .Text($"Avg: {avg:F1}%")
@@ -956,9 +817,9 @@ namespace HealthIntelligence.Common.Implementation
             // Gradient fill under line
             var fPath = new SKPath();
             fPath.MoveTo(lp, tp + h);
-            fPath.LineTo(lp, tp + h - (float)(data[0].Value ?? 0) / 100f * h);
+            fPath.LineTo(lp, tp + h - (float)(data[0].Value ) / 100f * h);
             for (int i = 1; i < n; i++)
-                fPath.LineTo(lp + i * sx, tp + h - (float)(data[i].Value ?? 0) / 100f * h);
+                fPath.LineTo(lp + i * sx, tp + h - (float)(data[i].Value) / 100f * h);
             fPath.LineTo(lp + (n - 1) * sx, tp + h);
             fPath.Close();
 
@@ -975,7 +836,7 @@ namespace HealthIntelligence.Common.Implementation
             for (int i = 0; i < n; i++)
             {
                 float x = lp + i * sx;
-                float y = tp + h - (float)(data[i].Value ?? 0) / 100f * h;
+                float y = tp + h - (float)(data[i].Value) / 100f * h;
                 if (i == 0) lPath.MoveTo(x, y); else lPath.LineTo(x, y);
             }
             using var lPaint = new SKPaint
@@ -1006,15 +867,15 @@ namespace HealthIntelligence.Common.Implementation
             canvas.DrawText("70%", size.Width - 24, y70 - 2, thLbl);
         }
 
-        // ═══════════════════════════════════════════════════════════════════════════════
+        // -------------------------------------------------------------------------------
         //  REDESIGNED KPI DASHBOARD + PILLAR OVERVIEW
         //  Drop-in replacements for KpiDashboardPage / DrawKpiLineChart /
         //  PillarLineChartPage / DrawPillarsRadialChart
-        // ═══════════════════════════════════════════════════════════════════════════════
+        // -------------------------------------------------------------------------------
 
-        // ─────────────────────────────────────────────────────────────────────────────
-        //  KPI DASHBOARD PAGE  ·  numbered bar chart + full-name reference tables
-        // ─────────────────────────────────────────────────────────────────────────────
+        // -----------------------------------------------------------------------------
+        //  KPI DASHBOARD PAGE  �  numbered bar chart + full-name reference tables
+        // -----------------------------------------------------------------------------
 
         void KpiDashboardPage(IContainer container, List<KpiChartItem> kpis)
         {
@@ -1024,35 +885,30 @@ namespace HealthIntelligence.Common.Implementation
             int total = kpis.Count;
             int green = kpis.Count(x => x.Value >= 70);
             int amber = kpis.Count(x => x.Value is >= 40 and < 70);
-            int red = kpis.Count(x => x.Value == null || x.Value < 40);
-            float avg = (float)kpis.Average(x => x.Value ?? 0);
+            int red = kpis.Count(x =>  x.Value < 40);
+            float avg = (float)kpis.Average(x => x.Value);
 
-            // 18 bars per chart row — compact but legible
+            // 18 bars per chart row � compact but legible
             var groups = kpis
                 .Select((k, i) => new { k, i })
                 .GroupBy(x => x.i / 18)
                 .Select(g => g.Select(x => x.k).ToList())
                 .ToList();
 
-            var topKpis = kpis
-                .Where(x =>
-                    string.Equals(x.ShortName, "UDRI", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(x.ShortName, "PRUPS", StringComparison.OrdinalIgnoreCase))
-                .ToList();
 
             container.Padding(14).Column(col =>
             {
                 col.Spacing(12);
 
-                // ── top summary strip ─────────────────────────────────────────────
+                // -- top summary strip ---------------------------------------------
                 col.Item().Height(70).Element(x =>
                     DrawKpiSummaryBand(x, total, green, amber, red, avg));
 
-                if(topKpis.Any())
-                    col.Item().Height(155).Element(x =>
-                    DrawTopKpiBand(x,topKpis));
+                //if(topKpis.Any())
+                //    col.Item().Height(130).Element(x =>
+                //    DrawTopKpiBand(x,topKpis));
 
-                // ── chart + reference-table sections ─────────────────────────────
+                // -- chart + reference-table sections -----------------------------
                 int offset = 0;
                 foreach (var group in groups.Where(g => g.Any()))
                 {
@@ -1063,9 +919,9 @@ namespace HealthIntelligence.Common.Implementation
             });
         }
 
-        // ─────────────────────────────────────────────────────────────────────────────
-        //  SUMMARY BAND  ·  five stat cards in a dark-green strip
-        // ─────────────────────────────────────────────────────────────────────────────
+        // -----------------------------------------------------------------------------
+        //  SUMMARY BAND  �  five stat cards in a dark-green strip
+        // -----------------------------------------------------------------------------
 
         static void DrawKpiSummaryBand(
             IContainer container,
@@ -1078,9 +934,9 @@ namespace HealthIntelligence.Common.Implementation
                 {
                     KpiStatPill(row.RelativeItem(), total.ToString(), "Total KPIs", "#4CAF50", "#4CAF5025");
                     row.ConstantItem(6);
-                    KpiStatPill(row.RelativeItem(), green.ToString(), "Performing ≥ 70 %", "#4CAF50", "#4CAF5025");
+                    KpiStatPill(row.RelativeItem(), green.ToString(), "Performing = 70 %", "#4CAF50", "#4CAF5025");
                     row.ConstantItem(6);
-                    KpiStatPill(row.RelativeItem(), amber.ToString(), "Developing 40–69 %", "#FFC107", "#FFC10725");
+                    KpiStatPill(row.RelativeItem(), amber.ToString(), "Developing 40�69 %", "#FFC107", "#FFC10725");
                     row.ConstantItem(6);
                     KpiStatPill(row.RelativeItem(), red.ToString(), "Needs Improvement < 40 %", "#EF5350", "#EF535025");
                     row.ConstantItem(6);
@@ -1091,9 +947,9 @@ namespace HealthIntelligence.Common.Implementation
         }
 
 
-        // ─────────────────────────────────────────────────────────────────────────────
-        //  GROUP SECTION  ·  bar chart on top, two-column legend table below
-        // ─────────────────────────────────────────────────────────────────────────────
+        // -----------------------------------------------------------------------------
+        //  GROUP SECTION  �  bar chart on top, two-column legend table below
+        // -----------------------------------------------------------------------------
 
         void DrawKpiGroupSection(IContainer container, List<KpiChartItem> group, int offset)
         {
@@ -1101,7 +957,7 @@ namespace HealthIntelligence.Common.Implementation
                 .Border(1).BorderColor("#C5D9D0")
                 .Column(col =>
                 {
-                    // bar chart — numbers printed below each bar
+                    // bar chart � numbers printed below each bar
                     col.Item().Height(148).Element(x => DrawKpiBarChart(x, group, offset));
 
                     // hairline separator between chart and table
@@ -1113,9 +969,9 @@ namespace HealthIntelligence.Common.Implementation
         }
 
 
-        // ─────────────────────────────────────────────────────────────────────────────
-        //  BAR CHART  ·  sequential index numbers below each bar (not cryptic codes)
-        // ─────────────────────────────────────────────────────────────────────────────
+        // -----------------------------------------------------------------------------
+        //  BAR CHART  �  sequential index numbers below each bar (not cryptic codes)
+        // -----------------------------------------------------------------------------
         void DrawKpiBarChart(IContainer container, List<KpiChartItem> data, int offset)
         {
             container
@@ -1136,7 +992,7 @@ namespace HealthIntelligence.Common.Implementation
                     float innerW = barW * 0.62f;
                     float barGap = (barW - innerW) / 2f;
 
-                    // ── background grid lines ─────────────────────────────────────
+                    // -- background grid lines -------------------------------------
                     using var gridPaint = new SKPaint
                     {
                         Color = SKColor.Parse("#F2F7F4"),
@@ -1158,7 +1014,7 @@ namespace HealthIntelligence.Common.Implementation
                         canvas.DrawText($"{(int)pct}", lp + 2, gy - 2, gridLblPaint);
                     }
 
-                    // ── dashed 70 % performance threshold ────────────────────────
+                    // -- dashed 70 % performance threshold ------------------------
                     float y70 = tp + chartH - 0.70f * chartH;
                     using var threshPaint = new SKPaint
                     {
@@ -1169,7 +1025,7 @@ namespace HealthIntelligence.Common.Implementation
                     };
                     canvas.DrawLine(lp, y70, lp + chartW, y70, threshPaint);
 
-                    // ── paint reused across bars ──────────────────────────────────
+                    // -- paint reused across bars ----------------------------------
                     using var valLblPaint = new SKPaint
                     { TextSize = 6.5f, IsAntialias = true, TextAlign = SKTextAlign.Center };
                     using var numLblPaint = new SKPaint
@@ -1180,10 +1036,10 @@ namespace HealthIntelligence.Common.Implementation
                         TextAlign = SKTextAlign.Center
                     };
 
-                    // ── bars ──────────────────────────────────────────────────────
+                    // -- bars ------------------------------------------------------
                     for (int i = 0; i < n; i++)
                     {
-                        float v = (float)(data[i].Value ?? 0);
+                        float v = (float)(data[i].Value);
                         float bx = lp + i * barW + barGap;
                         float bh = v / 100f * chartH;
                         float by = tp + chartH - bh;
@@ -1224,7 +1080,7 @@ namespace HealthIntelligence.Common.Implementation
                         valLblPaint.Color = textcolor;
                         canvas.DrawText($"{v:F1}%", bx + innerW / 2f, vly, valLblPaint);
 
-                        // ── sequential index number below bar (e.g. "1", "2", …) ──
+                        // -- sequential index number below bar (e.g. "1", "2", �) --
                         // Users cross-reference this with the legend table below.
                         canvas.DrawText(
                             $"{offset + i + 1}",
@@ -1235,9 +1091,9 @@ namespace HealthIntelligence.Common.Implementation
                 });
         }
 
-        // ─────────────────────────────────────────────────────────────────────────────
-        //  REFERENCE TABLE  ·  two-column layout, colored status bar, full KPI names
-        // ─────────────────────────────────────────────────────────────────────────────
+        // -----------------------------------------------------------------------------
+        //  REFERENCE TABLE  �  two-column layout, colored status bar, full KPI names
+        // -----------------------------------------------------------------------------
         void DrawKpiReferenceTable(IContainer container, List<KpiChartItem> group, int offset)
         {
             container.Row(row =>
@@ -1248,13 +1104,13 @@ namespace HealthIntelligence.Common.Implementation
 
 
         /// <summary>
-        /// Renders all KPIs as paired cards — 2 per row.
+        /// Renders all KPIs as paired cards � 2 per row.
         /// Each card: coloured header (code, name, score) + 5-row interpretation mini-table
         /// with the matching range row highlighted.
         /// </summary>
         void DrawKpiInterpretationSection(IContainer container, List<KpiChartItem> allItems,int offset)
         {
-            // ── split into rows of 2 ─────────────────────────────────────────────
+            // -- split into rows of 2 ---------------------------------------------
             var pairs = allItems
                 .Select((item, idx) => (item, idx))
                 .GroupBy(t => t.idx / 2)
@@ -1283,17 +1139,10 @@ namespace HealthIntelligence.Common.Implementation
         }
         void DrawKpiCard(ColumnDescriptor card, KpiChartItem kpi, int num)
         {
-            var value = kpi.Value ?? 0;
+            var value = kpi.Value;
             var v = value == 100 ? Math.Round(value, 0) : Math.Round(value, 1);
-            string accent = "";
-            if (kpi.ShortName == "PRUPS")
-            {
-                accent = GetPrupsColor((float)v);
-            }
-            else
-            {
-                accent = GetBarColor((float)v);
-            }         
+            string accent = GetBarColor((float)v);
+
             var interps = kpi.InterPretation ?? new List<FiveLevelInterpretationsDto>();
             FiveLevelInterpretationsDto? matched = interps.FirstOrDefault(x =>
                 x.MinRange.HasValue && x.MaxRange.HasValue &&
@@ -1311,8 +1160,8 @@ namespace HealthIntelligence.Common.Implementation
                 .Border(0.5f).BorderColor(accent)
                 .Column(inner =>
                 {
-                    // ── 1. KPI header band ──────────────────────────────────────────
-                    // Definition removed from here — gets its own strip below
+                    // -- 1. KPI header band ------------------------------------------
+                    // Definition removed from here � gets its own strip below
                     inner.Item()
                          .Background(accent)
                          .PaddingHorizontal(5).PaddingVertical(3)
@@ -1347,7 +1196,7 @@ namespace HealthIntelligence.Common.Implementation
                               .FontSize(9.5f).Bold().FontColor("#FFFFFF");
                          });
 
-                    // ── 2. Definition strip ─────────────────────────────────────────
+                    // -- 2. Definition strip -----------------------------------------
                     // Shown only when definition exists; wraps gracefully for long text
                     if (!string.IsNullOrWhiteSpace(kpi.Definition))
                     {
@@ -1366,7 +1215,7 @@ namespace HealthIntelligence.Common.Implementation
                                    .FontSize(4.5f).Bold()
                                    .FontColor(accent);
 
-                                 // Definition text — italic, wraps, keeps card compact
+                                 // Definition text � italic, wraps, keeps card compact
                                  dr.RelativeItem()
                                    .Text(kpi.Definition)
                                    .FontSize(5.5f).Italic()
@@ -1375,7 +1224,7 @@ namespace HealthIntelligence.Common.Implementation
                              });
                     }
 
-                    // ── 3. Interpretation column sub-header ─────────────────────────
+                    // -- 3. Interpretation column sub-header -------------------------
                     inner.Item()
                          .Background("#EBEBEB")
                          .PaddingHorizontal(4).PaddingVertical(2)
@@ -1389,7 +1238,7 @@ namespace HealthIntelligence.Common.Implementation
                                .FontSize(5.5f).Bold().FontColor("#666666");
                          });
 
-                    // ── 4. Five interpretation rows ─────────────────────────────────
+                    // -- 4. Five interpretation rows ---------------------------------
                     for (int i = 0; i < interps.Count; i++)
                     {
                         var interp = interps[i];
@@ -1400,8 +1249,8 @@ namespace HealthIntelligence.Common.Implementation
                         string condFg = isHit ? "#FFFFFF" : "#333333";
 
                         string rangeStr = (interp.MinRange.HasValue && interp.MaxRange.HasValue)
-                            ? $"{Math.Round(interp.MinRange.Value, 0)}–{Math.Round(interp.MaxRange.Value, 0)}"
-                            : "—";
+                            ? $"{Math.Round(interp.MinRange.Value, 0)}�{Math.Round(interp.MaxRange.Value, 0)}"
+                            : "�";
 
                         inner.Item()
                              .BorderBottom(0.3f).BorderColor("#E0E0E0")
@@ -1414,7 +1263,7 @@ namespace HealthIntelligence.Common.Implementation
                                   .FontSize(6f).FontColor(rangeFg);
 
                                  r.RelativeItem()
-                                  .Text(interp.Condition ?? "—")
+                                  .Text(interp.Condition ?? "�")
                                   .FontSize(6.5f)
                                   .Bold()
                                   .FontColor(condFg);
@@ -1423,34 +1272,6 @@ namespace HealthIntelligence.Common.Implementation
                 });
         }
 
-
-        // ── Top tow  kpis ────────────────────────────────
-
-        void DrawTopKpiBand(IContainer container, List<KpiChartItem> kpis)
-        {
-            // ── split into rows of 2 ─────────────────────────────────────────────
-            var pairs = kpis
-                .Select((item, idx) => (item, idx))
-                .GroupBy(t => t.idx / 2)
-                .Select(g => g.ToList())
-                .ToList();
-
-            container.Column(col =>
-            {
-                foreach (var pair in pairs)
-                {
-                    col.Item().Height(155).Row(row =>
-                    {
-                        foreach (var (kpi, idx) in pair)
-                            row.RelativeItem().Column(card => DrawKpiCard(card, kpi, idx + 1));
-
-                        // pad last row if odd number of KPIs
-                        if (pair.Count == 1)
-                            row.RelativeItem().Element(_ => { });
-                    });
-                }
-            });
-        }
         static void KpiStatPill(
             IContainer container, string value, string label, string valueColor, string bg)
         {
@@ -1466,13 +1287,13 @@ namespace HealthIntelligence.Common.Implementation
                 });
         }
 
-        // ─────────────────────────────────────────────────────────────────────────────
-        //  PILLAR OVERVIEW PAGE  ·  redesigned horizontal bar layout + ring chart
-        // ─────────────────────────────────────────────────────────────────────────────
+        // -----------------------------------------------------------------------------
+        //  PILLAR OVERVIEW PAGE  �  redesigned horizontal bar layout + ring chart
+        // -----------------------------------------------------------------------------
 
         void PillarLineChartPage(IContainer container, List<PillarChartItem> pillars)
         {
-            var data = pillars.Where(p => p.Value.HasValue).Take(14).ToList();
+            var data = pillars.Where(p => p.Value.HasValue).Take(23).ToList();
             if (!data.Any()) return;
 
             float avg = (float)data.Average(x => x.Value ?? 0);
@@ -1483,8 +1304,8 @@ namespace HealthIntelligence.Common.Implementation
             {
                 col.Spacing(10);
 
-                // ── two-column layout: ring chart (left) + bar list (right) ──────
-                col.Item().Height(360).Row(row =>
+                // -- two-column layout: ring chart (left) + bar list (right) ------
+                col.Item().Height(500).Row(row =>
                 {
                     // Left: radial ring chart
                     row.RelativeItem(5).Element(x => DrawPillarsRadialChart(x, data));
@@ -1496,13 +1317,13 @@ namespace HealthIntelligence.Common.Implementation
                         DrawPillarHorizontalBars(x, data));
                 });
 
-                // ── bottom: avg score + best/worst ───────────────────────────────
+                // -- bottom: avg score + best/worst -------------------------------
                 col.Item().Element(x =>
                     DrawPillarFooterBand(x, avg, best, worst));
             });
         }
 
-        // ── horizontal bar list for pillars ─────────────────────────────────────────
+        // -- horizontal bar list for pillars -----------------------------------------
 
         static void DrawPillarHorizontalBars(IContainer container, List<PillarChartItem> data)
         {
@@ -1528,7 +1349,7 @@ namespace HealthIntelligence.Common.Implementation
                         {
                             // Pillar label
                             row.ConstantItem(102).AlignMiddle()
-                                .Text(Shorten(item.Name ?? item.ShortName ?? "—", 18))
+                                .Text(Shorten(item.Name ?? item.ShortName ?? "�", 18))
                                 .FontSize(8).FontColor("#37474F");
 
                             // Bar track
@@ -1562,7 +1383,7 @@ namespace HealthIntelligence.Common.Implementation
                 });
         }
 
-        // ── footer band: avg + best + worst ─────────────────────────────────────────
+        // -- footer band: avg + best + worst -----------------------------------------
 
         static void DrawPillarFooterBand(
             IContainer container, float avg, PillarChartItem best, PillarChartItem worst)
@@ -1597,10 +1418,10 @@ namespace HealthIntelligence.Common.Implementation
                         {
                             r.AutoItem()
                                 .Background("#2E7D32").Padding(3)
-                                .Text("▲ BEST").FontSize(7).Bold().FontColor(Colors.White);
+                                .Text("? BEST").FontSize(7).Bold().FontColor(Colors.White);
                             r.ConstantItem(6);
                             r.RelativeItem()
-                                .Text(Shorten(best.Name ?? "—", 26))
+                                .Text(Shorten(best.Name ?? "�", 26))
                                 .FontSize(9).Bold().FontColor("#1B5E20");
                         });
                         c.Item().PaddingTop(4)
@@ -1620,10 +1441,10 @@ namespace HealthIntelligence.Common.Implementation
                         {
                             r.AutoItem()
                                 .Background("#C62828").Padding(3)
-                                .Text("▼ LOWEST").FontSize(7).Bold().FontColor(Colors.White);
+                                .Text("? LOWEST").FontSize(7).Bold().FontColor(Colors.White);
                             r.ConstantItem(6);
                             r.RelativeItem()
-                                .Text(Shorten(worst.Name ?? "—", 26))
+                                .Text(Shorten(worst.Name ?? "�", 26))
                                 .FontSize(9).Bold().FontColor("#B71C1C");
                         });
                         c.Item().PaddingTop(4)
@@ -1632,11 +1453,11 @@ namespace HealthIntelligence.Common.Implementation
             });
         }
 
-        // ── radial ring chart (left panel) ──────────────────────────────────────────
+        // -- radial ring chart (left panel) ------------------------------------------
 
         void DrawPillarsRadialChart(IContainer container, List<PillarChartItem> pillars)
         {
-            var data = pillars.Where(p => p.Value.HasValue).Take(14).ToList();
+            var data = pillars.Where(p => p.Value.HasValue).Take(23).ToList();
             if (!data.Any()) return;
 
             float avg = (float)data.Average(x => x.Value ?? 0);
@@ -1718,7 +1539,7 @@ namespace HealthIntelligence.Common.Implementation
                             ringThick / 2f + 1.5f, dotPaint);
                     }
 
-                    // ── centre: average score ──────────────────────────────────
+                    // -- centre: average score ----------------------------------
                     using var circleFill = new SKPaint
                     {
                         Color = SKColor.Parse("#12352f"),
@@ -1756,15 +1577,15 @@ namespace HealthIntelligence.Common.Implementation
                     };
                     canvas.DrawText("avg", cx, cy + avgNumPaint.TextSize * 0.36f + avgLblPaint.TextSize + 1f, avgLblPaint);
 
-                    // ── legend on the right side ───────────────────────────────
-                    float legendX = cx + Math.Min(cx, cy) + 2f;  // just outside chart — won't fit; draw below instead
+                    // -- legend on the right side -------------------------------
+                    float legendX = cx + Math.Min(cx, cy) + 2f;  // just outside chart � won't fit; draw below instead
                                                                  // (legend is in the horizontal bar panel on the right; no need to repeat here)
                 });
         }
 
-        // ─────────────────────────────────────────────────────────────────────────────
+        // -----------------------------------------------------------------------------
         //  HEADERS / FOOTERS
-        // ─────────────────────────────────────────────────────────────────────────────
+        // -----------------------------------------------------------------------------
         void CountryComposeHeader(
             IContainer container,
             AiCountrySummeryDto data,
@@ -1773,25 +1594,25 @@ namespace HealthIntelligence.Common.Implementation
         {
             var logoPath = Path.Combine(
                 Directory.GetCurrentDirectory(),
-                "wwwroot/assets/images/Logo-health.png");
+                "wwwroot/assets/images/pem.png");
 
             container.Column(column =>
             {
-                column.Item().Background("#134534").Padding(12).Row(row =>
+                column.Item().Background("#003160").Padding(8).Row(row =>
                 {
                     // Left content
                     row.RelativeItem().Column(col =>
                     {
                         col.Spacing(2);
 
-                        string title = string.IsNullOrEmpty(pillarName) ? data.CountryName : pillarName;
+                        string? title = string.IsNullOrEmpty(pillarName) ? data.CountryName : pillarName!;
 
                         col.Item().Text(title)
                             .FontSize(21)
                             .Bold()
                             .FontColor(Colors.White);
 
-                        col.Item().Text($"{data.CountryName}, {data.Continent}, {data.Region} | Data Year: {data.ScoringYear}")
+                        col.Item().Text($"{data.CountryName}, {data.Continent} | Data Year: {data.Year}")
                             .FontSize(10)
                             .FontColor("#E8F3F0");
 
@@ -1813,17 +1634,17 @@ namespace HealthIntelligence.Common.Implementation
                 // Divider
                 column.Item().LineHorizontal(1).LineColor("#d9e2df");
             });
-        }
+        }        
 
-        void PillarComposeHeader(IContainer container, AiCountryPillarReponse data)
+        void PillarComposeHeader(IContainer container, AiCountryPillarResponse data)
         {
             var logoPath = Path.Combine(
                 Directory.GetCurrentDirectory(),
-                "wwwroot/assets/images/Logo-health.png");
+                "wwwroot/assets/images/pem.png");
 
             container.Column(column =>
             {
-                column.Item().Background("#134534").Padding(12).Row(row =>
+                column.Item().Background("#003160").Padding(12).Row(row =>
                 {
                     // Left content
                     row.RelativeItem().Column(col =>
@@ -1835,7 +1656,7 @@ namespace HealthIntelligence.Common.Implementation
                             .Bold()
                             .FontColor(Colors.White);
 
-                        col.Item().Text($"{data.CountryName}, {data.Continent}, {data.Region} | Data Year: {data.AIDataYear}")
+                        col.Item().Text($"{data.CountryName}, {data.Continent} | Data Year: {data.AIDataYear}")
                             .FontSize(10)
                             .FontColor("#E8F3F0");
 
@@ -1845,11 +1666,11 @@ namespace HealthIntelligence.Common.Implementation
                     });
 
                     // Logo
-                    row.ConstantItem(60)
+                    row.ConstantItem(90)
                         .AlignRight()
                         .AlignMiddle()
                         .Background(Colors.White)
-                        .Padding(4)
+                        .Padding(1)
                         .Image(logoPath)
                         .FitArea();
                 });
@@ -1874,68 +1695,278 @@ namespace HealthIntelligence.Common.Implementation
                 });
             });
         }
+        string SanitizeText(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+                return input;
 
-        // ─────────────────────────────────────────────────────────────────────────────
-        //  CONTENT SECTIONS
-        // ─────────────────────────────────────────────────────────────────────────────
+            return input
+                .Replace('\u2011', '-') // non-breaking hyphen
+                .Replace('\u2010', '-') // hyphen
+                .Replace('\u2012', '-') // figure dash
+                .Replace('\u2013', '-') // en dash
+                .Replace('\u2014', '-') // em dash
+                .Replace('\u2212', '-') // minus sign
+                .Replace('\u00AD', ' ') // soft hyphen (invisible troublemaker)
+                .Normalize(NormalizationForm.FormKC);
+        }
 
-        void CountrySummeryComposeContent(
-            IContainer container, AiCountrySummeryDto data, UserRole userRole)
+        void CountrySummeryComposeContent(IContainer container, AiCountrySummeryDto data, UserRole userRole)
         {
             container.PaddingTop(4).Column(column =>
             {
+                // =========================
+                // PROGRESS SECTION
+                // =========================
 
-                column.Item().PaddingTop(10).Element(c => CountryProgressSection(c, data, userRole));
+                column.Item().PaddingTop(10)
+                    .Element(c => CountryProgressSection(c, data, userRole));
 
+                // =========================
+                // EXECUTIVE SUMMARY
+                // =========================
                 column.Item().PaddingTop(10).Element(c =>
-                    PillarContentSection(c, "Executive Summary", data.EvidenceSummary, "#163329"));
+                    PillarContentSection(c, "Executive Summary", SanitizeText(data.EvidenceSummary), "#163329"));
 
-                column.Item().PageBreak();
-                column.Item().PaddingTop(10).Element(c =>
-                    PillarContentSection(c, "Cross-Pillar System Dynamics", data.CrossPillarPatterns, "#6e9688"));
-                column.Item().PaddingTop(10).Element(c =>
-                    PillarContentSection(c, "Institutional Capacity Assessment", data.InstitutionalCapacity, "#0d8057"));
+                // =====================================================
+                // Current situation
+                // =====================================================
+                if(!string.IsNullOrEmpty(data.KeyDevelopments))
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Key Developments", SanitizeText(data.KeyDevelopments), "#1f4e79"));
+                if (!string.IsNullOrEmpty(data.CriticalRisks))
+                    column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Critical Risks", SanitizeText(data.CriticalRisks), "#2e75b6"));
+                if (!string.IsNullOrEmpty(data.Gaps))
+                    column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Gaps", SanitizeText(data.Gaps), "#5b9bd5"));
+
+
+
+
+
+                // =====================================================
+                // EVIDENCE SECTION
+                // =====================================================              
+
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Structural Evidence", SanitizeText(data.StructuralEvidence), "#e6ccff"));
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Operational Evidence", SanitizeText(data.OperationalEvidence), "#c2f0f0"));
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Outcome Evidence", SanitizeText(data.OutcomeEvidence), "#ffe6cc"));
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Perception Evidence", SanitizeText(data.PerceptionEvidence), "#e6f7ff"));
+
+                // =====================================================
+                // INTEGRITY CHECKS
+                // =====================================================
+                //column.Item().PageBreak();
+
+                //column.Item().PaddingTop(15).Text("Integrity Checks")
+                //    .FontSize(16).Bold();
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Temporal Scope", SanitizeText(data.TemporalScope), "#d9e6ff"));
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Distortion Screening", SanitizeText(data.DistortionScreening), "#f2d9e6"));
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Relational Integrity", SanitizeText(data.RelationalIntegrity), "#f0ffe6"));
+
+                // =====================================================
+                // STRESS TESTS
+                // =====================================================
+                //column.Item().PageBreak();
+
+                //column.Item().PaddingTop(15).Text("Stress Tests")
+                //    .FontSize(16).Bold();
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Political Shock", SanitizeText(data.PoliticalShock), "#ffd9cc"));
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Economic Shock", SanitizeText(data.EconomicShock), "#fff2cc"));
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Narrative Shock", SanitizeText(data.NarrativeShock), "#e6f2ff"));
+                //column.Item().PageBreak();
+
+                //column.Item().PaddingTop(8).Element(c =>
+                //    PillarContentSection(c, "Overall Stress Resilience", SanitizeText(data.OverallStressResilience), "#e6ffe6"));
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Stress Score Adjustment", SanitizeText(data.StressScoreAdjustment), "#ffe6f2"));
+
+                // =====================================================
+                // GOVERNANCE ADJUSTMENTS
+                // =====================================================
+                //column.Item().PageBreak();
+
+                //column.Item().PaddingTop(15).Text("Governance Adjustments")
+                //    .FontSize(16).Bold();
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Inequality Adjustment", SanitizeText(data.InequalityAdjustment), "#f9e6ff"));
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Opacity Risk", SanitizeText(data.OpacityRisk), "#fff0e6"));
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Non Compensation Note", SanitizeText(data.NonCompensationNote), "#e6fff9"));
+
+                // =====================================================
+                // SYSTEM ANALYSIS
+                // =====================================================
+                //column.Item().PageBreak();
+
+                //column.Item().PaddingTop(15).Text("System Analysis")
+                //    .FontSize(16).Bold();
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Cross-Pillar System Dynamics", SanitizeText(data.CrossPillarPatterns), "#6e9688"));
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Institutional Capacity Assessment", SanitizeText(data.InstitutionalCapacity), "#0d8057"));
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Equity Assessment", SanitizeText(data.EquityAssessment), "#e8f5e9"));
 
                 //column.Item().PageBreak();
-                //column.Item().PaddingTop(10).Element(c =>
-                //    PillarContentSection(c, "Equity Assessment", data.EquityAssessment, "#a4bab2"));
-                //column.Item().PaddingTop(10).Element(c =>
-                //    PillarContentSection(c, "Sustainability Outlook", data.SustainabilityOutlook, "#373d3b"));
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Conflict Risk Outlook", SanitizeText(data.ConflictRiskOutlook), "#fce4ec"));
 
-                column.Item().PageBreak();
-                column.Item().PaddingTop(10).Element(c =>
-                    PillarContentSection(c, "Strategic Policy Priorities", data.StrategicRecommendations, "#2e9975"));
-                column.Item().PaddingTop(10).Element(c =>
-                    PillarContentSection(c, "Why This Assessment Matters", data.DataTransparencyNote, "#63a68f"));
+                // =====================================================
+                // STRATEGIC OUTPUT
+                // =====================================================
+                //column.Item().PageBreak();                
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Strategic Policy Priorities", SanitizeText(data.StrategicRecommendation), "#2e9975"));
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Why This Assessment Matters", SanitizeText(data.DataTransparencyNote), "#63a68f"));
             });
         }
 
         void PillarComposeContent(
-            IContainer container, AiCountryPillarReponse data, UserRole userRole)
+     IContainer container, AiCountryPillarResponse data, UserRole userRole)
         {
             container.PaddingTop(8).Column(column =>
             {
-                column.Item().PaddingTop(10).Element(c => PillarProgressSection(c, data, userRole));
+                // =========================
+                // PROGRESS SECTION
+                // =========================
+                column.Item().PaddingTop(10)
+                    .Element(c => PillarProgressSection(c, data, userRole));
 
+                // =========================
+                // EXECUTIVE SUMMARY
+                // =========================
                 column.Item().PaddingTop(10).Element(c =>
-                    PillarContentSection(c, "Evidence Summary", data.EvidenceSummary, "#163329"));
+                    PillarContentSection(c, "Executive Summary", SanitizeText(data.EvidenceSummary), "#163329"));
 
-                column.Item().PageBreak();
-                column.Item().PaddingTop(10).Element(c =>
-                    PillarContentSection(c, "Red Flags", data.RedFlags, "#ED561A", "#eb4634"));
-                column.Item().PaddingTop(10).Element(c =>
-                    PillarContentSection(c, "Geographic Equity Note", data.GeographicEquityNote, "#0d8057"));
+               
+                // =====================================================
+                // EVIDENCE SECTION
+                // =====================================================
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Structural Evidence", SanitizeText(data.StructuralEvidence), "#1f4e79"));
 
-                column.Item().PageBreak();
-                column.Item().PaddingTop(10).Element(c =>
-                    PillarContentSection(c, "Institutional Assessment", data.InstitutionalAssessment, "#2e9975"));
-                column.Item().PaddingTop(10).Element(c =>
-                    PillarContentSection(c, "Analytical Foundations and Data Integration", data.DataGapAnalysis, "#a4bab2"));
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Operational Evidence", SanitizeText(data.OperationalEvidence), "#2e75b6"));
 
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Outcome Evidence", SanitizeText(data.OutcomeEvidence), "#5b9bd5"));
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Perception Evidence", SanitizeText(data.PerceptionEvidence), "#9dc3e6"));
+
+                // =====================================================
+                // INTEGRITY CHECKS
+                // =====================================================
+                //column.Item().PageBreak();
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Temporal Scope", SanitizeText(data.TemporalScope), "#5f497a"));
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Distortion Screening", SanitizeText(data.DistortionScreening), "#8064a2"));
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Relational Integrity", SanitizeText(data.RelationalIntegrity), "#b1a0c7"));
+
+                // =====================================================
+                // STRESS TESTS
+                // =====================================================
+                //column.Item().PageBreak();
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Political Shock", SanitizeText(data.StressPoliticalShock), "#7f6000"));
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Economic Shock", SanitizeText(data.StressEconomicShock), "#bf9000"));
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Narrative Shock", SanitizeText(data.StressNarrativeShock), "#ffd966"));
+
+                //column.Item().PageBreak();
+
+                //column.Item().PaddingTop(8).Element(c =>
+                //    PillarContentSection(c, "Overall Stress Resilience", SanitizeText(data.StressOverallResilience), "#c55a11"));
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Stress Score Adjustment", SanitizeText(data.StressScoreAdjustment), "#e26b0a"));
+
+                // =====================================================
+                // GOVERNANCE ADJUSTMENTS
+                // =====================================================
+                //column.Item().PageBreak();
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Inequality Adjustment", SanitizeText(data.InequalityAdjustment), "#274e13"));
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Opacity Risk", SanitizeText(data.OpacityRisk), "#38761d"));
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Non Compensation Note", SanitizeText(data.NonCompensationNote), "#6aa84f"));
+
+                // =====================================================
+                // ALERTS & EQUITY
+                // =====================================================
+                //column.Item().PageBreak();
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Red Flags", SanitizeText(data.RedFlag), "#ED561A", "#eb4634"));
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Geographic Equity Note", SanitizeText(data.GeographicEquityNote), "#0d8057"));
+
+                // =====================================================
+                // SYSTEM / INSTITUTIONAL ANALYSIS
+                // =====================================================
+                //column.Item().PageBreak();
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Institutional Assessment", SanitizeText(data.InstitutionalAssessment), "#2e9975"));
+
+                column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Analytical Foundations and Data Integration", SanitizeText(data.DataGapAnalysis), "#a4bab2"));
+
+                // =====================================================
+                // DATA SOURCES
+                // =====================================================
                 if (data.DataSourceCitations?.Any() == true)
                 {
                     column.Item().PageBreak();
-                    column.Item().PaddingTop(10).Element(c =>
+
+                    column.Item().PaddingTop(8).Element(c =>
                         DataSourcesSection(c, data.DataSourceCitations.ToList()));
                 }
             });
@@ -1955,7 +1986,7 @@ namespace HealthIntelligence.Common.Implementation
                         .SemiBold()
                         .FontColor("#1F2937");
 
-                    column.Item().PaddingTop(15).Column(col =>
+                    column.Item().PaddingTop(8).Column(col =>
                     {
                         // Score Section
                         PillarProgressBar(col, "Total Score", data.AIProgress, "#22A06B");
@@ -1977,9 +2008,9 @@ namespace HealthIntelligence.Common.Implementation
 
                         RankRowModern(col, "Global Rank", data.Rank, data.TotalCountry, "#16A34A");
 
-                        col.Item().PaddingTop(6);
+                        col.Item().PaddingTop(2);
 
-                        RankRowModern(col, "Region Rank", data.RegionRank, data.RegionTotalCountry, "#2563EB");
+                        RankRowModern(col, $"{data.Region} Region Rank", data.RegionRank, data.RegionTotalCountry, "#2563EB");
                     });
                 });
         }
@@ -1996,6 +2027,7 @@ namespace HealthIntelligence.Common.Implementation
                 {
                     e.PaddingHorizontal(10)
                      .PaddingVertical(4)
+                     .Padding(2)
                      .Background("#F9FAFB")
                      .Border(1)
                      .BorderColor("#E5E7EB")
@@ -2020,7 +2052,7 @@ namespace HealthIntelligence.Common.Implementation
         }
 
         void PillarProgressSection(
-            IContainer container, AiCountryPillarReponse data, UserRole userRole, bool isCountry = false)
+            IContainer container, AiCountryPillarResponse data, UserRole userRole, bool isCity = false)
         {
             container
                 .Background(Colors.White)
@@ -2028,7 +2060,7 @@ namespace HealthIntelligence.Common.Implementation
                 .Padding(18)
                 .Column(column =>
                 {
-                    column.Item().Text(isCountry ? "Total Overview" : "Pillar Score")
+                    column.Item().Text(isCity ? "Total Overview" : "Pillar Score")
                         .FontSize(16)
                         .SemiBold()
                         .FontColor("#1F2937");
@@ -2072,8 +2104,6 @@ namespace HealthIntelligence.Common.Implementation
             });
         }
 
-
-
         /// <summary>Generic titled content block with accent bar.</summary>
         static void PillarContentSection(
             IContainer container, string title, string content, string accentColor, string textcolor = "#424242")
@@ -2098,89 +2128,127 @@ namespace HealthIntelligence.Common.Implementation
 
         void DataSourcesSection(IContainer container, List<AIDataSourceCitation> sources)
         {
+            // ?? Sanitize entire list first (best practice)
+            var safeSources = sources?
+                .Select(s => new AIDataSourceCitation
+                {
+                    SourceName = SanitizeText(s.SourceName),
+                    SourceType = SanitizeText(s.SourceType),
+                    DataExtract = SanitizeText(s.DataExtract),
+                    SourceURL = SanitizeText(s.SourceURL),
+                    TrustLevel = s.TrustLevel,
+                    DataYear = s.DataYear
+                })
+                .ToList() ?? new List<AIDataSourceCitation>();
+
             container.Column(column =>
             {
+                // Header
                 column.Item().Row(row =>
                 {
                     row.ConstantItem(5).Background("#396154");
-                    row.RelativeItem().Background("#F5F5F5").Padding(12)
-                        .Text("Data Source Citations").FontSize(15).Bold().FontColor("#212121");
+
+                    row.RelativeItem()
+                        .Background("#F5F5F5")
+                        .Padding(12)
+                        .Text(SanitizeText("Data Source Citations")) // ?? safe
+                        .FontSize(15).Bold().FontColor("#212121");
                 });
 
+                // Content Box
                 column.Item().PaddingTop(10)
-                    .Background(Colors.White).Border(1).BorderColor("#E0E0E0").Padding(15)
+                    .Background(Colors.White)
+                    .Border(1)
+                    .BorderColor("#E0E0E0")
+                    .Padding(15)
                     .Column(col =>
                     {
-                        foreach (var source in sources.Take(10))
+                        foreach (var source in safeSources.Take(10))
                         {
                             col.Item().PaddingBottom(15).Column(sourceCol =>
                             {
+                                // -- Row 1: Name + Type ---------------------
                                 sourceCol.Item().Row(row =>
                                 {
-                                    row.RelativeItem().Text(source.SourceName)
+                                    row.RelativeItem()
+                                        .Text(source.SourceName ?? "-")
                                         .FontSize(11).Bold().FontColor("#2c423b");
+
                                     row.ConstantItem(100).AlignRight()
                                         .Background(GetSourceTypeBadgeColor(source.SourceType))
                                         .Padding(3)
-                                        .Text(source.SourceType).FontSize(8).FontColor(Colors.White);
+                                        .Text(source.SourceType ?? "-")
+                                        .FontSize(8)
+                                        .FontColor(Colors.White);
                                 });
 
+                                // -- Row 2: Trust + Year --------------------
                                 sourceCol.Item().PaddingTop(4).Row(row =>
                                 {
-                                    row.AutoItem().Text($"Trust Level: {source.TrustLevel}/7")
+                                    row.AutoItem()
+                                        .Text(SanitizeText($"Trust Level: {source.TrustLevel}/7"))
                                         .FontSize(9).FontColor("#757575");
-                                    row.AutoItem().PaddingLeft(15).Text($"Year: {source.DataYear}")
+
+                                    row.AutoItem()
+                                        .PaddingLeft(15)
+                                        .Text(SanitizeText($"Year: {source.DataYear}"))
                                         .FontSize(9).FontColor("#757575");
                                 });
 
-                                if (!string.IsNullOrEmpty(source.DataExtract))
+                                // -- Data Extract ---------------------------
+                                if (!string.IsNullOrWhiteSpace(source.DataExtract))
+                                {
                                     sourceCol.Item().PaddingTop(6)
                                         .Text(TruncateText(source.DataExtract, 200))
-                                        .FontSize(9).FontColor("#616161").Italic();
+                                        .FontSize(9)
+                                        .FontColor("#616161")
+                                        .Italic();
+                                }
 
-                                if (!string.IsNullOrEmpty(source.SourceURL))
+                                // -- URL ------------------------------------
+                                if (!string.IsNullOrWhiteSpace(source.SourceURL))
+                                {
                                     sourceCol.Item().PaddingTop(4)
-                                        .Text(source.SourceURL).FontSize(8).FontColor("#305246").Underline();
+                                        .Text(source.SourceURL)
+                                        .FontSize(8)
+                                        .FontColor("#305246")
+                                        .Underline();
+                                }
                             });
 
-                            if (source != sources.Last())
-                                col.Item().PaddingBottom(10).LineHorizontal(1).LineColor("#EEEEEE");
+                            // Divider
+                            if (source != safeSources.Last())
+                            {
+                                col.Item()
+                                    .PaddingBottom(10)
+                                    .LineHorizontal(1)
+                                    .LineColor("#EEEEEE");
+                            }
                         }
                     });
             });
         }
 
-        // ─────────────────────────────────────────────────────────────────────────────
+        // -----------------------------------------------------------------------------
         //  COLOR / FORMAT UTILITIES  (all static, reusable across pages)
-        // ─────────────────────────────────────────────────────────────────────────────
+        // -----------------------------------------------------------------------------
+
 
         static SKColor GetColor(float value)
         {
-            if (value >= 80) return SKColor.Parse("#2E7D32");
-            else if (value >= 60) return SKColor.Parse("#469449");
-            else if (value >= 40) return SKColor.Parse("#F9A825");
-            else if (value >= 20) return SKColor.Parse("#c66528");
-
-            return SKColor.Parse("#C62828");
+            if (value >= 80) return SKColor.Parse("#C62828");
+            else if (value >= 60) return SKColor.Parse("#c66528");
+            else if(value >= 40) return SKColor.Parse("#F9A825");
+            else if(value >= 20) return SKColor.Parse("#469449");
+            return SKColor.Parse("#2E7D32");
         }
-
         static string GetBarColor(float value)
         {
-            if (value >= 80) return "#2E7D32"; // Dark Green
-            else if (value >= 60) return "#469449"; // Medium Green
-            else if (value >= 40) return "#F9A825"; // Amber Yellow
-            else if (value >= 20) return "#C66528"; // Orange Brown
-
-            return "#C62828"; // Red
-        }
-        static string GetPrupsColor(float value)
-        {
-            if (value >= 2) return "#2E7D32";      // Exceptional Peer Performance
-            else if (value >= 1) return "#469449"; // Strong Peer Performance
-            else if (value >= -1) return "#F9A825"; // Typical Peer Performance
-            else if (value >= -2) return "#C66528"; // Below-Average Peer Performance
-
-            return "#C62828"; // Severe Underperformance
+            if (value >= 80) return "#C62828";
+            else if (value >= 60) return "#c66528";
+            else if (value >= 40) return "#F9A825";
+            else if (value >= 20) return "#469449";
+            return "#2E7D32";
         }
 
         static string GetSourceTypeBadgeColor(string sourceType) => sourceType?.ToLower() switch
@@ -2195,7 +2263,7 @@ namespace HealthIntelligence.Common.Implementation
         static string Shorten(string text, int max)
         {
             if (string.IsNullOrWhiteSpace(text)) return "";
-            return text.Length <= max ? text : text[..max] + "…";
+            return text.Length <= max ? text : text[..max] + "�";
         }
 
         static string TruncateText(string text, int maxLength)
@@ -2211,17 +2279,12 @@ namespace HealthIntelligence.Common.Implementation
     }
 
     public partial class PdfGeneratorService
-    {
-        // ══════════════════════════════════════════════════════════════════════════
-        //  CONSTANTS  – tweak here to adjust chart sizing for 4-6 peers / 14 pillars
-        // ══════════════════════════════════════════════════════════════════════════
-
-        private const int MaxPillars = 14;
+    {   
 
         // Palette: index 0 = selected country (gold), 1-5 = peer countries
         private static readonly string[] CountryPalette =
         {
-            "#F0B429",   // gold  – selected country
+            "#F0B429",   // gold  � selected country
             "#4CAF8A",   // teal
             "#1E88E5",   // blue
             "#FB8C00",   // orange
@@ -2237,9 +2300,9 @@ namespace HealthIntelligence.Common.Implementation
             "#0097A7","#8D6E63","#E91E63","#607D8B"
         };
 
-        // ══════════════════════════════════════════════════════════════════════════
-        //  ENTRY POINTS  – called from AddCountryDetailsPdf
-        // ══════════════════════════════════════════════════════════════════════════
+        // --------------------------------------------------------------------------
+        //  ENTRY POINTS  � called from AddCountryDetailsPdf
+        // --------------------------------------------------------------------------
 
         void AddPeerCountryComparisonSection(
             IDocumentContainer container,
@@ -2255,7 +2318,7 @@ namespace HealthIntelligence.Common.Implementation
                 .Where(p => !IsSameCountry(p.CountryName, countryDetails.CountryName))
                 .ToList();
 
-            // ── 5.1  Population-Based ────────────────────────────────────────────
+            // -- 5.1  Population-Based --------------------------------------------
             container.Page(page =>
             {
                 ApplyPageDefaults(page);
@@ -2266,7 +2329,7 @@ namespace HealthIntelligence.Common.Implementation
                 PageFooter(page);
             });
 
-            // ── 5.2  Regional ────────────────────────────────────────────────────
+            // -- 5.2  Regional ----------------------------------------------------
             container.Page(page =>
             {
                 ApplyPageDefaults(page);
@@ -2277,7 +2340,7 @@ namespace HealthIntelligence.Common.Implementation
                 PageFooter(page);
             });
 
-            // ── 5.3  Income-Level ────────────────────────────────────────────────
+            // -- 5.3  Income-Level ------------------------------------------------
             container.Page(page =>
             {
                 ApplyPageDefaults(page);
@@ -2289,12 +2352,12 @@ namespace HealthIntelligence.Common.Implementation
             });
 
            
-            // ── 5.5  Relative Ranking ────────────────────────────────────────────
+            // -- 5.5  Relative Ranking --------------------------------------------
             container.Page(page =>
             {
                 ApplyPageDefaults(page);
                 page.Header().Element(x =>
-                    CountryComposeHeader(x, countryDetails, userRole, "Relative Ranking Among Peer Countries"));
+                    CountryComposeHeader(x, countryDetails, userRole, "Relative Ranking Among Peer countries"));
                 page.Content().Element(c =>
                     RelativeRankingPage(c, peers, main, countryDetails));
                 PageFooter(page);
@@ -2314,7 +2377,7 @@ namespace HealthIntelligence.Common.Implementation
                 .Where(p => !IsSameCountry(p.CountryName, countryDetails.CountryName))      
                 .ToList();
 
-            // ── 6.1 + 6.2  Historical & Five-Year Evolution ──────────────────────
+            // -- 6.1 + 6.2  Historical & Five-Year Evolution ----------------------
             container.Page(page =>
             {
                 ApplyPageDefaults(page);
@@ -2325,7 +2388,7 @@ namespace HealthIntelligence.Common.Implementation
                 PageFooter(page);
             });
 
-            // ── 6.3  Pillar-Level Trend ──────────────────────────────────────────
+            // -- 6.3  Pillar-Level Trend ------------------------------------------
             container.Page(page =>
             {
                 ApplyPageDefaults(page);
@@ -2337,9 +2400,9 @@ namespace HealthIntelligence.Common.Implementation
             });
         }
 
-        // ══════════════════════════════════════════════════════════════════════════
+        // --------------------------------------------------------------------------
         //  5.1  POPULATION-BASED PEER GROUP COMPARISON
-        // ══════════════════════════════════════════════════════════════════════════
+        // --------------------------------------------------------------------------
 
         void PopulationPeerPage(
             IContainer container,
@@ -2366,7 +2429,7 @@ namespace HealthIntelligence.Common.Implementation
                     $"Largest: {all.First().CountryName} ({FormatPop(all.First().Population)})  |  " +
                     $"Smallest: {all.Last().CountryName} ({FormatPop(all.Last().Population)})"));
 
-                // ── Population bar chart ──────────────────────────────────────
+                // -- Population bar chart --------------------------------------
                 col.Item().Text("Population Size by Country")
                     .FontSize(11).Bold().FontColor("#12352f");
 
@@ -2375,7 +2438,7 @@ namespace HealthIntelligence.Common.Implementation
 
                 col.Item().Element(x => DrawCountryLegend(x, all, countryDetails));
 
-                // ── Score vs Population scatter ───────────────────────────────
+                // -- Score vs Population scatter -------------------------------
                 col.Item().PaddingTop(8)
                     .Text("Score vs Population  (each dot = one country)")
                     .FontSize(11).Bold().FontColor("#12352f");
@@ -2428,9 +2491,9 @@ namespace HealthIntelligence.Common.Implementation
             }
         }
 
-        // ══════════════════════════════════════════════════════════════════════════
+        // --------------------------------------------------------------------------
         //  5.2  REGIONAL PEER GROUP COMPARISON
-        // ══════════════════════════════════════════════════════════════════════════
+        // --------------------------------------------------------------------------
 
         void RegionalPeerPage(
             IContainer container,
@@ -2441,7 +2504,7 @@ namespace HealthIntelligence.Common.Implementation
             var all = BuildAllCountries(main, peers);
 
             var byRegion = all
-                .GroupBy(p => string.IsNullOrWhiteSpace(p.Region) ? p.Continent ?? "Unknown" : p.Region)
+                .GroupBy(p => string.IsNullOrWhiteSpace(p.Region) ? p.Country ?? "Unknown" : p.Region)
                 .OrderByDescending(g => g.Count())
                 .ToList();
 
@@ -2499,9 +2562,9 @@ namespace HealthIntelligence.Common.Implementation
             });
         }
 
-        // ══════════════════════════════════════════════════════════════════════════
+        // --------------------------------------------------------------------------
         //  5.3  INCOME-LEVEL PEER COMPARISON
-        // ══════════════════════════════════════════════════════════════════════════
+        // --------------------------------------------------------------------------
         public static string GetIncomeCategory(decimal income)
         {
             if (income < 5000) return "Low Income";
@@ -2522,10 +2585,10 @@ namespace HealthIntelligence.Common.Implementation
         }
 
         void IncomePeerPage(
-            IContainer container,
-            List<PeerCountryHistoryReportDto> peers,
-            PeerCountryHistoryReportDto? main,
-            AiCountrySummeryDto countryDetails)
+              IContainer container,
+              List<PeerCountryHistoryReportDto> peers,
+              PeerCountryHistoryReportDto? main,
+              AiCountrySummeryDto countryDetails)
         {
             var categoryOrder = new[]
             {
@@ -2545,12 +2608,12 @@ namespace HealthIntelligence.Common.Implementation
             {
                 col.Spacing(12);
 
-                // ── Insight band ─────────────────────────────────────────────
+                // -- Insight band ---------------------------------------------
                 col.Item().Element(x => DrawInsightBand(x,
                     $"Income quartile analysis  |  {withIncome.Count} countries  |  " +
-                    $"Range: {withIncome.Min(p => p.Income):C0} – {withIncome.Max(p => p.Income):C0}"));
+                    $"Range: {withIncome.Min(p => p.Income):C0} � {withIncome.Max(p => p.Income):C0}"));
 
-                // ── Avg score per quartile bars (UNCHANGED) ──────────────────
+                // -- Avg score per quartile bars (UNCHANGED) ------------------
                 col.Item().Text("Average Score by Income Quartile")
                     .FontSize(11).Bold().FontColor("#12352f");
 
@@ -2576,7 +2639,7 @@ namespace HealthIntelligence.Common.Implementation
                     }
                 });
 
-                // ── Scatter: Income vs Score (UNCHANGED) ─────────────────────
+                // -- Scatter: Income vs Score (UNCHANGED) ---------------------
                 col.Item().PaddingTop(4)
                     .Text("Income vs Composite Score  (each dot = one country)")
                     .FontSize(11).Bold().FontColor("#12352f");
@@ -2587,8 +2650,8 @@ namespace HealthIntelligence.Common.Implementation
                         c => GetLatestScoreOrZero(c),
                         "Income (USD)", "Score"));
 
-                
-                // ── Top performers table (UPDATED — PPP column added) ────────
+
+                // -- Top performers table (UPDATED � PPP column added) --------
                 col.Item().PaddingTop(8)
                     .Text("Top Performers by Income Group")
                     .FontSize(11).Bold().FontColor("#12352f");
@@ -2602,19 +2665,19 @@ namespace HealthIntelligence.Common.Implementation
                         cols.ConstantColumn(40);   // Score
                         cols.RelativeColumn();     // Income Group
                         cols.ConstantColumn(55);   // Income
-                        //cols.ConstantColumn(60);   // PPP  ← NEW
+                        //cols.ConstantColumn(60);   // PPP  ? NEW
                     });
 
                     DrawTableHeader(table, new[]
                     {
-                        "Country", "Country", "Score", "Income Group", "Income"
+                        "Country", "Continent", "Score", "Income Group", "Income"
                     });
 
                     foreach (var (label, countries) in segments)
                     {
                         foreach (var country in countries.OrderByDescending(c => GetLatestScoreOrZero(c)))
                         {
-                            bool isMain = IsSameCountry(country.CountryName, countryDetails.CountryName);
+                            bool isMain = IsSameCountry(country.CountryName, countryDetails.Continent);
                             string rowBg = isMain ? "#fff9e6" : Colors.White;
                             float score = GetLatestScoreOrZero(country);
 
@@ -2622,7 +2685,7 @@ namespace HealthIntelligence.Common.Implementation
                                 .Padding(5).Text(country.CountryName).FontSize(8)
                                 .FontColor(isMain ? "#12352f" : "#333333");
                             table.Cell().Background(rowBg).BorderBottom(0.5f).BorderColor("#e0e0e0")
-                                .Padding(5).Text(country.Continent ?? "—").FontSize(8).FontColor("#555555");
+                                .Padding(5).Text(country.Country ?? "�").FontSize(8).FontColor("#555555");
                             table.Cell().Background(rowBg).BorderBottom(0.5f).BorderColor("#e0e0e0")
                                 .Padding(5).Text($"{score:F1}").FontSize(8).Bold().FontColor(ScoreColor(score));
                             table.Cell().Background(rowBg).BorderBottom(0.5f).BorderColor("#e0e0e0")
@@ -2630,7 +2693,7 @@ namespace HealthIntelligence.Common.Implementation
                             table.Cell().Background(rowBg).BorderBottom(0.5f).BorderColor("#e0e0e0")
                                 .Padding(5).Text(FormatPop(country.Income).ToString()).FontSize(8).FontColor("#555555");
 
-                            
+
                         }
                     }
                 });
@@ -2638,9 +2701,9 @@ namespace HealthIntelligence.Common.Implementation
         }
 
 
-        // ══════════════════════════════════════════════════════════════════════════
-        //  5.5  RELATIVE RANKING AMONG PEER CITIES
-        // ══════════════════════════════════════════════════════════════════════════
+        // --------------------------------------------------------------------------
+        //  5.5  RELATIVE RANKING AMONG PEER countries
+        // --------------------------------------------------------------------------
 
         void RelativeRankingPage(
             IContainer container,
@@ -2663,7 +2726,7 @@ namespace HealthIntelligence.Common.Implementation
             {
                 col.Spacing(12);
 
-                // ── Hero rank banner ──────────────────────────────────────────
+                // -- Hero rank banner ------------------------------------------
                 col.Item().Background("#12352f").Padding(14).Row(row =>
                 {
                     row.RelativeItem().Column(c =>
@@ -2683,15 +2746,15 @@ namespace HealthIntelligence.Common.Implementation
                     });
                 });
 
-                // ── Score distribution histogram ──────────────────────────────
-                col.Item().Text("Score Distribution Among All Countries")
+                // -- Score distribution histogram ------------------------------
+                col.Item().Text("Score Distribution Among All countries")
                     .FontSize(11).Bold().FontColor("#12352f");
 
                 col.Item().Height(150).Canvas((canvas, size) =>
                     DrawHistogram(canvas, size,
                         all.Select(r => r.Score).ToList(), mainScore, 10));
 
-                // ── Full ranking table ────────────────────────────────────────
+                // -- Full ranking table ----------------------------------------
                 col.Item().Text("Full Country Ranking").FontSize(11).Bold().FontColor("#12352f");
 
                 col.Item().Table(table =>
@@ -2706,7 +2769,7 @@ namespace HealthIntelligence.Common.Implementation
                         cols.ConstantColumn(70);   // score bar
                     });
 
-                    DrawTableHeader(table, new[] { "#", "Country", "Country", "Region", "Pop.", "Score" });
+                    DrawTableHeader(table, new[] { "#", "Country", "Continent", "Region", "Pop.", "Score" });
 
 
                     foreach (var (entry, idx) in all.Select((e, i) => (e, i)))
@@ -2723,13 +2786,13 @@ namespace HealthIntelligence.Common.Implementation
                             .Padding(4).Text(entry.Country.CountryName).FontSize(8)
                             .FontColor(isMain ? "#12352f" : "#333333");
                         table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#e8e8e8")
-                            .Padding(4).Text(entry.Country.Continent ?? "—").FontSize(8).FontColor("#555555");
+                            .Padding(4).Text(entry.Country.Continent ?? "�").FontSize(8).FontColor("#555555");
                         table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#e8e8e8")
-                            .Padding(4).Text(entry.Country.Region ?? "—").FontSize(8).FontColor("#555555");
+                            .Padding(4).Text(entry.Country.Region ?? "�").FontSize(8).FontColor("#555555");
                         table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#e8e8e8")
                             .Padding(4).AlignRight()
                             .Text(FormatPop(entry.Country.Population)).FontSize(8).FontColor("#555555");
-                       
+
                         table.Cell()
                         .Background(bg)
                         .BorderBottom(0.5f)
@@ -2737,29 +2800,28 @@ namespace HealthIntelligence.Common.Implementation
                         .Padding(4)
                         .Row(r =>
                         {
-                            var percent = Math.Max(0, Math.Min(1, entry.Score / 100f));
+                            var percent = entry.Score / 100f;
 
-                            // Bar container
-                            r.RelativeItem().Height(10).Row(bar =>
+                            r.RelativeItem().Height(10).Background("#eeeeee").Layers(layer =>
                             {
-                                bar.RelativeItem(percent).Background(ScoreColor(entry.Score));   // filled
-                                bar.RelativeItem(1 - percent).Background("#eeeeee");              // remaining
+                                layer.PrimaryLayer().Background("#eeeeee");
+
+                                layer.Layer().Width((float)percent * 100)
+                                    .Background(ScoreColor(entry.Score));
                             });
-                            // Score text
-                            r.ConstantItem(24)
-                             .AlignRight()
-                             .Text($"{entry.Score:F1}")
-                             .FontSize(8)
-                             .FontColor("#333333");
+
+                            r.ConstantItem(24).AlignRight().Text($"{entry.Score:F1}")
+                                .FontSize(8)
+                                .FontColor("#333333");
                         });
                     }
                 });
             });
         }
 
-        // ══════════════════════════════════════════════════════════════════════════
+        // --------------------------------------------------------------------------
         //  6.1 + 6.2  HISTORICAL PERFORMANCE TRENDS
-        // ══════════════════════════════════════════════════════════════════════════
+        // --------------------------------------------------------------------------
 
         void HistoricalTrendsPage(
             IContainer container,
@@ -2808,13 +2870,13 @@ namespace HealthIntelligence.Common.Implementation
                     float last = (float)mainHistory.Last().ScoreProgress;
                     float delta = last - first;
                     col.Item().Element(x => DrawInsightBand(x,
-                        $"Period: {allYears.First()} – {allYears.Last()}  |  " +
+                        $"Period: {allYears.First()} � {allYears.Last()}  |  " +
                         $"{mainCountry.CountryName}: {(delta >= 0 ? "+" : "")}{delta:F1} pts  |  " +
-                        $"score: {last:F1}  |  " +
+                        $"Latest score: {last:F1}  |  " +
                         $"{peers.Count} peer country(ies)"));
                 }
 
-                // ── 6.1  Multi-line trend ────────────────────────────────────
+                // -- 6.1  Multi-line trend ------------------------------------
                 col.Item().Text("6.1  Historical Score Trend")
                     .FontSize(12).Bold().FontColor("#12352f");
 
@@ -2826,7 +2888,7 @@ namespace HealthIntelligence.Common.Implementation
 
                 col.Item().PaddingVertical(4).LineHorizontal(0.5f).LineColor("#e0e0e0");
 
-                // ── 6.2  Five-year area chart ────────────────────────────────
+                // -- 6.2  Five-year area chart --------------------------------
                 col.Item().Text("6.2  Five-Year Composite Score Evolution")
                     .FontSize(12).Bold().FontColor("#12352f");
 
@@ -2887,7 +2949,7 @@ namespace HealthIntelligence.Common.Implementation
                     if (i == 0)
                     {
                         table.Cell().Background(Colors.White).Padding(5)
-                            .Text("—").FontSize(8).FontColor("#aaaaaa");
+                            .Text("�").FontSize(8).FontColor("#aaaaaa");
                         continue;
                     }
                     float prev = (float)(mainHistory.FirstOrDefault(h => h.Year == years[i - 1])?.ScoreProgress ?? 0);
@@ -2913,9 +2975,9 @@ namespace HealthIntelligence.Common.Implementation
             });
         }
 
-        // ══════════════════════════════════════════════════════════════════════════
+        // --------------------------------------------------------------------------
         //  6.3  PILLAR-LEVEL TREND  (main country only; up to 14 pillars)
-        // ══════════════════════════════════════════════════════════════════════════
+        // --------------------------------------------------------------------------
 
         void PillarTrendPage(
             IContainer container,
@@ -2924,18 +2986,18 @@ namespace HealthIntelligence.Common.Implementation
         {
             if (mainCountry == null) { DrawNoDataPage(container); return; }
 
-            var history = mainCountry.CountryHistory ?? new();
+            var history = mainCountry.CountryHistory ?? new();            
             var allYears = history.Select(h => h.Year).OrderBy(y => y).ToList();
 
             if (!allYears.Any()) { DrawNoDataPage(container); return; }
 
-            // Collect all unique pillars (cap at MaxPillars = 14)
+            // Collect all unique pillars (cap at MaxPillars = 23)
             var pillars = history
                 .SelectMany(h => h.Pillars ?? Enumerable.Empty<PeerCountryPillarHistoryReportDto>())
                 .GroupBy(p => p.PillarID)
                 .Select(g => g.OrderBy(p => p.DisplayOrder).First())
                 .OrderBy(p => p.DisplayOrder)
-                .Take(MaxPillars)
+                .Take(_appSettings.PillarCount)
                 .ToList();
 
             container.Padding(16).Column(col =>
@@ -2956,7 +3018,7 @@ namespace HealthIntelligence.Common.Implementation
                     pillars.Select((p, i) =>
                         (PillarPalette[i % PillarPalette.Length], p.PillarName)).ToArray(), 10));
 
-                // ── Pillar heatmap table ──────────────────────────────────────
+                // -- Pillar heatmap table --------------------------------------
                 col.Item().PaddingTop(4)
                     .Text("Pillar Score Heatmap  (darker = higher score)")
                     .FontSize(11).Bold().FontColor("#12352f");
@@ -2996,13 +3058,13 @@ namespace HealthIntelligence.Common.Implementation
 
                             table.Cell().Background(cellBg).BorderBottom(0.5f).BorderColor("#e0e0e0")
                                 .Padding(4).AlignCenter()
-                                .Text(!hasData ? "—" : $"{score:F1}").FontSize(8)
+                                .Text(!hasData ? "�" : $"{score:F1}").FontSize(8)
                                 .FontColor(score >= 50 ? Colors.White : "#333333");
                         }
                     }
                 });
 
-                // ── Trend highlights ──────────────────────────────────────────
+                // -- Trend highlights ------------------------------------------
                 if (allYears.Count >= 2 && pillars.Any())
                 {
                     col.Item().PaddingTop(6)
@@ -3052,9 +3114,9 @@ namespace HealthIntelligence.Common.Implementation
             });
         }
 
-        // ══════════════════════════════════════════════════════════════════════════
+        // --------------------------------------------------------------------------
         //  CANVAS CHART RENDERERS
-        // ══════════════════════════════════════════════════════════════════════════
+        // --------------------------------------------------------------------------
 
         /// <summary>
         /// Multi-line trend chart: one coloured line per country (gold = main, palette = peers).
@@ -3223,7 +3285,7 @@ namespace HealthIntelligence.Common.Implementation
                 });
         }
 
-        /// <summary>Multi-pillar line chart — one coloured line per pillar (up to 14).</summary>
+        /// <summary>Multi-pillar line chart � one coloured line per pillar (up to 14).</summary>
         void DrawPillarLineChart(
             SKCanvas canvas, Size size,
             List<int> years,
@@ -3439,10 +3501,9 @@ namespace HealthIntelligence.Common.Implementation
             DrawCanvasText(canvas, $"^{markerValue:F1}", mx - 12, padT - 1, 7, CountryPalette[0], bold: true);
         }
 
-
-        // ══════════════════════════════════════════════════════════════════════════
+        // --------------------------------------------------------------------------
         //  SHARED LAYOUT HELPERS
-        // ══════════════════════════════════════════════════════════════════════════
+        // --------------------------------------------------------------------------
 
         void DrawInsightBand(IContainer container, string text)
         {
@@ -3517,10 +3578,10 @@ namespace HealthIntelligence.Common.Implementation
         /// <summary>Legend row showing a coloured dot for every country in the chart.</summary>
         void DrawCountryLegend(
             IContainer container,
-            List<PeerCountryHistoryReportDto> allCountries,
+            List<PeerCountryHistoryReportDto> allcountries,
             AiCountrySummeryDto countryDetails)
         {
-            var items = allCountries
+            var items = allcountries
                 .Select((c, i) => (
                     Color: IsSameCountry(c.CountryName, countryDetails.CountryName)
                         ? CountryPalette[0]
@@ -3568,9 +3629,9 @@ namespace HealthIntelligence.Common.Implementation
             canvas.DrawText(text, x, y + textSize, paint);
         }
 
-        // ══════════════════════════════════════════════════════════════════════════
+        // --------------------------------------------------------------------------
         //  UTILITY HELPERS
-        // ══════════════════════════════════════════════════════════════════════════
+        // --------------------------------------------------------------------------
 
         /// <summary>
         /// Returns the latest year's score including 0.
@@ -3606,6 +3667,15 @@ namespace HealthIntelligence.Common.Implementation
 
         static string ScoreColor(float score) =>
             score >= 70 ? "#336b58" : score >= 40 ? "#f5a623" : "#e05252";
+
+        static string DeriveRole(PeerCountryHistoryReportDto country)
+        {
+            if (country.Population >= 5_000_000) return "Metropolis";
+            if (country.Population >= 1_000_000) return "Major Country";
+            if (country.Population >= 300_000) return "Mid-Sized Country";
+            if (country.Population >= 100_000) return "Large Town";
+            return "Small Country";
+        }
 
         static string FormatPop(decimal? value)
         {

@@ -1,12 +1,13 @@
-﻿using HealthIntelligence.Dtos.AiDto;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using HealthIntelligence.Dtos.AiDto;
 using HealthIntelligence.Dtos.AssessmentDto;
-using HealthIntelligence.Dtos.CountryUserDto;
 using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.Dtos.CountryUserDto;
 using HealthIntelligence.Enums;
 using HealthIntelligence.IServices;
 using HealthIntelligence.Models;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+using HealthIntelligence.Services;
 using System.Security.Claims;
 
 namespace HealthIntelligence.Controllers
@@ -17,10 +18,12 @@ namespace HealthIntelligence.Controllers
     public class CountryUserController : ControllerBase
     {
         private readonly ICountryUserService _countryUserService;
+        private readonly ISignalDashboardService _signalDashboardService;
 
-        public CountryUserController(ICountryUserService CountryUserService)
+        public CountryUserController(ICountryUserService countryUserService, ISignalDashboardService signalDashboardService)
         {
-            _countryUserService = CountryUserService;
+            _countryUserService = countryUserService;
+            _signalDashboardService = signalDashboardService;
         }
         private int? GetUserIdFromClaims()
         {
@@ -38,6 +41,26 @@ namespace HealthIntelligence.Controllers
         {
             return User.FindFirst(ClaimTypes.Role)?.Value;
         }
+        [HttpGet]
+        [Route("Pillars")]
+        public async Task<IActionResult> GetAll()
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                return Unauthorized("You Don't have access.");
+            }
+
+            return Ok(await _countryUserService.GetAllAsync(userId.GetValueOrDefault(), userRole));
+        }
+
         [HttpGet("getCountryHistory")]
         public async Task<IActionResult> GetCountryHistory()
         {
@@ -66,7 +89,7 @@ namespace HealthIntelligence.Controllers
         }
 
         [HttpGet("getCountryQuestionHistory")]
-        public async Task<IActionResult> GetCountryQuestionHistory([FromQuery] UserCountryRequstDto userCountryRequstDto)
+        public async Task<IActionResult> GetCountryQuestionHistory([FromQuery] UserCountryRequestDto userCountryRequestDto)
         {
             var userId = GetUserIdFromClaims();
             if (userId == null)
@@ -76,15 +99,15 @@ namespace HealthIntelligence.Controllers
             if (tierName == null)
                 return Unauthorized("You Don't have access.");
 
-            userCountryRequstDto.UserID = userId.Value;
-            userCountryRequstDto.Tiered = Enum.Parse<TieredAccessPlan>(tierName);
+            userCountryRequestDto.UserID = userId.Value;
+            userCountryRequestDto.Tiered = Enum.Parse<TieredAccessPlan>(tierName);
 
-            var result = await _countryUserService.GetCountryQuestionHistory(userCountryRequstDto);
+            var result = await _countryUserService.GetCountryQuestionHistory(userCountryRequestDto);
             return Ok(result);
         }
 
         [HttpGet("countries")]
-        public async Task<IActionResult> GetCountries([FromQuery] PaginationRequest request)
+        public async Task<IActionResult> GetCountriesAsync([FromQuery] PaginationRequest request)
         {
             var userId = GetUserIdFromClaims();
             if (userId == null)
@@ -97,7 +120,7 @@ namespace HealthIntelligence.Controllers
         }
 
         [HttpGet("getCountryDetails")]
-        public async Task<IActionResult> GetCountryDetails([FromQuery] UserCountryRequstDto userCountryRequstDto)
+        public async Task<IActionResult> GetCountryDetails([FromQuery] UserCountryRequestDto userCountryRequestDto)
         {
             var userId = GetUserIdFromClaims();
             if (userId == null)
@@ -107,16 +130,16 @@ namespace HealthIntelligence.Controllers
             if (tierName == null)
                 return Unauthorized("You Don't have access.");
 
-            userCountryRequstDto.UserID = userId.Value;
-            userCountryRequstDto.Tiered = Enum.Parse<TieredAccessPlan>(tierName);
+            userCountryRequestDto.UserID = userId.Value;
+            userCountryRequestDto.Tiered = Enum.Parse<TieredAccessPlan>(tierName);
 
-            var result = await _countryUserService.GetCountryDetails(userCountryRequstDto);
+            var result = await _countryUserService.GetCountryDetails(userCountryRequestDto);
             return Ok(result);
         }
 
 
         [HttpGet("GetCountryPillarDetails")]
-        public async Task<IActionResult> GetCountryPillarDetails([FromQuery] UserCountryGetPillarInfoRequstDto userCountryRequstDto)
+        public async Task<IActionResult> GetCountryPillarDetails([FromQuery] UserCountryGetPillarInfoRequestDto userCountryGetPillarInfoRequestDto)
         {
             var userId = GetUserIdFromClaims();
             if (userId == null)
@@ -126,10 +149,10 @@ namespace HealthIntelligence.Controllers
             if (tierName == null)
                 return Unauthorized("You Don't have access.");
 
-            userCountryRequstDto.UserID = userId.Value;
-            userCountryRequstDto.Tiered = Enum.Parse<TieredAccessPlan>(tierName);
+            userCountryGetPillarInfoRequestDto.UserID = userId.Value;
+            userCountryGetPillarInfoRequestDto.Tiered = Enum.Parse<TieredAccessPlan>(tierName);
 
-            var result = await _countryUserService.GetCountryPillarDetails(userCountryRequstDto);
+            var result = await _countryUserService.GetCountryPillarDetails(userCountryGetPillarInfoRequestDto);
             return Ok(result);
         }
         [HttpGet("getCountryUserCountries")]
@@ -210,27 +233,7 @@ namespace HealthIntelligence.Controllers
         }
 
         [HttpGet("ExportCompareCountries")]
-        public async Task<IActionResult> ExportCompareCountries([FromQuery] CompareKpiCountryRequest request)
-        {
-            var userId = GetUserIdFromClaims();
-            if (userId == null)
-                return Unauthorized("User ID not found in token.");
-
-            var tierName = GetTierFromClaims();
-            if (tierName == null)
-                return Unauthorized("You Don't have access.");
-
-            var content = await _countryUserService.ExportCompareCountries(request, userId.Value, tierName);
-
-            return File(content.Item2,
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                content.Item1);
-        }
-
-        
-        [HttpGet]
-        [Route("GetAllPillarAsync")]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> ExportCompareCountries(string countries, string? kpis, DateTime updatedAt)
         {
             var userId = GetUserIdFromClaims();
             if (userId == null)
@@ -240,12 +243,71 @@ namespace HealthIntelligence.Controllers
             if (role == null)
                 return Unauthorized("You Don't have access.");
 
-            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
-            {
+            var tierName = GetTierFromClaims();
+            if (tierName == null)
                 return Unauthorized("You Don't have access.");
+
+            var countryIds = countries.Split(',')
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(int.Parse)
+                .ToList();
+
+            var kpiIds = new List<int>();
+
+            if (!string.IsNullOrWhiteSpace(kpis) && kpis.ToLower() != "null")
+            {
+                kpiIds = kpis.Split(',')
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(int.Parse)
+                    .ToList();
             }
 
-            return Ok(await _countryUserService.GetAllAsync(userId.GetValueOrDefault(), userRole));
+            var request = new CompareCountryRequestDto
+            {
+                Countries = countryIds,
+                Kpis = kpiIds,
+                UpdatedAt = updatedAt
+            };
+
+            var content = await _countryUserService.ExportCompareCountries(request, userId.Value, tierName);
+
+            return File(content.Item2,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                content.Item1);
         }
+
+        [HttpGet("getPeaceStressTestDashboard")]
+        public async Task<IActionResult> GetPeaceStressTestDashboard([FromQuery] int countryID, [FromQuery] int year)
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+            var result = await _signalDashboardService.GetPeaceStressTestDashboard(countryID, year, userId.Value);
+            return Ok(result);
+        }
+
+        [HttpGet("getEarlyWarningDashboard")]
+        public async Task<IActionResult> GetEarlyWarningDashboard([FromQuery] int countryID, [FromQuery] int year)
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+            var result = await _signalDashboardService.GetEarlyWarningDashboard(countryID, year, userId.Value);
+            return Ok(result);
+        }
+
+        [HttpGet("getResilienceScorecard")]
+        public async Task<IActionResult> GetResilienceScorecard([FromQuery] int countryID, [FromQuery] int year)
+        {
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+            var result = await _signalDashboardService.GetResilienceScorecard(countryID, year, userId.Value);
+            return Ok(result);
+        }
+
     }
 }

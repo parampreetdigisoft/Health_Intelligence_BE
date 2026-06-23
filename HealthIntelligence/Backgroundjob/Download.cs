@@ -1,4 +1,4 @@
-﻿using HealthIntelligence.Models;
+using HealthIntelligence.Models;
 using DocumentFormat.OpenXml.Office2010.Excel;
 
 namespace HealthIntelligence.Backgroundjob
@@ -18,8 +18,6 @@ namespace HealthIntelligence.Backgroundjob
         public bool QuestionEnable { get; set; }
         public bool ImmediateSummaryEnable { get; set; }
         public bool RegenerateMissingQuestionsEnable { get; set; }
-
-        public int? PillarId { get; set; }
         public string InsertAnalyticalLayerResults(int countryID = 0)
         {
             CountryID = countryID;
@@ -28,10 +26,10 @@ namespace HealthIntelligence.Backgroundjob
             return "Execution has been started";
         }
 
-        public Task AiResearchByCountryId(int countryId , bool CountryEnable,bool pillarEnable, bool questionEnable, bool immediateSummaryEnable = false, bool regenerateMissingQuestionsEnable = false)
+        public Task AiResearchByCountryId(int countryID , bool countryEnable,bool pillarEnable, bool questionEnable,bool immediateSummaryEnable = false, bool regenerateMissingQuestionsEnable = false)
         {
-            this.CountryID = countryId;
-            this.CountryEnable = CountryEnable;
+            this.CountryID = countryID;
+            this.CountryEnable = countryEnable;
             this.PillarEnable = pillarEnable;
             this.QuestionEnable = questionEnable;
             this.ImmediateSummaryEnable = immediateSummaryEnable;

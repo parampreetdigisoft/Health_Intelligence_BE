@@ -1,4 +1,4 @@
-﻿using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.Dtos.CommonDto;
 
 namespace HealthIntelligence.Dtos.AiDto
 {
@@ -16,7 +16,7 @@ namespace HealthIntelligence.Dtos.AiDto
     public class AiCountrySummeryRequestPdfDto : AiCountryPillarRequestDto
     {
         public int? PillarID { get; set; }
-        public Common.Interface.DocumentFormat Format { get; set; } = Common.Interface.DocumentFormat.Pdf;
+        public HealthIntelligence.IServices.DocumentFormat Format { get; set; } = HealthIntelligence.IServices.DocumentFormat.Pdf;
         public string ReportType { get; set; } = "ai";
     }
     public class AiCountryPillarRequestDto
@@ -29,14 +29,15 @@ namespace HealthIntelligence.Dtos.AiDto
         public int? CountryID { get; set; }
     }
 
-    public class AiCountryPillarDocumentRequestDto : PaginationRequest
+    public class AiCountryPillarDocumentRequestDto 
     {
         public int CountryID { get; set; }
     }
-    public class DeleteCountryDocumentRequestDto
+    public class DeleteCountryDocumentRequestDto 
     {
         public int CountryID { get; set; }
-        public int? CountryDocumentID  { get; set; }
+        public int? CountryDocumentID { get; set; }
         public bool IsAll { get; set; } = false;
     }
+
 }

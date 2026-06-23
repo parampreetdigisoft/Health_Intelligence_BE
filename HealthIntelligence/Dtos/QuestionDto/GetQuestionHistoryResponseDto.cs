@@ -1,4 +1,4 @@
-﻿using HealthIntelligence.Models;
+using HealthIntelligence.Models;
 
 namespace HealthIntelligence.Dtos.QuestionDto
 {

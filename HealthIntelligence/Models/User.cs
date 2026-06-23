@@ -22,6 +22,6 @@ namespace HealthIntelligence.Models
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
         public TieredAccessPlan? Tier { get; set; }
         public bool Is2FAEnabled { get; set; } = false;
-        public string? TemporaryMail { get; set; }
+        public string? TemporaryEmail { get; set; } = null;
     }
 }

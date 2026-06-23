@@ -1,15 +1,23 @@
-﻿using HealthIntelligence.Common.Implementation;
+using ClosedXML.Excel;
+using ClosedXML.Graphics;
+
+using DocumentFormat.OpenXml.Spreadsheet;
+
+using Microsoft.EntityFrameworkCore;
+
+using HealthIntelligence.Common.Implementation;
 using HealthIntelligence.Common.Models;
 using HealthIntelligence.Data;
-using HealthIntelligence.Dtos.CountryUserDto;
+
 using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.Dtos.CountryUserDto;
 using HealthIntelligence.Dtos.kpiDto;
 using HealthIntelligence.Enums;
 using HealthIntelligence.IServices;
 using HealthIntelligence.Models;
-using ClosedXML.Excel;
-using Microsoft.EntityFrameworkCore;
+
 using System.Linq.Expressions;
+using System.Text.RegularExpressions;
 
 namespace HealthIntelligence.Services
 {
@@ -40,7 +48,7 @@ namespace HealthIntelligence.Services
                     .Include(ar => ar.Country)
                     .Where(x => (x.LastUpdated >= startDate && x.LastUpdated < endDate) || (x.AiLastUpdated >= startDate && x.AiLastUpdated < endDate));
 
-                if (role == UserRole.CountryUser)
+                if (role == UserRole.CountryUser )
                 {
                     var validCountries = _context.PublicUserCountryMappings
                         .Where(x =>
@@ -65,15 +73,17 @@ namespace HealthIntelligence.Services
                             validCountries.Contains(ar.CountryID) &&
                             validLayerIds.Contains(ar.LayerID));
                 }
-                else if (role == UserRole.Evaluator || role == UserRole.Analyst)
+                else if (role == UserRole.Analyst || role == UserRole.Evaluator)
                 {
                     var validCountries = _context.UserCountryMappings
                         .Where(x =>
-                            x.UserID == userId &&
                             !x.IsDeleted &&
+                            x.UserID == userId &&
                             (!request.CountryID.HasValue || x.CountryID == request.CountryID))
                         .Select(x => x.CountryID);
-                    baseQuery = baseQuery.Where(ar => validCountries.Contains(ar.CountryID) && (!request.LayerID.HasValue || ar.LayerID == request.LayerID));
+                    baseQuery = baseQuery
+                        .Where(ar => validCountries.Contains(ar.CountryID)&&
+                        (!request.LayerID.HasValue || ar.LayerID == request.LayerID));
                 }
                 else
                 {
@@ -99,34 +109,18 @@ namespace HealthIntelligence.Services
             LayerID = ar.LayerID,
             CountryID = ar.CountryID,
             InterpretationID = ar.InterpretationID,
-            NormalizeValue = ar.NormalizeValue,
-            CalValue1 = ar.CalValue1,
-            CalValue2 = ar.CalValue2,
-            CalValue3 = ar.CalValue3,
-            CalValue4 = ar.CalValue4,
+            NormalizeValue = ar.NormalizeValue,            
             CalValue5 = ar.CalValue5,
             LastUpdated = ar.LastUpdated,
-
             AiInterpretationID = ar.AiInterpretationID,
-            AiNormalizeValue = ar.AiNormalizeValue,
-            AiCalValue1 = ar.AiCalValue1,
-            AiCalValue2 = ar.AiCalValue2,
-            AiCalValue3 = ar.AiCalValue3,
-            AiCalValue4 = ar.AiCalValue4,
             AiCalValue5 = ar.AiCalValue5,
+            AiNormalizeValue = ar.AiNormalizeValue,           
             AiLastUpdated = ar.AiLastUpdated,
-
             LayerCode = ar.AnalyticalLayer.LayerCode,
             LayerName = ar.AnalyticalLayer.LayerName,
-            Purpose = ar.AnalyticalLayer.Purpose,
-            CalText1 = ar.AnalyticalLayer.CalText1,
-            CalText2 = ar.AnalyticalLayer.CalText2,
-            CalText3 = ar.AnalyticalLayer.CalText3,
-            CalText4 = ar.AnalyticalLayer.CalText4,
+            Purpose = ar.AnalyticalLayer.Purpose,            
             CalText5 = ar.AnalyticalLayer.CalText5,
-            Definition = ar.AnalyticalLayer.Definition,
-            FiveLevelInterpretations = ar.AnalyticalLayer.FiveLevelInterpretations,
-
+            FiveLevelInterpretations = ar.AnalyticalLayer.FiveLevelInterpretations.OrderByDescending(f => f.MaxRange).ToList(),
             Country = ar.Country
         };
 
@@ -176,7 +170,7 @@ namespace HealthIntelligence.Services
 
                 var validKpiIds = new List<int>();
 
-                if (c.Kpis==null || c.Kpis.Count == 0)
+                if (c.Kpis.Count == 0)
                 {
                     var query = _context.AnalyticalLayers
                         .Where(x => !x.IsDeleted)
@@ -212,17 +206,17 @@ namespace HealthIntelligence.Services
                     .Distinct()
                     .ToListAsync();
 
-                var selectedCountryIDs = selectedCountries.Select(x => x.CountryID).ToList();
+                var selectedCountryIds = selectedCountries.Select(x => x.CountryID).ToList();
 
-                if (role == UserRole.Analyst || role == UserRole.Evaluator)
+                if(role == UserRole.Analyst || role == UserRole.Evaluator)
                 {
-                    var validMappedCountryIDs = await _context.UserCountryMappings
+                    var validMappedCountryIds = await _context.UserCountryMappings
                        .Where(x => x.UserID == userId && !x.IsDeleted)
                        .Select(x => x.CountryID)
                        .ToListAsync();
 
-                    // ✅ Check if all selected countries are valid
-                    bool allValid = selectedCountryIDs.All(id => validMappedCountryIDs.Contains(id));
+                    // ? Check if all selected countries are valid
+                    bool allValid = selectedCountryIds.All(id => validMappedCountryIds.Contains(id));
 
                     if (!allValid)
                     {
@@ -233,7 +227,7 @@ namespace HealthIntelligence.Services
                 // Step 3: Fetch analytical layer results for selected countries
                 var analyticalResults = await _context.AnalyticalLayerResults
                     .Include(ar => ar.AnalyticalLayer)
-                    .Where(x => selectedCountryIDs.Contains(x.CountryID)
+                    .Where(x => selectedCountryIds.Contains(x.CountryID) 
                     && ((x.AiLastUpdated >= startDate && x.AiLastUpdated < endDate || x.LastUpdated >= startDate && x.LastUpdated < endDate))
                     && validKpiIds.Contains(x.LayerID))
                     .Select(ar => new
@@ -242,7 +236,7 @@ namespace HealthIntelligence.Services
                         ar.LayerID,
                         ar.AnalyticalLayer.LayerCode,
                         ar.AnalyticalLayer.LayerName,
-                        ar.AnalyticalLayer.Definition,
+                        ar.AnalyticalLayer.Purpose,
                         ar.CalValue5,
                         ar.AiCalValue5
                     })
@@ -250,7 +244,7 @@ namespace HealthIntelligence.Services
 
                 // Step 4: Get all distinct layers
                 var allLayers = analyticalResults
-                    .Select(x => new { x.LayerID, x.LayerCode, x.LayerName,x.Definition })
+                    .Select(x => new { x.LayerID, x.LayerCode, x.LayerName, x.Purpose })
                     .Distinct()
                     .OrderBy(x => x.LayerName)
                     .ToList();
@@ -263,12 +257,12 @@ namespace HealthIntelligence.Services
                     TableData = new List<ChartTableRowDto>()
                 };
 
-                // Initialize chart series for each country
-                foreach (var country in selectedCountries)
+                // Initialize chart series for each Country
+                foreach (var Country in selectedCountries)
                 {
                     response.Series.Add(new ChartSeriesDto
                     {
-                        Name = country.CountryName,
+                        Name = Country.CountryName,
                         Data = new List<decimal>(),
                         AiData = new List<decimal>()
                     });
@@ -287,25 +281,25 @@ namespace HealthIntelligence.Services
                 {
                     response.Categories.Add(layer.LayerCode);
 
-                    // Map KPI values for each city (0 if missing)
+                    // Map KPI values for each Country (0 if missing)
                     var values = new Dictionary<int, List<decimal>>();
 
-                    foreach (var country in selectedCountries)
+                    foreach (var Country in selectedCountries)
                     {
                         var value = analyticalResults
-                            .FirstOrDefault(r => r.CountryID == country.CountryID && r.LayerID == layer.LayerID);
+                            .FirstOrDefault(r => r.CountryID == Country.CountryID && r.LayerID == layer.LayerID);
 
                         var evaluatedValue = Math.Round(value?.CalValue5 ?? 0, 2);
                         var aiValue = Math.Round(value?.AiCalValue5 ?? 0, 2);
-                        values[country  .CountryID] = new List<decimal> { evaluatedValue, aiValue };
+                        values[Country.CountryID] = new List<decimal> { evaluatedValue, aiValue };
 
                         // Add to series
-                        var countrySeries = response.Series.First(s => s.Name == country.CountryName);
-                        countrySeries.Data.Add(evaluatedValue);
+                        var CountrySeries = response.Series.First(s => s.Name == Country.CountryName);
+                        CountrySeries.Data.Add(evaluatedValue);
 
-                        countrySeries.AiData.Add(aiValue);
+                        CountrySeries.AiData.Add(aiValue);
                     }
-                    // ✅ Calculate Peer Country Score (average of all countries for this layer)
+                    // ? Calculate Peer Country Score (average of all countries for this layer)
                     var peerCountryScore = values.Values.Any() ? Math.Round(values.Values.Select(x => x.First()).Average(), 2) : 0;
                     peerSeries.Data.Add(peerCountryScore);
                     var aiPeerCountryScore = values.Values.Any() ? Math.Round(values.Values.Select(x => x.Last()).Average(), 2) : 0;
@@ -317,7 +311,7 @@ namespace HealthIntelligence.Services
                         LayerID = layer.LayerID,
                         LayerCode = layer.LayerCode,
                         LayerName = layer.LayerName,
-                        Definition = layer.Definition,
+                        Purpose = layer.Purpose,
                         CountryValues = selectedCountries.Select(c => new CountryValueDto
                         {
                             CountryID = c.CountryID,
@@ -355,7 +349,7 @@ namespace HealthIntelligence.Services
 
                 if (role == UserRole.CountryUser)
                 {
-                    var validCountryIDs = await _context.PublicUserCountryMappings
+                    var validCountryIds = await _context.PublicUserCountryMappings
                         .Where(x =>
                             x.IsActive &&
                             x.UserID == userId)
@@ -363,7 +357,7 @@ namespace HealthIntelligence.Services
                         .ToListAsync();
 
                     bool hasInvalidCountry = request.CountryIDs
-                        .Any(countryId => !validCountryIDs.Contains(countryId));
+						.Any(CountryId => !validCountryIds.Contains(CountryId));
 
                     if (hasInvalidCountry)
                     {
@@ -391,36 +385,21 @@ namespace HealthIntelligence.Services
 
                         LayerCode = g.Select(x => x.AnalyticalLayer.LayerCode).FirstOrDefault()?? string.Empty,
                         LayerName = g.Select(x => x.AnalyticalLayer.LayerName).FirstOrDefault() ?? string.Empty,
-                        Purpose = g.Select(x => x.AnalyticalLayer.Purpose).FirstOrDefault() ?? string.Empty,
-                        CalText1 = g.Select(x => x.AnalyticalLayer.CalText1).FirstOrDefault(),
-                        CalText2 = g.Select(x => x.AnalyticalLayer.CalText2).FirstOrDefault(),
-                        CalText3 = g.Select(x => x.AnalyticalLayer.CalText3).FirstOrDefault(),
-                        CalText4 = g.Select(x => x.AnalyticalLayer.CalText4).FirstOrDefault(),
+                        Purpose = g.Select(x => x.AnalyticalLayer.Purpose).FirstOrDefault() ?? string.Empty,                        
                         CalText5 = g.Select(x => x.AnalyticalLayer.CalText5).FirstOrDefault(),
-                        Definition = g.Select(x => x.AnalyticalLayer.Definition).FirstOrDefault(),
 
                         FiveLevelInterpretations = g.First().AnalyticalLayer.FiveLevelInterpretations,
 
-                        countries = g.Select(x => new MutipleCountrieskpiLayerResults
+                        Countries = g.Select(x => new MutipleCountrieskpiLayerResults
                         {
                             CountryID = x.CountryID,
                             InterpretationID = x.InterpretationID,
-                            NormalizeValue = x.NormalizeValue,
-                            CalValue1 = x.CalValue1,
-                            CalValue2 = x.CalValue2,
-                            CalValue3 = x.CalValue3,
-                            CalValue4 = x.CalValue4,
+                            NormalizeValue = x.NormalizeValue,                            
                             CalValue5 = x.CalValue5,
                             LastUpdated = x.LastUpdated,
-
                             AiInterpretationID = x.AiInterpretationID,
-                            AiNormalizeValue = x.AiNormalizeValue,
-                            AiCalValue1 = x.AiCalValue1,
-                            AiCalValue2 = x.AiCalValue2,
-                            AiCalValue3 = x.AiCalValue3,
-                            AiCalValue4 = x.AiCalValue4,
+                            AiNormalizeValue = x.AiNormalizeValue,                            
                             AiCalValue5 = x.AiCalValue5,
-
                             AiLastUpdated = x.AiLastUpdated,
                             Country = x.Country
                         }).ToList()
@@ -438,23 +417,19 @@ namespace HealthIntelligence.Services
                     .Failure(new List<string> { "An error occurred." });
             }
         }
-        
-        public async Task<Tuple<string, byte[]>> ExportCompareCountries(CompareKpiCountryRequest c, int userId, UserRole role)
+
+
+
+        public async Task<Tuple<string, byte[]>> ExportCompareCountries(CompareCountryRequestDto c, int userId, UserRole role)
         {
             try
             {
-                var payload = new CompareCountryRequestDto
-                {
-                    Countries = c.Countries,  
-                    UpdatedAt = c.UpdatedAt
-                };
-
-                var result = await CompareCountries(payload, userId, role,false);
+                var result = await CompareCountries(c, userId, role, false);
                 var data = result.Result;
 
                 if (data == null || data.TableData == null || !data.TableData.Any())
                 {
-                    return new Tuple<string, byte[]>("Country_Kpis_Comparison.xlsx", Array.Empty<byte>());
+                    return new Tuple<string, byte[]>("Country_Comparison.xlsx", Array.Empty<byte>());
                 }
 
                 using (var workbook = new XLWorkbook())
@@ -462,15 +437,15 @@ namespace HealthIntelligence.Services
                     var ws = workbook.Worksheets.Add("Country Comparison");
 
                     // =========================
-                    // 📊 DYNAMIC HEADER SETUP
+                    // ?? DYNAMIC HEADER SETUP
                     // =========================
                     var countries = data.TableData.First().CountryValues;
                     int totalCols = 2 + (countries.Count * 2);
 
                     // =========================
-                    // 🎯 REPORT HEADER (TOP)
+                    // ?? REPORT HEADER (TOP)
                     // =========================
-                    ws.Range(1, 1, 1, totalCols).Merge().Value = "Key Performance Indicator Report";
+                    ws.Range(1, 1, 1, totalCols).Merge().Value = "Key Performance Integrated Report";
                     ws.Range(2, 1, 2, totalCols).Merge().Value = $"Report Year: {DateTime.Now.Year}";
                     ws.Range(3, 1, 3, totalCols).Merge().Value = $"Generated On: {DateTime.Now:dd-MMM-yyyy HH:mm}";
 
@@ -486,7 +461,7 @@ namespace HealthIntelligence.Services
                     ws.Row(3).Height = 22;
 
                     // =========================
-                    // 📊 MULTI-ROW TABLE HEADER
+                    // ?? MULTI-ROW TABLE HEADER
                     // =========================
                     int row = 5;
                     int col = 1;
@@ -499,7 +474,7 @@ namespace HealthIntelligence.Services
                     ws.Range(row, col, row + 1, col).Merge().Value = "Purpose";
                     col++;
 
-                    // Dynamic Countries
+                    // Dynamic Cities
                     foreach (var country in countries)
                     {
                         int startCol = col;
@@ -508,7 +483,7 @@ namespace HealthIntelligence.Services
                         ws.Range(row, startCol, row, startCol + 1).Merge().Value = country.CountryName;
 
                         // Sub headers
-                        ws.Cell(row + 1, startCol).Value = "Evaluation";
+                        ws.Cell(row + 1, startCol).Value = "Eval";
                         ws.Cell(row + 1, startCol + 1).Value = "AI";
 
                         col += 2;
@@ -523,7 +498,7 @@ namespace HealthIntelligence.Services
                     headerRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
 
                     // =========================
-                    // 📄 DATA ROWS
+                    // ?? DATA ROWS
                     // =========================
                     row += 2;
                     int startDataRow = row;
@@ -534,7 +509,7 @@ namespace HealthIntelligence.Services
 
                         ws.Cell(row, col++).Value = $"{kpi.LayerName} ({kpi.LayerCode})";
 
-                        var cleanPurpose = kpi.Definition ??"";
+                        var cleanPurpose = StripHtml(kpi.Purpose);
                         var purposeCell = ws.Cell(row, col++);
                         purposeCell.Value = string.IsNullOrEmpty(cleanPurpose) ? "NA" : cleanPurpose;
 
@@ -545,10 +520,10 @@ namespace HealthIntelligence.Services
                             comment.Visible = false;
                         }
 
-                        foreach (var country in kpi.CountryValues)
+                        foreach (var Country in kpi.CountryValues)
                         {
-                            ws.Cell(row, col++).Value = country.Value;
-                            ws.Cell(row, col++).Value = country.AiValue;
+                            ws.Cell(row, col++).Value = Country.Value;
+                            ws.Cell(row, col++).Value = Country.AiValue;
                         }
 
                         row++;
@@ -557,11 +532,11 @@ namespace HealthIntelligence.Services
                     int endDataRow = row - 1;
 
                     // =========================
-                    // 🎨 STYLING
+                    // ?? STYLING
                     // =========================
 
                     // Column widths
-                    ws.Column(1).Width = 70;
+                    ws.Column(1).Width = 30;
                     ws.Column(2).Width = 55;
 
                     for (int i = 3; i <= totalCols; i++)
@@ -600,7 +575,7 @@ namespace HealthIntelligence.Services
                     ws.Range(6, 1, 6, totalCols).SetAutoFilter();
 
                     // =========================
-                    // 📄 SHEET 2
+                    // ?? SHEET 2
                     // =========================
                     var ws2 = workbook.Worksheets.Add("KPI Details");
 
@@ -619,7 +594,7 @@ namespace HealthIntelligence.Services
                     foreach (var kpi in data.TableData)
                     {
                         ws2.Cell(r, 1).Value = $"{kpi.LayerName} ({kpi.LayerCode})";
-                        ws2.Cell(r, 2).Value = kpi.Definition ?? "";
+                        ws2.Cell(r, 2).Value = StripHtml(kpi.Purpose);
                         r++;
                     }
 
@@ -631,7 +606,7 @@ namespace HealthIntelligence.Services
                     ws2.SheetView.FreezeRows(1);
 
                     // =========================
-                    // 📤 EXPORT
+                    // ?? EXPORT
                     // =========================
                     using (var stream = new MemoryStream())
                     {
@@ -645,6 +620,12 @@ namespace HealthIntelligence.Services
                 await _appLogger.LogAsync("Error in ExportCompareCountries", ex);
                 return new Tuple<string, byte[]>("", Array.Empty<byte>());
             }
+        }
+        private string StripHtml(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return string.Empty;
+
+            return Regex.Replace(input, "<.*?>", string.Empty).Trim();
         }
     }
 }

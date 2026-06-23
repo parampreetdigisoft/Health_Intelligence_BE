@@ -1,4 +1,4 @@
-﻿namespace HealthIntelligence.Dtos.PublicDto
+namespace HealthIntelligence.Dtos.PublicDto
 {
     public class PromotedPillarsResponseDto
     {
@@ -11,8 +11,7 @@
 
     public class PromotedCountryResponseDto
     {
-        public int CountryID { get; set; }
-        public string Country { get; set; }
+        public int CountryID { get; set; }        
         public string Continent { get; set; }
         public string CountryName { get; set; }
         public string? CountryCode { get; set; }

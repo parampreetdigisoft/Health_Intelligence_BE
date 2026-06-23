@@ -1,4 +1,4 @@
-﻿using HealthIntelligence.Common.Models;
+using HealthIntelligence.Common.Models;
 using HealthIntelligence.Dtos.PaymentDto;
 
 namespace HealthIntelligence.IServices
