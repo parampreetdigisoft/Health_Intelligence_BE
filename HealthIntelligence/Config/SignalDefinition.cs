@@ -16,7 +16,7 @@ namespace HealthIntelligence.Config
 
         public static readonly IReadOnlyList<SignalDefinition> All = new List<SignalDefinition>
         {
-            new() { Code = "PEM", Name = "Peace Equilibrium Metric", Mode = SignalMode.StressTest, HigherIsRisk = false },
+            new() { Code = "AHI", Name = "Health Equilibrium Metric", Mode = SignalMode.StressTest, HigherIsRisk = false },
             new() { Code = "SFS", Name = "Systemic Fragility Stress", Mode = SignalMode.StressTest },
             new() { Code = "GAS", Name = "Governance Asymmetry Stress", Mode = SignalMode.StressTest },
             new() { Code = "SCS", Name = "Social Cohesion Strength", Mode = SignalMode.Resilience, HigherIsRisk = false },

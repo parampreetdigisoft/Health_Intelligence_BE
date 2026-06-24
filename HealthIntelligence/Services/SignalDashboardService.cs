@@ -33,7 +33,7 @@ namespace HealthIntelligence.Services
                 var mappings = await LoadActiveMappings(PeaceStressTestModeId);
                 if (!mappings.Any())
                 {
-                    return ResultResponseDto<PeaceStressTestDashboardDto>.Failure(new[] { "Peace stress test dashboard configuration not found." });
+                    return ResultResponseDto<PeaceStressTestDashboardDto>.Failure(new[] { "Health stress test dashboard configuration not found." });
                 }
 
                 var layerIds = mappings.Select(x => x.LayerID).Distinct().ToList();
@@ -51,10 +51,10 @@ namespace HealthIntelligence.Services
                 primarySignals.Insert(0,new SignalCardDto
                 {
                     LayerID = 0,
-                    LayerCode = "PEM",
+                    LayerCode = "AHI",
                     LayerName = "Country Score",
                     Description = "Score of the Country",
-                    Code = "PEM Score",
+                    Code = "AHI Score",
                     Name = "Country Score",
                     Value = pemScores.Current,
                     Delta = pemScores.Delta,
@@ -102,7 +102,7 @@ namespace HealthIntelligence.Services
                     Narratives = narratives
                 };
 
-                return ResultResponseDto<PeaceStressTestDashboardDto>.Success(response, new[] { "Peace stress test dashboard generated successfully." });
+                return ResultResponseDto<PeaceStressTestDashboardDto>.Success(response, new[] { "Health stress test dashboard generated successfully." });
             }
             catch (Exception ex)
             {

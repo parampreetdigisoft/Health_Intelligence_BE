@@ -104,14 +104,14 @@ namespace HealthIntelligence.Services
                     var url = user.Role != UserRole.CountryUser ? _appSettings.ApplicationUrl : _appSettings.PublicApplicationUrl;
                     string passwordResetLink = url + "/auth/reset-password?PasswordToken=" + token;
 
-                    var sub = "Password Update Link – Peace Enablers Matrix Platform";
+                    var sub = "Password Update Link – Africa Health Intelligence Platform";
                     var model = new EmailInvitationSendRequestDto
                     {
                         ResetPasswordUrl = passwordResetLink,
                         Title = sub,
                         ApiUrl = _appSettings.ApiUrl,
                         ApplicationUrl = url,
-                        MsgText= "A request was made to update the password for your Peace Enablers Matrix (PEM) account. To proceed, please use the secure link below:",
+                        MsgText= "A request was made to update the password for your Africa Health Intelligence (AHI) account. To proceed, please use the secure link below:",
                         IsShowBtnText=true,
                         IsLoginBtn=false,
                         BtnText= "Update Password",
@@ -295,7 +295,7 @@ namespace HealthIntelligence.Services
                     roleName = "Country User";
                 }
 
-                string sub = $"{roleName} Access Granted – Peace Enablers Matrix Platform";
+                string sub = $"{roleName} Access Granted – Africa Health Intelligence Platform";
                 var url = _appSettings.ApplicationUrl; 
                 string passwordResetLink = url + "/auth/reset-password?PasswordToken=" + token;
 
@@ -489,7 +489,7 @@ namespace HealthIntelligence.Services
         //                   roleName = "Country User";
         //               }
 
-        //               string sub = $"{roleName} Access Granted – Peace Enablers Matrix Platform";                    
+        //               string sub = $"{roleName} Access Granted – Africa Health Intelligence Platform";                    
         //               var url = user.Role != UserRole.CountryUser ? _appSettings.ApplicationUrl : _appSettings.PublicApplicationUrl;
         //               string passwordResetLink = url + "/auth/reset-password?PasswordToken=" + token;
 
@@ -660,7 +660,7 @@ namespace HealthIntelligence.Services
                     var hash = BCrypt.Net.BCrypt.HashPassword(inviteUser.Email);
                     var token = hash.Replace("+", " ");
                     string roleName = inviteUser.Role == UserRole.CountryUser ? "Country User" : inviteUser.Role.ToString();
-                    string sub = $"{roleName} Access Granted – Peace Enablers Matrix Platform";
+                    string sub = $"{roleName} Access Granted – Africa Health Intelligence Platform";
                     var url = user.Role != UserRole.CountryUser ? _appSettings.ApplicationUrl : _appSettings.PublicApplicationUrl;
                     string passwordResetLink = url + "/auth/reset-password?PasswordToken=" + token;
 
@@ -900,7 +900,7 @@ namespace HealthIntelligence.Services
                          .Select(c => c.CountryName));
                         var invitedUser = _context.Users.FirstOrDefault(x => x.UserID == inviteUser.InvitedUserID);
 
-                        string sub = $"{inviteUser.Role.ToString()} Access Granted – Peace Enablers Matrix Platform";
+                        string sub = $"{inviteUser.Role.ToString()} Access Granted – Africa Health Intelligence Platform";
                         var model = new EmailInvitationSendRequestDto
                         {
                             ResetPasswordUrl = resetLink,
@@ -978,7 +978,7 @@ namespace HealthIntelligence.Services
                             Title = "Request to update assessment",
                             ApiUrl = _appSettings.ApiUrl,
                             ApplicationUrl = _appSettings.ApplicationUrl,
-                            MsgText = $"You are receiving this email because user {user?.FullName} recently requested to update assessment of {country?.CountryName} from their Peace Enablers Matrix account.",
+                            MsgText = $"You are receiving this email because user {user?.FullName} recently requested to update assessment of {country?.CountryName} from their Africa Health Intelligence account.",
                             BtnText = "Give Access",
                             Mail = _appSettings.AdminMail
                         };
@@ -1323,7 +1323,7 @@ namespace HealthIntelligence.Services
                         Title = "Verify Your Email",
                         ApiUrl = _appSettings.ApiUrl,
                         ApplicationUrl = _appSettings.PublicApplicationUrl,
-                        MsgText = "A request was made to update the Email for your Peace Enablers Matrix (PEM) account. Please verify your email or reset your password.",
+                        MsgText = "A request was made to update the Email for your Africa Health Intelligence (AHI) account. Please verify your email or reset your password.",
                         Mail = _appSettings.AdminMail,
                         BtnText = "Verify",
                         DescriptionAboutBtnText = "Please verify your email address by clicking the button above."

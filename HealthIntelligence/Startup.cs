@@ -90,7 +90,7 @@ namespace HealthIntelligence
             {
                 c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
                 {
-                    Title = "Peace Enablers Api",
+                    Title = "Africa Health Intelligence Api",
                     Version = "v1"
                 });
 
@@ -184,7 +184,7 @@ namespace HealthIntelligence
             // Enable middleware to serve Swagger UI (HTML, JS, CSS, etc.)
             app.UseSwaggerUI(c =>
             {
-                c.SwaggerEndpoint("/swagger/v1/swagger.json", "Peace Enablers Api");
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "Africa Health Intelligence Api");
                 c.RoutePrefix = string.Empty; // Swagger UI at root URL (e.g. https://localhost:5001/)
             });           
 
