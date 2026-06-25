@@ -1470,19 +1470,33 @@ namespace HealthIntelligence.Services
 
             if (role == UserRole.CountryUser)
             {
-                existingCountryIds = await _context.PublicUserCountryMappings
+                var existingCountries = await _context.PublicUserCountryMappings
                     .Where(m => m.UserID == userId && m.IsActive)
-                    .Select(m => m.CountryID)
                     .ToListAsync();
+
+                existingCountryIds = existingCountries.Select(x => x.CountryID).ToList();
+
+                var updateCountries = existingCountries.Where(x => x.IsDeleted && newCountryIds.Contains(x.CountryID));
+                foreach (var c in updateCountries)
+                {
+                    c.IsDeleted = false;
+                    _context.Update(c);
+                }
             }
             else
             {
-                existingCountryIds = _context.UserCountryMappings
-                    .Where(m => m.UserID == userId && m.AssignedByUserId == assignedByUserId && !m.IsDeleted)
-                    .Select(m => m.CountryID)
+                var existingCountries = _context.UserCountryMappings
+                    .Where(m => m.UserID == userId && m.AssignedByUserId == assignedByUserId)
                     .ToList();
-            }
+                existingCountryIds = existingCountries.Select(x => x.CountryID).ToList();
 
+                var updateCountries = existingCountries.Where(x=>x.IsDeleted && newCountryIds.Contains(x.CountryID));
+                foreach(var c in updateCountries)
+                {
+                    c.IsDeleted = false;
+                    _context.Update(c);
+                }
+            }
             newCountryIds ??= new List<int>();
 
             var countriesToAdd = newCountryIds.Except(existingCountryIds).ToList();

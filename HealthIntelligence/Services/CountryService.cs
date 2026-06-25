@@ -463,7 +463,8 @@ namespace HealthIntelligence.Services
         private async Task ApplyManualScoresAsync(PaginationResponse<UserCountryMappingResponseDto> response,PaginationRequest request, UserRole role, int year)
         {
             var scores = await _commonService.GetCountriesProgressAsync(request.UserId.GetValueOrDefault(),(int)role, year);
-            int pillarCount = _appSettings.PillarCount;
+            int pillarCount = (await _commonService.GetPillars()).Count;
+
             var scoreMap = scores
                 .GroupBy(x => x.CountryID)
                 .ToDictionary(
@@ -1058,16 +1059,16 @@ namespace HealthIntelligence.Services
 
             if (isRanking)
             {
-                ws.Cell(row, 5).Value = "Evaluator - AI Country Score";
+                ws.Cell(row, 5).Value = "Evaluated - AI Country Score";
             }
             else
             {
                 ws.Cell(row, 5).Value = "Pillar Name";
                 ws.Cell(row, 6).Value = "Total Score";
                 ws.Cell(row, 7).Value = "Total Answers";
-                ws.Cell(row, 8).Value = "Evaluator Pillar Score";
+                ws.Cell(row, 8).Value = "Evaluated Pillar Score";
                 ws.Cell(row, 9).Value = "AI Pillar Score";
-                ws.Cell(row, 10).Value = "Evaluator - AI Country Score";
+                ws.Cell(row, 10).Value = "Evaluated - AI Country Score";
             }
 
             var header = ws.Range(row, 1, row, totalColumns);

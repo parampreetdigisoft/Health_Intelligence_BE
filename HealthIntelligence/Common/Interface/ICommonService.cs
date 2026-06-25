@@ -1,12 +1,15 @@
 using HealthIntelligence.Dtos.CountryDto;
+using HealthIntelligence.Models;
 
 namespace HealthIntelligence.Common.Interface
 {
     public interface ICommonService
     {
-        Task<List<EvaluationCountryProgressResultDto>> GetCountriesProgressAsync(int userId,int role, int year);
+        Task<List<EvaluationCountryProgressResultDto>> GetCountriesProgressAsync(int userId,int role, int year, int countryID = 0);
         Task<List<EvaluationCountryProgressHistoryResultDto>> GetCountriesProgressHistoryAsync(int userId, int role, int fromYear, int toYear);
         Task<List<GetCountriesProgressAdminDto>> GetCountriesProgressForAdmin(int userId, int role, int year);
         Task<List<CountryRankingResultDto>> GetCountriesRankings(int countryId, int year);
+        Task<List<Pillar>> GetPillars();
+        void ClearPillarCache();
     }
 }

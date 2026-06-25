@@ -172,7 +172,7 @@ namespace HealthIntelligence.Services
                        Score = (decimal)g.Sum(x => (int?)x.Score ?? 0) / (g.Key.EvaluatorCount == 0 ? 1 : g.Key.EvaluatorCount),
                        HighScore = g.Max(x=>(int?)x.Score ?? 0),
                        LowerScore = g.Min(x => (int?)x.Score ?? 0),
-                       Progress = ((decimal)g.Sum(x => (int?)x.Score ?? 0) * 100) / ((g.Key.EvaluatorCount == 0 ? 1 : g.Key.EvaluatorCount) * 4 * g.Count()),
+                       Progress = ((decimal)g.Sum(x => (int?)x.Score ?? 0)) / ((g.Key.EvaluatorCount == 0 ? 1 : g.Key.EvaluatorCount) * g.Count()),
                    };
 
                 if (!string.IsNullOrWhiteSpace(request.Country))

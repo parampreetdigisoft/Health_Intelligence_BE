@@ -1,31 +1,41 @@
-using Microsoft.Data.SqlClient;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using HealthIntelligence.Common.Interface;
 using HealthIntelligence.Common.Models.settings;
 using HealthIntelligence.Data;
 using HealthIntelligence.Dtos.CountryDto;
 using HealthIntelligence.IServices;
+using HealthIntelligence.Models;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 
 namespace HealthIntelligence.Common.Implementation
 {
     public class CommonService : ICommonService
     {
         #region constructor
+        private readonly IMemoryCache _memoryCache;
+        private const string PILLAR_CACHE_KEY = "PILLAR_CACHE";
 
         private readonly ApplicationDbContext _context;
         private readonly IAppLogger _appLogger;
         private readonly IWebHostEnvironment _env;
         private readonly AppSettings _appSettings;
-        public CommonService(ApplicationDbContext context, IAppLogger appLogger, IWebHostEnvironment env, IOptions<AppSettings> appSettings)
+        public CommonService(
+            ApplicationDbContext context,
+            IAppLogger appLogger,
+            IWebHostEnvironment env,
+            IOptions<AppSettings> appSettings,
+            IMemoryCache memoryCache)
         {
             _context = context;
             _appLogger = appLogger;
             _env = env;
             _appSettings = appSettings.Value;
+            _memoryCache = memoryCache;
         }
-        #endregion
 
+        #endregion
 
         public static string InitailLineOfExecutiveSummery(
             string evidenceSummary,
@@ -41,16 +51,17 @@ namespace HealthIntelligence.Common.Implementation
         }
 
 
-        public async Task<List<EvaluationCountryProgressResultDto>> GetCountriesProgressAsync(int userId, int role, int year)
+        public async Task<List<EvaluationCountryProgressResultDto>> GetCountriesProgressAsync(int userId, int role, int year, int countryID = 0)
         {
             try
             {
                 return await _context.CountryProgressResults
                  .FromSqlRaw(
-                     "EXEC usp_getCountriesProgressByUserId @userID, @role, @year",
+                     "EXEC usp_getCountriesProgressByUserId @userID, @role, @year", "@countryID",
                      new SqlParameter("@userID", userId),
                      new SqlParameter("@role", role),
-                     new SqlParameter("@year", year)
+                     new SqlParameter("@year", year),
+                     new SqlParameter("@countryID", countryID)
                  )
                  .AsNoTracking()
                  .ToListAsync();
@@ -117,6 +128,38 @@ namespace HealthIntelligence.Common.Implementation
                 await _appLogger.LogAsync("Error in Executing usp_getCountriesProgress_Admin", ex);
                 return new List<GetCountriesProgressAdminDto>();
             }
+        }
+
+
+        public async Task<List<Pillar>> GetPillars()
+        {
+            try
+            {
+                if (_memoryCache.TryGetValue(PILLAR_CACHE_KEY, out List<Pillar> pillars))
+                {
+                    return pillars;
+                }
+
+                pillars = await _context.Pillars
+                    .Where(x => x.IsActive && !x.IsDeleted)
+                    .ToListAsync();
+
+                var cacheOptions = new MemoryCacheEntryOptions()
+                    .SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
+
+                _memoryCache.Set(PILLAR_CACHE_KEY, pillars, cacheOptions);
+
+                return pillars;
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("Error in GetPillars", ex);
+                return new List<Pillar>();
+            }
+        }
+        public void ClearPillarCache()
+        {
+            _memoryCache.Remove(PILLAR_CACHE_KEY);
         }
     }
 }

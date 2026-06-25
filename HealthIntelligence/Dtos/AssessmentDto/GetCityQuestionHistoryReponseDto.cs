@@ -38,6 +38,7 @@ namespace HealthIntelligence.Dtos.AssessmentDto
     {
         public int AssessmentID { get; set; }
         public double Score { get; set; }
+        public int TotalPillar { get; set; }
         public int TotalAnsPillar { get; set; }
         public int TotalQuestion { get; set; }
         public int TotalAnsQuestion { get; set; }

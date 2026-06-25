@@ -549,21 +549,20 @@ namespace HealthIntelligence.Services
 
                         var count = userData.Count;
 
-                        decimal score = 0;
+                        var filteredData = userData
+                            .Where(x => x.Value.Score!=null)
+                            .Select(x => (decimal)x.Value.Score.Value);
 
-                        if (count > 0)
-                        {
-                            var totalScore = userData.Sum(x => x.Value.Score) ?? 0;
-                            var answeredCount = userData.Count(x => x.Value.Score.HasValue);
-                            score = totalScore * 100m / (answeredCount * 4);
-                        }
+                        decimal score = filteredData.Any()
+                          ? filteredData.Average()
+                          :0m;
 
                         var richText = ws.Cell(row, c++).GetRichText();
 
                         richText.AddText("Total Score:  ")
                             .SetBold().SetFontColor(XLColor.DarkGray);
 
-                        richText.AddText($"{Math.Round(score, 2)}\n")
+                        richText.AddText($"{Math.Round(score,2)}\n")
                             .SetFontColor(XLColor.Black);
                     }
 
@@ -721,11 +720,11 @@ namespace HealthIntelligence.Services
                     {
                         UserID = int.MaxValue,
                         FullName = "AI_Result",
-                        Score = Math.Round(x.Score, 0),
+                        Score = Convert.ToDecimal(Math.Round(x.Score,0)),
                         ScoreProgress = x.ScoreProgress,
                         TotalQuestion = x.Count,
                         AnsQuestion = x.Count,
-                        AnsPillar = 1
+                        AnsPillar =1
                     }
                 );
 
@@ -750,22 +749,20 @@ namespace HealthIntelligence.Services
                                                 (int)r.Score.Value <= (int)ScoreValue.Four)
                                     .ToList();
 
-                                var score = responses.Sum(r => (int?)r.Score ?? 0);
-                                var scoreCount = responses.Count;
+                                var progress = responses.Any()
+                                 ? responses.Average(r => (decimal)((int?)r.Score ??0))
+                                 :0m;
 
-                                decimal progress = scoreCount > 0
-                                    ? score * 100m / (scoreCount * 4m)
-                                    : 0m;
 
                                 return new PillarsUserHistroyResponseDto
                                 {
                                     UserID = userGroup.Key,
                                     FullName = usersDict.GetValueOrDefault(userGroup.Key, ""),
-                                    Score = score,
+                                    Score = progress,
                                     ScoreProgress = progress,
                                     TotalQuestion = p.TotalQuestion,
                                     AnsQuestion = responses.Count,
-                                    AnsPillar = responses.Any() ? 1 : 0
+                                    AnsPillar = responses.Any() ?1 :0
                                 };
                             })
                             .ToList();

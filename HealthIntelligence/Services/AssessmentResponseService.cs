@@ -1,6 +1,4 @@
 using ClosedXML.Excel;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using HealthIntelligence.Backgroundjob;
 using HealthIntelligence.Common.Implementation;
 using HealthIntelligence.Common.Interface;
@@ -8,11 +6,14 @@ using HealthIntelligence.Common.Models;
 using HealthIntelligence.Common.Models.settings;
 using HealthIntelligence.Data;
 using HealthIntelligence.Dtos.AssessmentDto;
-using HealthIntelligence.Dtos.CountryDto;
 using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.Dtos.CountryDto;
 using HealthIntelligence.Dtos.dashboard;
 using HealthIntelligence.IServices;
 using HealthIntelligence.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using System.Linq;
 using System.Linq.Expressions;
 
 namespace HealthIntelligence.Services
@@ -264,65 +265,146 @@ namespace HealthIntelligence.Services
                         .Select(x => x.UserCountryMappingID)
                         .ToListAsync();
                 }
+                var pillarCount = (await _commonService.GetPillars()).Count;
 
-                var query =
-                    from a in _context.Assessments
-                    where a.IsActive
-                          && a.UpdatedAt >= startDate
-                          && a.UpdatedAt < endDate
-                          && (!request.CountryID.HasValue || a.UserCountryMapping.CountryID == request.CountryID.Value)
-                          && (role == UserRole.Admin || allowedMappingIds.Contains(a.UserCountryMappingID))
+                var baseRecords = await (
+                        from a in _context.Assessments
+                        where a.IsActive
+                              && a.UpdatedAt >= startDate
+                              && a.UpdatedAt < endDate
+                              && (!request.CountryID.HasValue || a.UserCountryMapping.CountryID == request.CountryID.Value)
+                              && (role == UserRole.Admin || allowedMappingIds.Contains(a.UserCountryMappingID))
 
-                    join c in _context.Countries.Where(x => !x.IsDeleted)
-                        on a.UserCountryMapping.CountryID equals c.CountryID
+                        join c in _context.Countries.Where(x => !x.IsDeleted)
+                            on a.UserCountryMapping.CountryID equals c.CountryID
 
-                    join u in _context.Users.Where(x =>
-                            !x.IsDeleted &&
-                            (!request.Role.HasValue || x.Role == request.Role.Value))
-                        on a.UserCountryMapping.UserID equals u.UserID
+                        join u in _context.Users.Where(x =>
+                                !x.IsDeleted &&
+                                (!request.Role.HasValue || x.Role == request.Role.Value))
+                            on a.UserCountryMapping.UserID equals u.UserID
 
-                    join createdBy in _context.Users.Where(x => !x.IsDeleted)
-                        on a.UserCountryMapping.AssignedByUserId equals createdBy.UserID
+                        join createdBy in _context.Users.Where(x => !x.IsDeleted)
+                            on a.UserCountryMapping.AssignedByUserId equals createdBy.UserID
 
-                    let responses = a.PillarAssessments.SelectMany(p => p.Responses)
+                        select new
+                        {
+                            a.AssessmentID,
+                            a.UserCountryMappingID,
+                            a.CreatedAt,
+                            a.AssessmentPhase,
+                            c.CountryID,
+                            c.CountryName,
+                            c.Continent,
+                            u.UserID,
+                            u.FullName,
+                            AssignedByUser = createdBy.FullName,
+                            AssignedByUserId = createdBy.UserID
+                        })
+                    .ToListAsync();
 
-                    select new GetCountryAssessmentResponseDto
+                if (baseRecords.Count == 0)
+                {
+                    return new PaginationResponse<GetCountryAssessmentResponseDto>
                     {
-                        AssessmentID = a.AssessmentID,
-                        UserCountryMappingID = a.UserCountryMappingID,
-                        CreatedAt = a.CreatedAt,
-
-                        CountryID = c.CountryID,
-                        CountryName = c.CountryName,
-                        Continent = c.Continent,
-
-                        UserID = u.UserID,
-                        UserName = u.FullName,
-
-                        Score = (responses.Where(r => r.Score.HasValue && (int)r.Score.Value <= (int)ScoreValue.Four).Sum(r => (decimal)((int?)r.Score ?? 0)) * 100m)
-                                 /
-                                (responses.Count(r => r.Score.HasValue && (int)r.Score.Value <= (int)ScoreValue.Four) * 4m),
-
-                        TotalNA = responses.Count(r =>
-                            !r.Score.HasValue &&
-                            r.Question.QuestionOptions.Any(o =>
-                                o.OptionID == r.QuestionOptionID &&
-                                o.OptionText == "N/A" || o.OptionText == "NA")),
-
-                        TotalUnknown = responses.Count(r =>
-                            !r.Score.HasValue &&
-                            r.Question.QuestionOptions.Any(o =>
-                                o.OptionID == r.QuestionOptionID &&
-                                o.OptionText == "Unknown")),
-
-                        AssignedByUser = createdBy.FullName,
-                        AssignedByUserId = createdBy.UserID,
-
-                        AssessmentYear = year,
-                        AssessmentPhase = a.AssessmentPhase
+                        Data = new List<GetCountryAssessmentResponseDto>(),
+                        TotalRecords = 0,
+                        PageNumber = request.PageNumber,
+                        PageSize = request.PageSize
                     };
+                }
 
-                return await query.ApplyPaginationAsync(request);
+                var assessmentIds = baseRecords.Select(x => x.AssessmentID).ToList();
+
+                // ? Fetch responses grouped by PillarAssessmentID
+                var responsesByPillar = await (
+                        from r in _context.AssessmentResponses
+                        where assessmentIds.Contains(r.PillarAssessment.AssessmentID)
+                        select new
+                        {
+                            r.PillarAssessment.AssessmentID,
+                            r.PillarAssessment.PillarAssessmentID,
+                            r.Score,
+                            OptionText = r.Question.QuestionOptions
+                                .Where(o => o.OptionID == r.QuestionOptionID)
+                                .Select(o => o.OptionText)
+                                .FirstOrDefault()
+                        })
+                    .ToListAsync();
+
+                var results = baseRecords.Select(b =>
+                {
+                    var responses = responsesByPillar
+                        .Where(r => r.AssessmentID == b.AssessmentID)
+                        .ToList();
+
+                    // ? Only scored responses (0, 25, 50, 75, 100)
+                    var scoredResponses = responses
+                        .Where(r => r.Score.HasValue)
+                        .ToList();
+
+                    // ? NA and Unknown counts
+                    var totalNA = responses.Count(r =>
+                        !r.Score.HasValue &&
+                        (r.OptionText == "N/A" || r.OptionText == "NA"));
+
+                    var totalUnknown = responses.Count(r =>
+                        !r.Score.HasValue &&
+                        r.OptionText == "Unknown");
+
+                    // ? Step 1: Calculate per-pillar score
+                    // PillarScore = SUM(Score) / (TotalAnswered ï¿½ 100) ï¿½ 100
+                    var pillarScores = scoredResponses
+                        .GroupBy(r => r.PillarAssessmentID)
+                        .Select(g =>
+                        {
+                            var totalScore = g.Sum(r => (decimal)r.Score!.Value);
+                            var totalAns = g.Count();
+                            return totalAns > 0
+                                ? totalScore / (totalAns * 100m) * 100m
+                                : 0m;
+                        })
+                        .ToList();
+
+                    // ? Step 2: Overall Score = SUM(PillarScores) / TotalPillars(22)
+                    // Unanswered pillars = 0, correctly drag the overall score down
+                    var overallScore = pillarCount > 0
+                        ? Math.Round(pillarScores.Sum() / pillarCount, 2)
+                        : 0m;
+
+                    return new GetCountryAssessmentResponseDto
+                    {
+                        AssessmentID = b.AssessmentID,
+                        CountryID = b.CountryID,
+                        UserCountryMappingID = b.UserCountryMappingID,
+                        CreatedAt = b.CreatedAt,
+                        CountryName = b.CountryName ?? "",
+                        Continent = b.Continent ?? "",
+                        UserID = b.UserID,
+                        UserName = b.FullName ?? "",
+                        AssignedByUser = b.AssignedByUser ?? "",
+                        AssignedByUserId = b.AssignedByUserId,
+                        AssessmentPhase = b.AssessmentPhase,
+                        AssessmentYear = year,
+                        Score = overallScore,
+                        TotalNA = totalNA,
+                        TotalUnknown = totalUnknown
+                    };
+                }).ToList();
+
+                var totalRecords = results.Count;
+                var data = results
+                    .OrderByDescending(x => x.Score)
+                    .Skip((request.PageNumber - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToList();
+
+                return new PaginationResponse<GetCountryAssessmentResponseDto>
+                {
+                    Data = data,
+                    TotalRecords = totalRecords,
+                    PageNumber = request.PageNumber,
+                    PageSize = request.PageSize
+                };
             }
             catch (Exception ex)
             {
@@ -337,7 +419,6 @@ namespace HealthIntelligence.Services
                 };
             }
         }
-
         public async Task<PaginationResponse<GetAssessmentQuestionResponseDto>> GetAssessmentQuestion(GetAssessmentQuestoinRequestDto request)
         {
             try
@@ -414,7 +495,7 @@ namespace HealthIntelligence.Services
                     int pillarID = ws.Cell(11, 12).GetValue<int>();
 
                     if (userCountryMappingID == 0 || pillarID == 0)
-                        continue; // empty or corrupt sheet — skip
+                        continue; // empty or corrupt sheet ï¿½ skip
 
                     // Validate that the file belongs to the uploading user
                     if (!_context.UserCountryMappings.Any(x =>
@@ -598,7 +679,7 @@ namespace HealthIntelligence.Services
                         var ansUserCount = g.Where(x => x.UserID > 0).Distinct().Count();
                         var totalQuestionsInPillar = g.Max(x => x.TotalQuestion) * ansUserCount;
 
-                        decimal progress = ScoreCount != 0 && ansUserCount > 0 ? totalAnsScoreOfPillar * 100 / (ScoreCount * 4m ) : 0m;
+                        decimal progress = ScoreCount != 0 && ansUserCount > 0 ? totalAnsScoreOfPillar  / ScoreCount : 0m;
 
                         return new CountryPillarQuestionHistoryResponseDto
                         {
@@ -673,7 +754,7 @@ namespace HealthIntelligence.Services
                 }
 
                 // Get total questions directly (avoid Include if not needed)
-                var totalQuestions = await _context.Questions.CountAsync();
+                var totalQuestions = await _context.Questions.Where(x=>!x.IsDeleted).CountAsync();
 
                 // Calculate answered questions
                 var totalAnsweredQuestions = assessment.PillarAssessments
@@ -686,11 +767,14 @@ namespace HealthIntelligence.Services
                     .Where(r => r.Score.HasValue && r.Score.Value <= ScoreValue.Four)
                     .Sum(r => (int)r.Score!.Value);
 
+                var totalPillars = (await _commonService.GetPillars()).Count;
+
                 // Build response
                 var result = new GetAssessmentHistoryDto
                 {
                     AssessmentID = assessmentID,
                     Score = score,
+                    TotalPillar = totalPillars,
                     TotalAnsPillar = assessment.PillarAssessments.Count,
                     TotalAnsQuestion = totalAnsweredQuestions,
                     TotalQuestion = totalQuestions,
@@ -753,7 +837,7 @@ namespace HealthIntelligence.Services
                                               x.UserID == r.TransferToUserID);
 
                 if (countryAssigned == null)
-                    return ResultResponseDto<string>.Failure(new[] { "This assessment can’t be imported because the selected user hasn’t been assigned to this country yet." });
+                    return ResultResponseDto<string>.Failure(new[] { "This assessment canï¿½t be imported because the selected user hasnï¿½t been assigned to this country yet." });
 
                 // Load existing assessment for that user/country/year (with pillars/responses)
                 var existingAssessment = await _context.Assessments
@@ -886,7 +970,7 @@ namespace HealthIntelligence.Services
 
                 // 2. Fetch required data in parallel
                 var pillarEvaluationsList = await _commonService
-                    .GetCountriesProgressAsync(userId, (int)userRole, year);
+                    .GetCountriesProgressAsync(userId, (int)userRole, year, request.CountryID);
 
                 var pillars = await _context.Pillars
                     .AsNoTracking()
@@ -943,5 +1027,11 @@ namespace HealthIntelligence.Services
             }
         }
 
+        private sealed class AssessmentResultResponseRow
+        {
+            public int AssessmentID { get; set; }
+            public ScoreValue? Score { get; set; }
+            public string? OptionText { get; set; }
+        }
     }
 }

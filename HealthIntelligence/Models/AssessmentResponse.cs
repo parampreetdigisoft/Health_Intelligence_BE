@@ -2,7 +2,7 @@ using System;
 
 namespace HealthIntelligence.Models
 {
-    public enum ScoreValue { Four = 4, Three = 3, Two = 2, One = 1, Zero = 0, NA, Unknown }
+    public enum ScoreValue { Four = 100, Three = 75, Two = 50, One = 25, Zero = 0, NA, Unknown }
     public class AssessmentResponse
     {
         public int ResponseID { get; set; }

@@ -9,6 +9,7 @@ namespace HealthIntelligence.Models
         public User? User { get; set; }
         public DateTime UpdatedAt { get; set; } = DateTime.Now;
         public bool IsActive { get; set; } = true;
+        public bool IsDeleted { get; set; } = false;
     }
     public class CountryUserPillarMapping
     {
@@ -16,16 +17,6 @@ namespace HealthIntelligence.Models
         public int PillarID { get; set; }
         public int UserID { get; set; }
         public Pillar? Pillar { get; set; }
-        public User? User { get; set; }
-        public DateTime UpdatedAt { get; set; } = DateTime.Now;
-        public bool IsActive { get; set; } = true;
-    }
-    public class CountryUserKpiMapping
-    {
-        public int CountryUserKpiMappingID { get; set; }
-        public int LayerID { get; set; }
-        public int UserID { get; set; }
-        public AnalyticalLayer? Layer { get; set; }
         public User? User { get; set; }
         public DateTime UpdatedAt { get; set; } = DateTime.Now;
         public bool IsActive { get; set; } = true;
