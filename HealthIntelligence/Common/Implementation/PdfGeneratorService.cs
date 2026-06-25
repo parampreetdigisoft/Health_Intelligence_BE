@@ -15,7 +15,7 @@ using static HealthIntelligence.Services.AIComputationService;
 
 namespace HealthIntelligence.Common.Implementation
 {
-    public partial class PdfGeneratorService : Interface.IPdfGeneratorService
+    public partial class PdfGeneratorService : IPdfGeneratorService
     {
         #region constructor
 

@@ -14,18 +14,15 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 
-using DocumentFormat.OpenXml;
-using DocumentFormat.OpenXml.Packaging;
-using DocumentFormat.OpenXml.Wordprocessing;
-using HealthIntelligence.Common.Interface;
-using HealthIntelligence.Dtos.AiDto;
-using HealthIntelligence.IServices;
-using HealthIntelligence.Models;
-using HealthIntelligence.Services;
 using SkiaSharp;
-using System.Diagnostics.Metrics;
+using DocumentFormat.OpenXml;
+using HealthIntelligence.Models;
+using HealthIntelligence.IServices;
+using HealthIntelligence.Dtos.AiDto;
+using DocumentFormat.OpenXml.Packaging;
+using HealthIntelligence.Common.Interface;
+using DocumentFormat.OpenXml.Wordprocessing;
 using static HealthIntelligence.Services.AIComputationService;
-
 
 // Aliases to avoid clashes with System.Drawing / Wordprocessing
 using A    = DocumentFormat.OpenXml.Drawing;

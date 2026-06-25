@@ -1026,12 +1026,5 @@ namespace HealthIntelligence.Services
                     .Failure(new[] { "Error in getting pillar details" });
             }
         }
-
-        private sealed class AssessmentResultResponseRow
-        {
-            public int AssessmentID { get; set; }
-            public ScoreValue? Score { get; set; }
-            public string? OptionText { get; set; }
-        }
     }
 }

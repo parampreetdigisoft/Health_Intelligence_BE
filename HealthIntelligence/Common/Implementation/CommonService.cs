@@ -145,7 +145,7 @@ namespace HealthIntelligence.Common.Implementation
                     .ToListAsync();
 
                 var cacheOptions = new MemoryCacheEntryOptions()
-                    .SetAbsoluteExpiration(TimeSpan.FromMinutes(10));
+                    .SetAbsoluteExpiration(TimeSpan.FromHours(1));
 
                 _memoryCache.Set(PILLAR_CACHE_KEY, pillars, cacheOptions);
 
