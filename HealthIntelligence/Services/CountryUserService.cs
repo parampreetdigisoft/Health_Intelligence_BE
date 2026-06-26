@@ -16,6 +16,7 @@ using HealthIntelligence.IServices;
 using HealthIntelligence.Models;
 using System.Text.RegularExpressions;
 using HealthIntelligence.Dtos.CountryUserDto;
+using HealthIntelligence.Common.Interface;
 
 namespace HealthIntelligence.Services
 {
@@ -23,10 +24,12 @@ namespace HealthIntelligence.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly IAppLogger _appLogger;
-        public CountryUserService(ApplicationDbContext context, IAppLogger appLogger)
+        private readonly ICommonService _commonService;
+        public CountryUserService(ApplicationDbContext context, IAppLogger appLogger, ICommonService commonService)
         {
             _context = context;
             _appLogger = appLogger;
+            _commonService = commonService;
         }
 
         public async Task<List<Pillar>> GetAllAsync(int userId, UserRole userRole)
@@ -144,17 +147,7 @@ namespace HealthIntelligence.Services
                     return new GetCountryQuestionHistoryResponseDto();
                 }
                 // ?? Fetch pillars
-                var pillars = await _context.Pillars
-                    .AsNoTracking()
-                    .OrderBy(x => x.DisplayOrder)
-                    .Select(p => new
-                    {
-                        p.PillarID,
-                        p.PillarName,
-                        p.ImagePath,
-                        p.DisplayOrder
-                    })
-                    .ToListAsync();
+                var pillars = await _commonService.GetPillars();
 
                 // ?? Fetch pillar scores and map for O(1) lookup
                 var pillarScoreMap = await _context.AIPillarScores
@@ -277,7 +270,7 @@ namespace HealthIntelligence.Services
                 var date = DateTime.Now;
 
                 // Get total pillars and questions
-                var pillarStats = await _context.Pillars
+                var pillarStats = await _context.Pillars.Where(x => x.IsActive && !x.IsDeleted)
                     .Select(p => new { p.PillarID, QuestionsCount = p.Questions.Count })
                     .ToListAsync();
 
@@ -386,6 +379,7 @@ namespace HealthIntelligence.Services
 
                 // Get all active pillars and questions
                 var allPillars = await _context.Pillars
+                    .Where(x => x.IsActive && !x.IsDeleted)
                     .AsNoTracking()
                     .Select(p => new
                     {
@@ -560,7 +554,8 @@ namespace HealthIntelligence.Services
                     return ResultResponseDto<List<CountryPillarQuestionDetailsDto>>.Failure(new[] { "Invalid country ID" });
 
                 var pillar = await _context.Pillars
-                    .Include(p => p.Questions)
+                    .Where(x => x.IsActive && !x.IsDeleted)
+                    .Include(p => p.Questions.Where(x => !x.IsDeleted))
                         .ThenInclude(q => q.QuestionOptions)
                     .AsNoTracking()
                     .FirstOrDefaultAsync(x => x.PillarID == pillarId);
@@ -1023,8 +1018,8 @@ namespace HealthIntelligence.Services
                                 .Select(x => x.PillarID)
                                 .Distinct()
                                 .ToListAsync();
-                
-                var pillars = await _context.Pillars.ToListAsync();
+
+                var pillars = await _commonService.GetPillars();
 
                 var result = pillars
                 .GroupJoin(

@@ -11,6 +11,7 @@ using HealthIntelligence.Dtos.QuestionDto;
 using HealthIntelligence.IServices;
 using HealthIntelligence.Models;
 using System.Text;
+using HealthIntelligence.Common.Interface;
 namespace HealthIntelligence.Services
 {
     public class QuestionService : IQuestionService
@@ -18,18 +19,20 @@ namespace HealthIntelligence.Services
         private readonly ApplicationDbContext _context;
         private readonly IAppLogger _appLogger;
         private readonly AppSettings _appSettings;
-        public QuestionService(ApplicationDbContext context, IAppLogger appLogger, IOptions<AppSettings> appSettings)
+        private readonly ICommonService _commonService;
+        public QuestionService(ApplicationDbContext context, IAppLogger appLogger, IOptions<AppSettings> appSettings, ICommonService commonService)
         {
             _context = context;
             _appLogger = appLogger;
             _appSettings = appSettings.Value;
+            _commonService = commonService;
         }
 
         public async Task<List<Pillar>> GetPillarsAsync()
         {
             try
             {
-                return await _context.Pillars.Where(p => !p.IsDeleted).OrderBy(p => p.DisplayOrder).ToListAsync();
+                return await _commonService.GetPillars();
             }
             catch (Exception ex)
             {
@@ -312,17 +315,17 @@ namespace HealthIntelligence.Services
                     }
 
                     // Get next unanswered pillar
-                    var selectPillar = await _context.Pillars
-                        .Include(p => p.Questions)
+                    var selectPillar = await _context.Pillars.Where(x => x.IsActive && !x.IsDeleted)
+                        .Include(p => p.Questions.Where(x => !x.IsDeleted))
                             .ThenInclude(q => q.QuestionOptions)
                         .Where(p => !request.PillarID.HasValue ? !answeredPillarIds.Contains(p.PillarID) : p.PillarID == request.PillarID)
                         .OrderBy(p => p.DisplayOrder)
                         .FirstOrDefaultAsync();
 
-                    var summitedPillar = await _context.Pillars
+                    var summitedPillar = (await _commonService.GetPillars())
                         .Where(p => !answeredPillarIds.Contains(p.PillarID))
                         .OrderBy(p => p.DisplayOrder)
-                        .FirstOrDefaultAsync();
+                        .FirstOrDefault();
 
                     if (selectPillar == null || selectPillar?.Questions == null)
                     {
@@ -407,7 +410,8 @@ namespace HealthIntelligence.Services
 
                 // Get next unanswered pillar
                 var nextPillars = await _context.Pillars
-                    .Include(p => p.Questions)
+                    .Where(x => x.IsActive && !x.IsDeleted)
+                    .Include(p => p.Questions.Where(x => !x.IsDeleted))
                         .ThenInclude(q => q.QuestionOptions)
                     .OrderBy(p => p.DisplayOrder)
                     .ToListAsync();
@@ -431,23 +435,23 @@ namespace HealthIntelligence.Services
         private const int FIRST_Q_ROW = 9;
         private const int ROWS_PER_Q = 4;
 
-        // -- Colour palette -------------------------------------------
-        private static readonly XLColor ColHeaderBlue = XLColor.FromArgb(31, 73, 125);
-        private static readonly XLColor ColAccentBlue = XLColor.FromArgb(68, 114, 196);
-        private static readonly XLColor ColLightBlue = XLColor.FromArgb(219, 229, 241);
-        private static readonly XLColor ColRowAlt = XLColor.FromArgb(245, 248, 255);
-        private static readonly XLColor ColEditableYellow = XLColor.FromArgb(255, 253, 215);
-        private static readonly XLColor ColSeparator = XLColor.FromArgb(210, 222, 240);
-        private static readonly XLColor ColGrayText = XLColor.FromArgb(130, 130, 130);
-        private static readonly XLColor ColDescBg = XLColor.FromArgb(255, 251, 224);
-        private static readonly XLColor ColDescBorder = XLColor.FromArgb(200, 175, 70);
-        private static readonly XLColor ColTotalBg = XLColor.FromArgb(228, 239, 255);
-        private static readonly XLColor ColInputBorder = XLColor.FromArgb(180, 200, 230);
+        private static readonly XLColor ColHeaderBlue = XLColor.FromArgb(0, 109, 119);   
+        private static readonly XLColor ColAccentBlue = XLColor.FromArgb(76, 175, 80); 
+        private static readonly XLColor ColLightBlue = XLColor.FromArgb(126, 200, 207);
+        private static readonly XLColor ColRowAlt = XLColor.FromArgb(245, 248, 247); 
+        private static readonly XLColor ColEditableYellow = XLColor.FromArgb(168, 224, 99);  
+        private static readonly XLColor ColSeparator = XLColor.FromArgb(228, 228, 228); 
+        private static readonly XLColor ColInputBorder = XLColor.FromArgb(228, 228, 228); 
+        private static readonly XLColor ColGrayText = XLColor.FromArgb(74, 95, 98);   
+        private static readonly XLColor ColDescBg = XLColor.FromArgb(245, 248, 247); 
+        private static readonly XLColor ColDescBorder = XLColor.FromArgb(0, 90, 98);   
+        private static readonly XLColor ColTotalBg = XLColor.FromArgb(126, 200, 207); 
+
         private byte[] MakePillarSheetClientReadable_Updated(
              List<Pillar> pillars,
              List<PillarAssessment> pillarAssessments,
              int userCountryMappingID,
-             dynamic? cityUser)
+             dynamic? countryUser)
         {
             using var workbook = new XLWorkbook();
 
@@ -460,6 +464,8 @@ namespace HealthIntelligence.Services
 
             foreach (var pillar in pillars)
             {
+                if (pillar.Questions.Count == 0) continue;
+
                 var ws = workbook.Worksheets.Add(GetValidSheetName(pillar.PillarName));
 
                 // -- Column widths -------------------------------------
@@ -470,7 +476,7 @@ namespace HealthIntelligence.Services
 
                 // -- Row 1 : Title -------------------------------------
                 var title = ws.Range("A1:D1").Merge();
-                title.Value = "Africa Health Intelligence — Country Assessment";
+                title.Value = "Africa Health Intelligence ï¿½ Country Assessment";
                 title.Style.Font.Bold = true;
                 title.Style.Font.FontSize = 13;
                 title.Style.Font.FontColor = XLColor.White;
@@ -490,12 +496,12 @@ namespace HealthIntelligence.Services
                 ws.Row(2).Height = 20;
 
                 // -- Rows 3-4 : Meta -----------------------------------
-                ws.Cell(3, 1).Value = "City:";
-                ws.Cell(3, 2).Value = cityUser?.CountryName?.ToString() ?? "";
+                ws.Cell(3, 1).Value = "Country:";
+                ws.Cell(3, 2).Value = countryUser?.CountryName?.ToString() ?? "";
                 ws.Cell(3, 3).Value = "Year:";
                 ws.Cell(3, 4).Value = DateTime.Now.Year;
                 ws.Cell(4, 1).Value = "Evaluator:";
-                ws.Cell(4, 2).Value = cityUser?.FullName?.ToString() ?? "";
+                ws.Cell(4, 2).Value = countryUser?.FullName?.ToString() ?? "";
 
                 foreach (int r in new[] { 3, 4 })
                 {
@@ -637,13 +643,13 @@ namespace HealthIntelligence.Services
                     ansCell.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
                     ansCell.Style.Border.OutsideBorderColor = ColAccentBlue;
 
-                    // DATA VALIDATION — list via Named Range (cross-sheet refs don't work in ClosedXML dv.Value)
+                    // DATA VALIDATION ï¿½ list via Named Range (cross-sheet refs don't work in ClosedXML dv.Value)
                     if (optionTexts.Any())
                     {
                         var dv = ansCell.GetDataValidation();
                         dv.Clear();
                         dv.AllowedValues = XLAllowedValues.List;
-                        // Reference the Named Range we created above — this IS supported by ClosedXML
+                        // Reference the Named Range we created above ï¿½ this IS supported by ClosedXML
                         // and produces a real clickable dropdown arrow in Excel / LibreOffice.
                         dv.Value = namedRangeKey;
                         dv.IgnoreBlanks = true;
@@ -695,7 +701,7 @@ namespace HealthIntelligence.Services
                     ws.Cell(commentRow, 4).Style.Border.OutsideBorderColor = ColInputBorder;
                     ws.Row(commentRow).Height = 40;
 
-                    // -- Source row (row+2) — also carries hidden IDs --
+                    // -- Source row (row+2) ï¿½ also carries hidden IDs --
                     int sourceRow = ansRow + 2;
 
                     ws.Cell(sourceRow, 1).Style.Fill.BackgroundColor = qBg;
@@ -716,7 +722,7 @@ namespace HealthIntelligence.Services
                     ws.Cell(sourceRow, 4).Style.Border.OutsideBorderColor = ColInputBorder;
                     ws.Row(sourceRow).Height = 25;
 
-                    // Hidden IDs (cols K–O = 11–15)
+                    // Hidden IDs (cols Kï¿½O = 11ï¿½15)
                     ws.Cell(sourceRow, 11).Value = userCountryMappingID;
                     ws.Cell(sourceRow, 12).Value = pillar.PillarID;
                     ws.Cell(sourceRow, 13).Value = q.QuestionID;
@@ -859,6 +865,7 @@ namespace HealthIntelligence.Services
                 // 1. PILLAR + QUESTIONS
                 // =========================
                 var pillar = await _context.Pillars
+                    .Where(x => x.IsActive && !x.IsDeleted)
                     .Include(x => x.Questions)
                         .ThenInclude(x => x.QuestionOptions)
                     .AsNoTracking()
@@ -1052,7 +1059,8 @@ namespace HealthIntelligence.Services
 
                 // Get the target pillar (next unanswered or specific)
                 var selectPillar = await _context.Pillars
-                    .Include(p => p.Questions)
+                    .Where(x => x.IsActive && !x.IsDeleted)
+                    .Include(p => p.Questions.Where(x => !x.IsDeleted))
                         .ThenInclude(q => q.QuestionOptions)
                     .Where(p => !request.PillarID.HasValue
                         ? !answeredPillarIds.Contains(p.PillarID)
@@ -1060,10 +1068,10 @@ namespace HealthIntelligence.Services
                     .OrderBy(p => p.DisplayOrder)
                     .FirstOrDefaultAsync();
 
-                var nextUnansweredPillar = await _context.Pillars
+                var nextUnansweredPillar = (await _commonService.GetPillars())
                     .Where(p => !answeredPillarIds.Contains(p.PillarID))
                     .OrderBy(p => p.DisplayOrder)
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefault();
 
                 if (selectPillar?.Questions == null)
                     return ResultResponseDto<GetPillarQuestionByCountryResponse>.Failure(

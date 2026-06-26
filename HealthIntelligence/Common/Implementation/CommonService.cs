@@ -45,7 +45,7 @@ namespace HealthIntelligence.Common.Implementation
         {
             immediateSituationSummary = immediateSituationSummary ?? "";
 
-            var evidenceSummaryStaringLine= $"{countryName ?? "The country"} records an overall PEM score of {progress ?? 0}, reflecting performance across {pillarCount} pillars and {kpiCount} KPIs.";
+            var evidenceSummaryStaringLine= $"{countryName ?? "The country"} records an overall AHI score of {progress ?? 0}, reflecting performance across {pillarCount} pillars and {kpiCount} KPIs.";
 
             return immediateSituationSummary + "\n\n " + evidenceSummaryStaringLine + " " + evidenceSummary;
         }
@@ -142,6 +142,7 @@ namespace HealthIntelligence.Common.Implementation
 
                 pillars = await _context.Pillars
                     .Where(x => x.IsActive && !x.IsDeleted)
+                    .OrderBy(x=>x.DisplayOrder)
                     .ToListAsync();
 
                 var cacheOptions = new MemoryCacheEntryOptions()

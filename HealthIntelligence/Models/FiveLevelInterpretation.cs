@@ -8,7 +8,6 @@ namespace HealthIntelligence.Models
         public decimal? MaxRange { get; set; } 
         public string Condition { get; set; }
         public string Descriptor { get; set; }        
-        public string StrategicAction { get; set; }
         public AnalyticalLayer? AnalyticalLayer { get; set; }
     }
 }

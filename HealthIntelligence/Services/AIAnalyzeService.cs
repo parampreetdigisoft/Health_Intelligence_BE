@@ -5,6 +5,7 @@ using HealthIntelligence.Common.Models.settings;
 using HealthIntelligence.Data;
 using HealthIntelligence.Dtos.chatDto;
 using HealthIntelligence.IServices;
+using HealthIntelligence.Common.Interface;
 namespace HealthIntelligence.Services
 {
     public class AIAnalyzeService : IAIAnalyzeService
@@ -14,13 +15,16 @@ namespace HealthIntelligence.Services
         private readonly ApplicationDbContext _context;
         private readonly IAppLogger _appLogger;
         private Dictionary<string, string> headers;
-        public AIAnalyzeService(HttpService httpService, IOptions<AppSettings> appSettings, ApplicationDbContext context, IAppLogger appLogger)
+        private readonly ICommonService _commonService;
+        public AIAnalyzeService(HttpService httpService, IOptions<AppSettings> appSettings, 
+            ApplicationDbContext context, IAppLogger appLogger, ICommonService commonService)
         {
             _httpService = httpService;
             aiUrl = appSettings?.Value?.AiUrl ?? aiUrl;
             _context = context;
             _appLogger = appLogger;
             headers = new Dictionary<string, string> { { "X-API-Key", appSettings?.Value?.AiToken ?? "" } };
+            _commonService = commonService;
         }
         public async Task RunMonthlyJob()
         {
@@ -68,7 +72,7 @@ namespace HealthIntelligence.Services
         public async Task ImportAiScore()
         {
             // if new city added
-            var totalPillar = await _context.Pillars.CountAsync();
+            var totalPillar = (await _commonService.GetPillars()).Count;
             var allCountriesIds = _context.Countries.Where(x=>x.IsActive && !x.IsDeleted).Select(x=>x.CountryID).ToList();
             var importedCountriesIds = _context.AICountryScores.Select(x => x.CountryID);
 

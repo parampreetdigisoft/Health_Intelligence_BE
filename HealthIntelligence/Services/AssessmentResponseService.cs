@@ -164,7 +164,7 @@ namespace HealthIntelligence.Services
                     
                     if (!request.IsAutoSave) // removed if entire assessement is update for all responses
                     {
-                        var pillar = await _context.Pillars.OrderByDescending(x => x.DisplayOrder).FirstOrDefaultAsync();
+                        var pillar = (await _commonService.GetPillars()).OrderByDescending(x => x.DisplayOrder).FirstOrDefault();
                         assessment.AssessmentPhase = pillar?.PillarID == request.PillarID ? AssessmentPhase.Completed : AssessmentPhase.InProgress;
 
                         var requestResponseIds = request.Responses
@@ -198,7 +198,7 @@ namespace HealthIntelligence.Services
                                 Score = response.Score
                             });
                         }
-                        else
+                        else if(existing !=null)
                         {
                             // Update existing
                             existing.QuestionID = response.QuestionID;
@@ -544,21 +544,7 @@ namespace HealthIntelligence.Services
                                     score = opt.ScoreValue.HasValue ? (int?)opt.ScoreValue.Value : null;
                                     break;
                                 }
-                            }
-
-                            // 2. Fallback: first character is a digit 0-4
-                            if (matchedOptionID == 0 &&
-                                answerText.Length >= 1 &&
-                                int.TryParse(answerText[0].ToString(), out int parsedScore) &&
-                                parsedScore >= 0 && parsedScore <= 4)
-                            {
-                                var fallbackOpt = qOptions.FirstOrDefault(x => x.ScoreValue == parsedScore);
-                                if (fallbackOpt != null)
-                                {
-                                    matchedOptionID = fallbackOpt.OptionID;
-                                    score = parsedScore;
-                                }
-                            }
+                            } 
                         }
 
                         if (matchedOptionID > 0)
@@ -649,7 +635,7 @@ namespace HealthIntelligence.Services
 
                 // 2. Fetch country-wise pillar/question details in one go
                 var countryPillarQuery =
-                    from p in _context.Pillars
+                    from p in _context.Pillars.Where(x=>!x.IsDeleted)
                     join pa in pillarAssessments on p.PillarID equals pa.PillarID into paGroup
                     from pa in paGroup.DefaultIfEmpty()
                     select new
@@ -665,7 +651,7 @@ namespace HealthIntelligence.Services
                                 .Sum(r => (int?)r.Score ?? 0)
                             : 0,
                         ScoreCount = pa != null ? pa.Responses.Where(r => r.Score.HasValue && (int)r.Score.Value <= (int)ScoreValue.Four).Count() : 0,
-                        TotalQuestion = p.Questions.Count(),
+                        TotalQuestion = p.Questions.Count(x=>!x.IsDeleted),
                         AnsQuestion = pa != null ? pa.Responses.Count() : 0,
                         HasAnswer = pa != null
                     };
@@ -679,7 +665,7 @@ namespace HealthIntelligence.Services
                         var ansUserCount = g.Where(x => x.UserID > 0).Distinct().Count();
                         var totalQuestionsInPillar = g.Max(x => x.TotalQuestion) * ansUserCount;
 
-                        decimal progress = ScoreCount != 0 && ansUserCount > 0 ? totalAnsScoreOfPillar  / ScoreCount : 0m;
+                        decimal progress = ScoreCount != 0 && ansUserCount > 0 ? Convert.ToDecimal(totalAnsScoreOfPillar) / ScoreCount : 0m;
 
                         return new CountryPillarQuestionHistoryResponseDto
                         {
@@ -700,7 +686,7 @@ namespace HealthIntelligence.Services
 
                 //// 4. Total pillars and questions (static across country)
                 //var pillarStats = await _context.Pillars
-                //    .Select(p => new { QuestionsCount = p.Questions.Count() })
+                //    .Select(p => new { QuestionsCount = p.Questions.Count(x=>!x.IsDeleted) })
                 //    .ToListAsync();
                 //int totalPillars = pillarStats.Count;
                 //int totalQuestions = pillarStats.Sum(p => p.QuestionsCount);
@@ -972,10 +958,7 @@ namespace HealthIntelligence.Services
                 var pillarEvaluationsList = await _commonService
                     .GetCountriesProgressAsync(userId, (int)userRole, year, request.CountryID);
 
-                var pillars = await _context.Pillars
-                    .AsNoTracking()
-                    .OrderBy(x => x.DisplayOrder)
-                    .ToListAsync();
+                var pillars = await _commonService.GetPillars();
 
                 var aiCountryProgress = await _context.AICountryScores
                     .Where(x => x.CountryID == request.CountryID && x.Year == year)

@@ -104,8 +104,8 @@ namespace HealthIntelligence.Services
 
                 if (userRole != UserRole.CountryUser)
                 {
-                    var counts = await _context.Pillars
-                        .Select(p => p.Questions.Count()).ToListAsync();
+                    var counts = await _context.Pillars.Where(x=>!x.IsDeleted && x.IsActive)
+                        .Select(p => p.Questions.Count(x=>!x.IsDeleted)).ToListAsync();
 
                     var totalQuestions = counts.Sum();
 
@@ -296,13 +296,13 @@ namespace HealthIntelligence.Services
                                 .Distinct()
                                 .ToListAsync();
                 }
-                var pillars = await _context.Pillars.Select(x=>new
+                var pillars = await _context.Pillars.Where(x=>x.IsActive && !x.IsDeleted).Select(x=>new
                 {
                     PillarID = x.PillarID,
                     PillarName = x.PillarName,
                     DisplayOrder = x.DisplayOrder,
                     ImagePath = x.ImagePath,
-                    TotalQuestions = x.Questions.Count()
+                    TotalQuestions = x.Questions.Count(x=>!x.IsDeleted)
                 }).ToListAsync();
 
                 var result = pillars
@@ -569,12 +569,7 @@ namespace HealthIntelligence.Services
             }
             else
             {
-                var pillars = await _context.Pillars.Select(x => new
-                {
-                    x.PillarID,
-                    x.PillarName,
-                    x.DisplayOrder
-                }).ToListAsync();
+                var pillars = await _commonService.GetPillars();
 
                 var countryProgress = await _commonService
                     .GetCountriesProgressHistoryAsync(userID, (int)role, year - 5, year);
@@ -710,7 +705,7 @@ namespace HealthIntelligence.Services
                         .ToListAsync();
                 }
 
-                var pillars = await _context.Pillars.ToListAsync();
+                var pillars = await _commonService.GetPillars();
 
                 // Categories
                 response.Categories.AddRange(
@@ -1198,7 +1193,7 @@ namespace HealthIntelligence.Services
                    i.MinRange,
                    i.MaxRange,
                    i.Condition,
-                   i.StrategicAction
+                   i.Descriptor
                 )).ToList()
 
             }).OrderBy(x => x.LayerID);
@@ -1318,13 +1313,13 @@ namespace HealthIntelligence.Services
                         .ToListAsync();
                 }
 
-                var pillars = await _context.Pillars.Select(x => new
+                var pillars = await _context.Pillars.Where(x => x.IsActive && !x.IsDeleted).Select(x => new
                 {
                     x.PillarID,
                     x.PillarName,
                     x.DisplayOrder,
                     x.ImagePath,
-                    TotalQuestions = x.Questions.Count()
+                    TotalQuestions = x.Questions.Count(x=>!x.IsDeleted)
                 }).ToListAsync();
 
                 var CountryIDs = scores.Select(x => x.CountryID).Distinct().ToList();
@@ -1457,7 +1452,7 @@ namespace HealthIntelligence.Services
         decimal? MinRange,
         decimal? MaxRange,
         string Condition,
-        string StrategicAction
+        string Descriptor
    );
         public record PillarChartItem(string ShortName, string Name, decimal? Value);
         #region TransferAssessment
@@ -1848,7 +1843,7 @@ namespace HealthIntelligence.Services
                        PillarID = x.PillarID,
 
                        PillarName = x.CountryID.HasValue ? _context.Pillars
-                           .Where(p => p.PillarID == x.PillarID)
+                           .Where(p => p.PillarID == x.PillarID && !x.IsDeleted)
                            .Select(p => p.PillarName)
                            .FirstOrDefault() : x.DocumentLevel,
 

@@ -27,7 +27,6 @@ namespace HealthIntelligence.Services
             _appLogger = appLogger;
             _download = download;
             _commonService = commonService;
-            _download = download;
         }
 
         public async Task<List<Pillar>> GetAllAsync(int userId, UserRole userRole)
@@ -36,18 +35,20 @@ namespace HealthIntelligence.Services
             {
                 if(userRole != UserRole.CountryUser)
                 {
-                    return await _context.Pillars.Where(p => !p.IsDeleted).OrderBy(p => p.DisplayOrder).ToListAsync();
+                    return await _commonService.GetPillars();
                 }
                 else
                 {
                     var userPillar = await _context.CountryUserPillarMappings
                         .Where(x => x.IsActive && x.UserID == userId)
                         .Select(x => x.Pillar)
-                        .Where(x => x != null && !x.IsDeleted)
+                        .Where(x => x != null)
+                        .Select(x => x!)
+                        .Where(x => !x.IsDeleted)
                         .Distinct()
                         .ToListAsync();
 
-                    return userPillar ?? new List<Pillar>();
+                    return userPillar;
                 }                
             }
             catch (Exception ex)
@@ -55,21 +56,19 @@ namespace HealthIntelligence.Services
                 await _appLogger.LogAsync("Error Occure in GetAllAsync", ex);
                 return new List<Pillar>();
             }
-
         }
 
         public async Task<Pillar> GetByIdAsync(int id)
         {
             try
             {
-                return await _context.Pillars.FindAsync(id);
+                return await _context.Pillars.FirstAsync(x => x.IsActive && !x.IsDeleted && x.PillarID == id);
             }
             catch (Exception ex)
             {
                 await _appLogger.LogAsync("Error Occure in GetByIdAsync", ex);
                 return new Pillar();
             }
-
         }
 
         public async Task<Pillar> AddAsync(Pillar pillar)
@@ -98,7 +97,7 @@ namespace HealthIntelligence.Services
                 if (string.IsNullOrWhiteSpace(pillar.Description))
                     return ResultResponseDto<Pillar>.Failure(new[] { "Description is required." });
 
-                var maxDisplayOrder = await _context.Pillars.MaxAsync(p => (int?)p.DisplayOrder) ?? 0;
+                var maxDisplayOrder = await _context.Pillars.Where(x => x.IsActive && !x.IsDeleted).MaxAsync(p => (int?)p.DisplayOrder) ?? 0;
 
                 var newPillar = new Pillar
                 {
@@ -144,7 +143,11 @@ namespace HealthIntelligence.Services
         {
             try
             {
-                var existing = await _context.Pillars.FindAsync(id);
+                var existing = await _context.Pillars
+                             .FirstOrDefaultAsync(x =>
+                                 x.PillarID == id &&
+                                 x.IsActive &&
+                                 !x.IsDeleted);
                 if (existing == null) return null;
                 existing.PillarName = pillar.PillarName ?? "";
                 existing.Description = pillar.Description ?? "";
@@ -194,7 +197,7 @@ namespace HealthIntelligence.Services
         {
             try
             {
-                var pillarExists = await _context.Pillars.AnyAsync(p => p.PillarID == pillarId);
+                var pillarExists = await _context.Pillars.AnyAsync(p => p.PillarID == pillarId && p.IsActive && !p.IsDeleted);
                 if (!pillarExists)
                     return ResultResponseDto<List<PillarKpiMappingDto>>.Failure(new[] { "Pillar not found." });
 
@@ -344,11 +347,11 @@ namespace HealthIntelligence.Services
                     .AsNoTracking()
                     .ToListAsync();
 
-                // 4. Load pillars
                 var pillars = await _context.Pillars
-                    .Include(p => p.Questions)
-                        .ThenInclude(q => q.QuestionOptions)
+                    .Where(p => p.IsActive && !p.IsDeleted)
                     .Where(p => !request.PillarID.HasValue || p.PillarID == request.PillarID)
+                    .Include(p => p.Questions.Where(q => !q.IsDeleted))
+                        .ThenInclude(q => q.QuestionOptions)
                     .OrderBy(p => p.DisplayOrder)
                     .AsNoTracking()
                     .ToListAsync();
@@ -812,17 +815,18 @@ namespace HealthIntelligence.Services
                 var rawData = await (
                     from ucm in userCountryMappings
                     join a in _context.Assessments on ucm.UserCountryMappingID equals a.UserCountryMappingID
-                    where a.IsActive && (a.UpdatedAt >= startDate && a.UpdatedAt <= endDate && (a.AssessmentPhase == AssessmentPhase.Completed || a.AssessmentPhase == AssessmentPhase.EditRejected || a.AssessmentPhase == AssessmentPhase.EditRequested))
+                    where a.IsActive && (a.UpdatedAt >= startDate && a.UpdatedAt <= endDate 
+                    && (a.AssessmentPhase == AssessmentPhase.Completed || a.AssessmentPhase == AssessmentPhase.EditRejected || a.AssessmentPhase == AssessmentPhase.EditRequested))
                     from pa in a.PillarAssessments
                     where !request.PillarID.HasValue || pa.PillarID == request.PillarID
-                    join p in _context.Pillars on pa.PillarID equals p.PillarID
+                    join p in _context.Pillars.Where(x => x.IsActive && !x.IsDeleted) on pa.PillarID equals p.PillarID 
                     select new
                     {
                         p.PillarID,
                         p.PillarName,
                         p.DisplayOrder,
                         UserID = ucm.UserID,
-                        TotalQuestion = p.Questions.Count(),
+                        TotalQuestion = p.Questions.Count(x => !x.IsDeleted),
                         Responses = pa.Responses
                     }
                 ).ToListAsync();
@@ -859,13 +863,13 @@ namespace HealthIntelligence.Services
                 // 3. ALL PILLARS (MAIN FIX)
                 // =========================
                 var pillars = await _context.Pillars
-                    .Where(p => !request.PillarID.HasValue || p.PillarID == request.PillarID)
+                    .Where(p => p.IsActive && !p.IsDeleted && (!request.PillarID.HasValue || p.PillarID == request.PillarID))
                     .Select(p => new
                     {
                         p.PillarID,
                         p.PillarName,
                         p.DisplayOrder,
-                        TotalQuestion = p.Questions.Count()
+                        TotalQuestion = p.Questions.Count(x=>!x.IsDeleted)
                     })
                     .ToListAsync();
 

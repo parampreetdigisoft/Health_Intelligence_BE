@@ -798,8 +798,8 @@ namespace HealthIntelligence.Services
                 var endDate = new DateTime(year + 1, 1, 1);
 
                 // Get total pillars and questions (independent query)
-                var pillarStats = await _context.Pillars
-                    .Select(p => new { QuestionsCount = p.Questions.Count() })
+                var pillarStats = await _context.Pillars.Where(x => x.IsActive && !x.IsDeleted)
+                    .Select(p => new { QuestionsCount = p.Questions.Count(x=>!x.IsDeleted) })
                     .ToListAsync();
 
                 int totalPillars = pillarStats.Count;

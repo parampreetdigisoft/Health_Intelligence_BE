@@ -64,7 +64,7 @@ namespace HealthIntelligence.Services
                 var secondarySignals = BuildSignalCards(secondaryMappings, layers, currentResults, previousResults, accessibleLayerIds, pemScores.Current);
                 ApplyPemToLayerCard(primarySignals, pemScores, layers);
                 ApplyPemToLayerCard(secondarySignals, pemScores, layers);
-                var pemLayer = layers.Values.FirstOrDefault(x => x.LayerCode.Equals("PEM", StringComparison.OrdinalIgnoreCase));
+                var pemLayer = layers.Values.FirstOrDefault(x => x.LayerCode.Equals("AHI", StringComparison.OrdinalIgnoreCase));
 
                 var pemInterpretation = ResolveInterpretation(
                     pemLayer,
@@ -74,7 +74,7 @@ namespace HealthIntelligence.Services
                 var pemCondition = CommonStaticMethods.GetConditionByScore(pemScores.Current);
 
                 var narratives = primarySignals
-                    .Where(x => !x.LayerCode.Equals("PEM", StringComparison.OrdinalIgnoreCase))
+                    .Where(x => !x.LayerCode.Equals("AHI", StringComparison.OrdinalIgnoreCase))
                     .OrderByDescending(x => x.IsAlert)
                     .ThenByDescending(x => x.Value)
                     .Take(4)
@@ -484,7 +484,7 @@ namespace HealthIntelligence.Services
                 var value = current?.Value ?? 0m;
 
                 if (pemOverride.HasValue &&
-                    layer.LayerCode.Equals("PEM", StringComparison.OrdinalIgnoreCase))
+                    layer.LayerCode.Equals("AHI", StringComparison.OrdinalIgnoreCase))
                 {
                     value = pemOverride.Value;
                 }
@@ -532,7 +532,7 @@ namespace HealthIntelligence.Services
             CountryPemScores pemScores,
             IReadOnlyDictionary<int, AnalyticalLayer> layers)
         {
-            var pemCard = cards.FirstOrDefault(x => x.LayerCode.Equals("PEM", StringComparison.OrdinalIgnoreCase));
+            var pemCard = cards.FirstOrDefault(x => x.LayerCode.Equals("AHI", StringComparison.OrdinalIgnoreCase));
 
             if (pemCard == null)
             {
@@ -573,8 +573,7 @@ namespace HealthIntelligence.Services
                     MinRange = x.MinRange,
                     MaxRange = x.MaxRange,
                     Condition = x.Condition ?? string.Empty,
-                    Descriptor = x.Descriptor ?? string.Empty,
-                    StrategicAction = x.StrategicAction ?? string.Empty
+                    Descriptor = x.Descriptor ?? string.Empty
                 })
                 .ToList();
         }
@@ -607,8 +606,7 @@ namespace HealthIntelligence.Services
                 MinRange = interpretation.MinRange,
                 MaxRange = interpretation.MaxRange,
                 Condition = interpretation.Condition ?? string.Empty,
-                Descriptor = interpretation.Descriptor ?? string.Empty,
-                StrategicAction = interpretation.StrategicAction ?? string.Empty
+                Descriptor = interpretation.Descriptor ?? string.Empty
             };
         }
         private static string ResolveConditionByValue(AnalyticalLayer? layer, decimal value)

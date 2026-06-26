@@ -78,7 +78,7 @@ namespace HealthIntelligence.Services
                 if (resutl == null || resutl.Success != true)
                 {
                     return ResultResponseDto<ChatResponseDto>.Failure(
-                        new[] { resutl?.Message ?? "Failed to query request from PEM Aevum." }
+                        new[] { resutl?.Message ?? "Failed to query request from AHI Aevum." }
                     );
                 }
 
@@ -114,7 +114,7 @@ namespace HealthIntelligence.Services
                 if (resutl == null || resutl.Success != true)
                 {
                     return ResultResponseDto<ChatResponseDto>.Failure(
-                        new[] { resutl?.Message ?? "Failed to query request from PEM Aevum." }
+                        new[] { resutl?.Message ?? "Failed to query request from AHI Aevum." }
                     );
                 }
 
@@ -164,7 +164,7 @@ namespace HealthIntelligence.Services
                 if (resutl == null || resutl.Success != true)
                 {
                     return ResultResponseDto<ChatResponseDto>.Failure(
-                        new[] { resutl?.Message ?? "Failed to query request from PEM Aevum." }
+                        new[] { resutl?.Message ?? "Failed to query request from AHI Aevum." }
                     );
                 }
 
@@ -208,7 +208,7 @@ namespace HealthIntelligence.Services
                 }                
 
                 var pillars = (
-                    from p in _context.Pillars
+                    from p in _context.Pillars.Where(x => x.IsActive && !x.IsDeleted)
 
                     join x in _context.AIPillarScores
                         .Where(a => a.CountryID == country.CountryID
@@ -272,7 +272,7 @@ namespace HealthIntelligence.Services
                         new[]
                         {
                             result?.Message ??
-                            "Failed to fetch Country executive slides from PEM Aevum."
+                            "Failed to fetch Country executive slides from AHI Aevum."
                         }
                     );
                 }
