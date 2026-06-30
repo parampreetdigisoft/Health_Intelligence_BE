@@ -940,7 +940,7 @@ namespace HealthIntelligence.Services
             try
             {
                 var year = request.UpdatedAt.Year;
-                int pillarCount = _appSettings.PillarCount;
+                int pillarCount = (await _commonService.GetPillars()).Count;
                 // 1. Validate country access
                 var hasAccess = await _context.UserCountryMappings
                     .AnyAsync(x =>

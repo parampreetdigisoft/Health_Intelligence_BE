@@ -18,13 +18,11 @@ namespace HealthIntelligence.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly IAppLogger _appLogger;
-        private readonly AppSettings _appSettings;
         private readonly ICommonService _commonService;
-        public QuestionService(ApplicationDbContext context, IAppLogger appLogger, IOptions<AppSettings> appSettings, ICommonService commonService)
+        public QuestionService(ApplicationDbContext context, IAppLogger appLogger, ICommonService commonService)
         {
             _context = context;
             _appLogger = appLogger;
-            _appSettings = appSettings.Value;
             _commonService = commonService;
         }
 
@@ -309,7 +307,8 @@ namespace HealthIntelligence.Services
                        .Select(r => r.PillarID)
                        .ToList();
                     }
-                    if (assessment != null && answeredPillarIds.Count == _appSettings.PillarCount && !request.PillarID.HasValue)
+                    int pillarCount = (await _commonService.GetPillars()).Count;
+                    if (assessment != null && answeredPillarIds.Count == pillarCount && !request.PillarID.HasValue)
                     {
                         request.PillarID = assessment.PillarAssessments.First().PillarID;
                     }
@@ -377,7 +376,7 @@ namespace HealthIntelligence.Services
                         PillarID = selectPillar.PillarID,
                         Description = selectPillar.Description,
                         DisplayOrder = selectPillar.DisplayOrder,
-                        SubmittedPillarDisplayOrder = answeredPillarIds.Count == _appSettings.PillarCount ? _appSettings.PillarCount : summitedPillar?.DisplayOrder ?? selectPillar.DisplayOrder,
+                        SubmittedPillarDisplayOrder = answeredPillarIds.Count == pillarCount ? pillarCount : summitedPillar?.DisplayOrder ?? selectPillar.DisplayOrder,
                         Questions = questions
                     };
                     return ResultResponseDto<GetPillarQuestionByCountryResponse>.Success(result, new[] { "get questions successfully" });
@@ -1054,7 +1053,9 @@ namespace HealthIntelligence.Services
                     .Select(r => r.PillarID)
                     .ToList() ?? new List<int>();
 
-                if (assessment != null && answeredPillarIds.Count == _appSettings.PillarCount && !request.PillarID.HasValue)
+                int pillarCount = (await _commonService.GetPillars()).Count;
+
+                if (assessment != null && answeredPillarIds.Count == pillarCount && !request.PillarID.HasValue)
                     request.PillarID = assessment.PillarAssessments.First().PillarID;
 
                 // Get the target pillar (next unanswered or specific)
@@ -1211,8 +1212,8 @@ namespace HealthIntelligence.Services
                     PillarID = selectPillar.PillarID,
                     Description = selectPillar.Description,
                     DisplayOrder = selectPillar.DisplayOrder,
-                    SubmittedPillarDisplayOrder = answeredPillarIds.Count == _appSettings.PillarCount
-                                                   ? _appSettings.PillarCount
+                    SubmittedPillarDisplayOrder = answeredPillarIds.Count == pillarCount
+                                                   ? pillarCount
                                                    : nextUnansweredPillar?.DisplayOrder ?? selectPillar.DisplayOrder,
                     Questions = questions
                 };

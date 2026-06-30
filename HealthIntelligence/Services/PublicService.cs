@@ -435,6 +435,13 @@ namespace HealthIntelligence.Services
             }
         }
 
+        #region Emerging Trends and Issues Cache Management
+            
+        private static readonly JsonSerializerOptions EmergingTrendsCloneOptions = new()
+        {
+            PropertyNameCaseInsensitive = true
+        };
+
         private static string EmergingTrendsCacheKey(int countryCount) =>
             $"EmergingTrendsAndIssues_{countryCount}";
 
@@ -447,6 +454,17 @@ namespace HealthIntelligence.Services
         private TimeSpan EmergingTrendsStaleCacheDuration =>
             TimeSpan.FromHours(_configuration.GetValue("EmergingTrendsCache:StaleCacheExpirationHours", 168));
 
+        private static bool IsEmergingTrendsCacheValid(EmergingTrendsResult? data) =>
+            data?.Countries?.Any(c =>
+                !string.IsNullOrWhiteSpace(c.Country) &&
+                !string.IsNullOrWhiteSpace(c.SourceUrl)) == true;
+
+        private static EmergingTrendsResult CloneEmergingTrendsResult(EmergingTrendsResult data) =>
+            JsonSerializer.Deserialize<EmergingTrendsResult>(
+                JsonSerializer.Serialize(data, EmergingTrendsCloneOptions),
+                EmergingTrendsCloneOptions
+            ) ?? new EmergingTrendsResult();
+
         private bool TryGetEmergingTrendsFromCache(
             int countryCount,
             out EmergingTrendsResult? result,
@@ -454,18 +472,22 @@ namespace HealthIntelligence.Services
         {
             result = null;
 
-            if (_cache.TryGetValue(EmergingTrendsCacheKey(countryCount), out EmergingTrendsResult? cached)
-                && cached?.Countries?.Count > 0)
+            if (_cache.TryGetValue(EmergingTrendsCacheKey(countryCount), out EmergingTrendsResult? cached))
             {
-                result = cached;
-                return true;
+                if (IsEmergingTrendsCacheValid(cached))
+                {
+                    result = CloneEmergingTrendsResult(cached!);
+                    return true;
+                }
+
+                _cache.Remove(EmergingTrendsCacheKey(countryCount));
             }
 
             if (allowStale
                 && _cache.TryGetValue(EmergingTrendsStaleCacheKey(countryCount), out EmergingTrendsResult? stale)
-                && stale?.Countries?.Count > 0)
+                && IsEmergingTrendsCacheValid(stale))
             {
-                result = stale;
+                result = CloneEmergingTrendsResult(stale!);
                 return true;
             }
 
@@ -477,19 +499,19 @@ namespace HealthIntelligence.Services
             EmergingTrendsResult data,
             bool updateStale = true)
         {
+            var primarySnapshot = CloneEmergingTrendsResult(data);
             var cacheOptions = new MemoryCacheEntryOptions
             {
                 AbsoluteExpirationRelativeToNow = EmergingTrendsCacheDuration,
                 Priority = CacheItemPriority.NeverRemove
             };
-
-            _cache.Set(EmergingTrendsCacheKey(countryCount), data, cacheOptions);
+            _cache.Set(EmergingTrendsCacheKey(countryCount), primarySnapshot, cacheOptions);
 
             if (updateStale)
             {
                 _cache.Set(
                     EmergingTrendsStaleCacheKey(countryCount),
-                    data,
+                    CloneEmergingTrendsResult(primarySnapshot),
                     new MemoryCacheEntryOptions
                     {
                         AbsoluteExpirationRelativeToNow = EmergingTrendsStaleCacheDuration,
@@ -501,13 +523,14 @@ namespace HealthIntelligence.Services
 
         private bool PreserveEmergingTrendsCacheOnRefreshFailure(int countryCount)
         {
-            if (!TryGetEmergingTrendsFromCache(countryCount, out var stale, allowStale: true)
-                || stale == null)
+            if (!TryGetEmergingTrendsFromCache(countryCount, out var lastGood, allowStale: true)
+                || lastGood == null)
             {
                 return false;
             }
 
-            SetEmergingTrendsCache(countryCount, stale, updateStale: false);
+            // Re-write both cache entries so TTLs are extended and snapshots stay isolated.
+            SetEmergingTrendsCache(countryCount, lastGood, updateStale: true);
             return true;
         }
 
@@ -568,9 +591,9 @@ namespace HealthIntelligence.Services
 
                 var enriched = await FetchAndEnrichEmergingTrendsAsync(countryCount, cancellationToken);
 
-                if (enriched?.Countries?.Count > 0)
+                if (IsEmergingTrendsCacheValid(enriched))
                 {
-                    SetEmergingTrendsCache(countryCount, enriched);
+                    SetEmergingTrendsCache(countryCount, enriched!);
                     return true;
                 }
 
@@ -598,7 +621,7 @@ namespace HealthIntelligence.Services
                 return null;
             }
 
-            if (result.Result.Countries == null || result.Result.Countries.Count == 0)
+            if (!IsEmergingTrendsCacheValid(result.Result))
             {
                 return null;
             }
@@ -648,6 +671,7 @@ namespace HealthIntelligence.Services
             return result.Result;
         }
 
+        #endregion Emerging Trends
         public async Task<ResultResponseDto<PillarLiveSignalsResult>> GetPillarLiveSignals()
         {
             const string cacheKey = "PillarLiveSignals";

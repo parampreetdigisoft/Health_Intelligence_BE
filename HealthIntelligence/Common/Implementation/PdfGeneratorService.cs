@@ -20,11 +20,9 @@ namespace HealthIntelligence.Common.Implementation
         #region constructor
 
         private readonly IAppLogger _appLogger;
-        private readonly AppSettings _appSettings;
-        public PdfGeneratorService(IAppLogger appLogger, IOptions<AppSettings> appSettings)
+        public PdfGeneratorService(IAppLogger appLogger)
         {
             _appLogger = appLogger;
-            _appSettings = appSettings.Value;
         }
         #endregion
 
@@ -2997,7 +2995,6 @@ namespace HealthIntelligence.Common.Implementation
                 .GroupBy(p => p.PillarID)
                 .Select(g => g.OrderBy(p => p.DisplayOrder).First())
                 .OrderBy(p => p.DisplayOrder)
-                .Take(_appSettings.PillarCount)
                 .ToList();
 
             container.Padding(16).Column(col =>

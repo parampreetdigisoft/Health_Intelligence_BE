@@ -497,7 +497,7 @@ namespace HealthIntelligence.Services
                 int year = DateTime.UtcNow.Year;
                 var startDate = new DateTime(year, 1, 1);
                 var endDate = new DateTime(year + 1, 1, 1);
-                int pillarCount = _appSettings.PillarCount;
+                int pillarCount = (await _commonService.GetPillars()).Count;
                 if (userRole == UserRole.Admin)
                 {
                     countryQuery = GetAdminCountryQuery(year);

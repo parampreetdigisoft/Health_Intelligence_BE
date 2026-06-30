@@ -21,7 +21,7 @@ namespace HealthIntelligence.Dtos.chatDto
 
         public string Urgency { get; set; } = string.Empty;
 
-        public int Confidence { get; set; }
+        public int? Confidence { get; set; }
 
         public string Icon { get; set; } = string.Empty;
 

@@ -77,9 +77,18 @@ namespace HealthIntelligence.Backgroundjob
                 using var scope = _serviceProvider.CreateScope();
                 var publicService = scope.ServiceProvider.GetRequiredService<IPublicService>();
 
-                return await publicService.RefreshEmergingTrendsCacheAsync(
+                var preserved = await publicService.RefreshEmergingTrendsCacheAsync(
                     countryCount,
                     stoppingToken);
+
+                if (!preserved)
+                {
+                    _logger.LogWarning(
+                        "Emerging trends cache refresh produced no usable data and no prior snapshot was available (countryCount={CountryCount})",
+                        countryCount);
+                }
+
+                return preserved;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

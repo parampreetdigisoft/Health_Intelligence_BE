@@ -35,7 +35,7 @@ namespace HealthIntelligence.Services
             ICommonService commonService, 
             Download download, IAIAnalyzeService iAIAnalayzeService
             ,  IDocumentGeneratorService documentGeneratorService, 
-            IOptions<AppSettings> appSettings, IWebHostEnvironment env)
+             IWebHostEnvironment env)
         {
             _context = context;
             _appLogger = appLogger;
@@ -43,7 +43,6 @@ namespace HealthIntelligence.Services
             _download = download;
             _iAIAnalayzeService = iAIAnalayzeService;          
             _documentGeneratorService = documentGeneratorService;
-            _appSettings = appSettings.Value;
             _env = env;
         }
         #endregion
@@ -62,7 +61,8 @@ namespace HealthIntelligence.Services
         {
             try
             {
-                int pillarCount = _appSettings.PillarCount;
+                int pillarCount = (await _commonService.GetPillars()).Count;
+
                 IQueryable<AiCountrySummeryDto> query = await GetCountryAiSummeryDetails(userID, userRole, request.CountryID, request.Year);
 
                 var progress = await _commonService.GetCountriesProgressAsync(userID, (int)userRole, DateTime.Now.Year);
@@ -280,7 +280,7 @@ namespace HealthIntelligence.Services
             {
                 currentYear = currentYear == 0 ? DateTime.Now.Year : currentYear;
                 var firstDate = new DateTime(currentYear, 1, 1);
-                int pillarCount = _appSettings.PillarCount;
+                int pillarCount = (await _commonService.GetPillars()).Count;
                 var res = await _context.AIPillarScores
                     .Where(x => x.CountryID == CountryID && x.UpdatedAt >= firstDate && x.Year == currentYear)
                     .Include(x=>x.Country)
@@ -495,7 +495,7 @@ namespace HealthIntelligence.Services
         private async Task<List<PeerCountryHistoryReportDto>> GetPeerCountries(int userID, UserRole role, int CountryID, int year, bool isAiScore = true)
         {
             var peerCountries = new List<PeerCountryHistoryReportDto>();
-            int pillarCount = _appSettings.PillarCount;
+            int pillarCount = (await _commonService.GetPillars()).Count;
             var peersCountryIDs = await _context.Countries
                    .Where(x => x.CountryID == CountryID && x.IsActive && !x.IsDeleted)
                    .SelectMany(x => x.CountryPeers)
@@ -1013,7 +1013,7 @@ namespace HealthIntelligence.Services
 
             var totalValidKpis = await analyticalLayers.Distinct().CountAsync();
 
-            int pillarCount = _appSettings.PillarCount;
+            int pillarCount = (await _commonService.GetPillars()).Count;
 
             var countryRanks = CalculateCountryRanks(progress, pillarCount, reportType);
 
@@ -1208,7 +1208,7 @@ namespace HealthIntelligence.Services
         {
             var query = await GetCountryAiSummeryDetails(userID, userRole, null, year);
             var countriesDetails = await query.ToListAsync();
-            int pillarCount = _appSettings.PillarCount;
+            int pillarCount = (await _commonService.GetPillars()).Count;
 
             var progress = await _commonService.GetCountriesProgressAsync(userID, (int)userRole, DateTime.Now.Year);
             var countryRanks = CalculateCountryRanks(progress, pillarCount);
@@ -1293,7 +1293,7 @@ namespace HealthIntelligence.Services
         {
             try
             {
-                int pillarCount = _appSettings.PillarCount;
+                int pillarCount = (await _commonService.GetPillars()).Count;
                 currentYear = currentYear == 0 ? DateTime.Now.Year : currentYear;
                 var firstDate = new DateTime(currentYear, 1, 1);
 

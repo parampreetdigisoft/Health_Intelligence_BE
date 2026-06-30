@@ -12,6 +12,5 @@ namespace HealthIntelligence.Common.Models.settings
         public int OTPExpiryValidMinutes { get; set; }
         public string AiUrl { get; set; }
         public string AiToken { get; set; }
-        public int PillarCount { get; set; }
     }
 }
