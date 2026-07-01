@@ -44,9 +44,9 @@ namespace HealthIntelligence.Common.Implementation
         private const int    ContentDxa      = (int)(PageWidthDxa - 2 * MarginDxa); // 10 466 DXA
         private const long   ContentWidthEmu = 6_645_000L;   // ≈ 7.27 inch in EMU
         private const long   HalfWidthEmu    = 3_220_000L;   // ≈ 3.52 inch in EMU
-        private const string DarkBlue       = "1B2F44";
-        private const string MedBlue        = "2C6EA3";
-        private const string White           = "FFFFFF";
+        private const string DarkBlue       = ReportThemeColors.PrimaryHex;
+        private const string MedBlue        = ReportThemeColors.AccentGreenHex;
+        private const string White           = ReportThemeColors.WhiteHex;
 
         // Unique image ID counter — reset per document
         private uint _imgId;
@@ -191,7 +191,7 @@ namespace HealthIntelligence.Common.Implementation
             ResetSectionState();
 
             var kpiChartItems = kpis.ToList();
-            var pillarChartItems = pillars.Take(23)
+            var pillarChartItems = pillars
                 .Select(p => new PillarChartItem(
                     p.PillarName?.Length > 20 ? p.PillarName[..20] : p.PillarName ?? "—",
                     p.PillarName ?? "—",
@@ -405,8 +405,8 @@ namespace HealthIntelligence.Common.Implementation
             cell.Append(CenteredBoldPara("Overall Country Score", "212529", "20"));
             // ── Ranking Labels ──
             var globalRankLabel = country.Rank.HasValue && country.TotalCountry.HasValue && country.TotalCountry >=1
-                ? $"Global Rank: {country.Rank} / {country.TotalCountry}"
-                : "Global Rank: N/A";
+                ? $"Continent Rank: {country.Rank} / {country.TotalCountry}"
+                : "Continent Rank: N/A";
 
             var regionName = string.IsNullOrEmpty(country.Region) ? "Region" : country.Region;
 
@@ -429,11 +429,11 @@ namespace HealthIntelligence.Common.Implementation
                     BuildDualBadgeRow(
                         $"▲ {Shorten(best.Name, 16)} ({best.Value:F0})",
                         "E8F5E9",
-                        "1B5E20",
+                        "003D44",
 
                         globalRankLabel,
-                        "E8F0EC",
-                        "12352f"
+                        "F5F8F7",
+                        "003D44"
                     ));
             }
 
@@ -584,7 +584,7 @@ namespace HealthIntelligence.Common.Implementation
                 new Shading { Val = ShadingPatternValues.Clear, Color = "auto", Fill = "FFFFFF" }));
 
             // ── Heading ──
-            cell.Append(CenteredBoldPara("Pillar Performance Radar", "12352f", "20"));
+            cell.Append(CenteredBoldPara("Pillar Performance Radar", "003D44", "20"));
 
             // ── Radar image ──
             cell.Append(EmbedImage(mainPart, radarPng, imgEmuW, imgEmuH));
@@ -608,12 +608,12 @@ namespace HealthIntelligence.Common.Implementation
                     new Paragraph(new ParagraphProperties(
                             new Justification { Val = JustificationValues.Center }),
                         new Run(new RunProperties(
-                                new Bold(), new Color { Val = "336b58" }, new FontSize { Val = "36" }),
+                                new Bold(), new Color { Val = "4CAF50" }, new FontSize { Val = "36" }),
                             new Text(number))),
                     new Paragraph(new ParagraphProperties(
                             new Justification { Val = JustificationValues.Center }),
                         new Run(new RunProperties(
-                                new Color { Val = "757575" }, new FontSize { Val = "16" }),
+                                new Color { Val = "4A5F62" }, new FontSize { Val = "16" }),
                             new Text(label))));
 
             return new Table(
@@ -625,7 +625,7 @@ namespace HealthIntelligence.Common.Implementation
                         new LeftBorder { Val = BorderValues.None },
                         new RightBorder { Val = BorderValues.None },
                         new InsideHorizontalBorder { Val = BorderValues.None },
-                        new InsideVerticalBorder { Val = BorderValues.Single, Color = "E0E0E0", Size = 4 })),
+                        new InsideVerticalBorder { Val = BorderValues.Single, Color = "E4E4E4", Size = 4 })),
                 new TableRow(
                     CountCell(pillarCount.ToString(), "Pillars"),
                     CountCell(kpiCount.ToString(), "KPIs")));
@@ -694,11 +694,11 @@ namespace HealthIntelligence.Common.Implementation
             // Rankings Section
             body.AppendChild(CreateRankingHeader("Rankings"));
 
-            body.AppendChild(CreateRankRow("Global Rank",
+            body.AppendChild(CreateRankRow("Continent Rank",
                 data.Rank, data.TotalCountry, "16A34A"));
 
             body.AppendChild(CreateRankRow("Region Rank",
-                data.RegionRank, data.RegionTotalCountry, "2563EB"));
+                data.RegionRank, data.RegionTotalCountry, "006D77"));
 
             body.AppendChild(Gap(160));
 
@@ -784,7 +784,7 @@ namespace HealthIntelligence.Common.Implementation
             return new Paragraph(
                 new ParagraphProperties(new SpacingBetweenLines { Before = "120" }),
                 new Run(
-                    new RunProperties(new Bold(), new Color { Val = "374151" }, new FontSize { Val = "22" }),
+                    new RunProperties(new Bold(), new Color { Val = "4A5F62" }, new FontSize { Val = "22" }),
                     new Text(text)));
         }
         private static Table CreateRankRow(string label, int? rank, int? total, string color)
@@ -799,7 +799,7 @@ namespace HealthIntelligence.Common.Implementation
                 new TableCellProperties(noBorder.CloneNode(true)),
                 new Paragraph(
                     new Run(
-                        new RunProperties(new Color { Val = "4B5563" }, new FontSize { Val = "20" }),
+                        new RunProperties(new Color { Val = "4A5F62" }, new FontSize { Val = "20" }),
                         new Text(label))));
 
             var rightPara = new Paragraph(
@@ -810,7 +810,7 @@ namespace HealthIntelligence.Common.Implementation
                 rightPara.Append(
                     new Run(new RunProperties(new Bold(), new Color { Val = color }),
                         new Text((rank ?? 0).ToString())),
-                    new Run(new RunProperties(new Color { Val = "6B7280" }),
+                    new Run(new RunProperties(new Color { Val = "4A5F62" }),
                         new Text($" / {total}"))
                 );
             }
@@ -838,7 +838,7 @@ namespace HealthIntelligence.Common.Implementation
             Body body, MainDocumentPart mainPart,
             List<PillarChartItem> pillars)
         {
-            var data = pillars.Where(p => p.Value.HasValue).Take(23).ToList();
+            var data = pillars.Where(p => p.Value.HasValue).ToList();
             if (!data.Any()) return;
 
             var radialPng = RenderPng((c, s) => PaintPillarRadialChart(c, s, data), 340, 340);
@@ -955,7 +955,7 @@ namespace HealthIntelligence.Common.Implementation
                 body.AppendChild(BoldParagraph(src.SourceName ?? "", "2C423B", 22));
                 body.AppendChild(NormalParagraph(
                     $"Trust Level: {src.TrustLevel}/7  |  Year: {src.DataYear}  |  Type: {src.SourceType ?? "—"}",
-                    "757575", 18));
+                    "4A5F62", 18));
                 if (!string.IsNullOrEmpty(src.DataExtract))
                     body.AppendChild(NormalParagraph(TruncateText(src.DataExtract, 200), "616161", 18, italic: true));
                 if (!string.IsNullOrEmpty(src.SourceURL))
@@ -1017,7 +1017,7 @@ namespace HealthIntelligence.Common.Implementation
         ///  │  City, State, Country | Data Year: YYYY │ [  white ] │
         ///  │  Generated: Mon DD, YYYY               │ [   box  ] │
         ///  └─────────────────────────────────────────┴────────────┘
-        ///  ─────────── divider (#d9e2df) ───────────────────────────
+        ///  ─────────── divider (#E4E4E4) ───────────────────────────
         /// </summary>
 
 
@@ -1075,7 +1075,7 @@ namespace HealthIntelligence.Common.Implementation
 
             string logoPath = Path.Combine(
                 Directory.GetCurrentDirectory(),
-                "wwwroot/assets/images/pem.png");
+                "wwwroot/assets/images/ahi.png");
 
             int logoColW = 2600;
             int leftColW = ContentDxa - logoColW;
@@ -1106,7 +1106,7 @@ namespace HealthIntelligence.Common.Implementation
             var leftCell = new TableCell(
                 new TableCellProperties(
                     new TableCellWidth { Width = leftColW.ToString(), Type = TableWidthUnitValues.Dxa },
-                    new Shading { Fill = "003160" },
+                    new Shading { Fill = ReportThemeColors.PrimaryHex },
                     new TableCellVerticalAlignment { Val = TableVerticalAlignmentValues.Center },
                     new TableCellMargin(
                         new TopMargin { Width = "200", Type = TableWidthUnitValues.Dxa },
@@ -1119,8 +1119,8 @@ namespace HealthIntelligence.Common.Implementation
 
             leftCell.Append(
                 HeaderParagraph(title, "42", "FFFFFF", true, "40"),
-                HeaderParagraph($"{data.CountryName}, {data.Continent} | Data Year: {data.Year}", "20", "E8F3F0", false, "20"),
-                HeaderParagraph($"Generated: {DateTime.Now:MMM dd, yyyy}", "16", "CFE3DD", false, "0")
+                HeaderParagraph($"{data.CountryName}, {data.Continent} | Data Year: {data.Year}", "20", "B8E8EC", false, "20"),
+                HeaderParagraph($"Generated: {DateTime.Now:MMM dd, yyyy}", "16", ReportThemeColors.LightBgHex, false, "0")
             );
 
             mainRow.Append(leftCell);
@@ -1129,7 +1129,7 @@ namespace HealthIntelligence.Common.Implementation
             var rightCell = new TableCell(
                 new TableCellProperties(
                     new TableCellWidth { Width = logoColW.ToString(), Type = TableWidthUnitValues.Dxa },
-                    new Shading { Fill = "003160" },
+                    new Shading { Fill = ReportThemeColors.PrimaryHex },
                     new TableCellVerticalAlignment { Val = TableVerticalAlignmentValues.Center },
                     new TableCellMargin(
                         new TopMargin { Width = "200", Type = TableWidthUnitValues.Dxa },
@@ -1205,7 +1205,7 @@ namespace HealthIntelligence.Common.Implementation
                         {
                             Val = BorderValues.Single,
                             Size = 6,
-                            Color = "d9e2df"
+                            Color = "E4E4E4"
                         }
                     )
                 )
@@ -1402,10 +1402,10 @@ namespace HealthIntelligence.Common.Implementation
                 new TableProperties(
                     new TableWidth { Width = ContentDxa.ToString(), Type = TableWidthUnitValues.Dxa },
                     new TableBorders(
-                        new TopBorder { Val = BorderValues.Single, Color = "D9D9D9", Size = 6 },
-                        new BottomBorder { Val = BorderValues.Single, Color = "D9D9D9", Size = 6 },
-                        new LeftBorder { Val = BorderValues.Single, Color = "D9D9D9", Size = 6 },
-                        new RightBorder { Val = BorderValues.Single, Color = "D9D9D9", Size = 6 }
+                        new TopBorder { Val = BorderValues.Single, Color = "E4E4E4", Size = 6 },
+                        new BottomBorder { Val = BorderValues.Single, Color = "E4E4E4", Size = 6 },
+                        new LeftBorder { Val = BorderValues.Single, Color = "E4E4E4", Size = 6 },
+                        new RightBorder { Val = BorderValues.Single, Color = "E4E4E4", Size = 6 }
                     )
                 )
             );
@@ -1588,7 +1588,7 @@ namespace HealthIntelligence.Common.Implementation
                     Stat(green.ToString(), "Performing ≥70%", "E8F5E9", "2E7D32"),
                     Stat(amber.ToString(), "Developing 40–69%", "FFF8E1", "E65100"),
                     Stat(red.ToString(), "Needs Improvement < 40 %", "FDECEA", "C62828"),
-                    Stat(total.ToString(), "Total KPIs", "EEF5F1", "12352F")
+                    Stat(total.ToString(), "Total KPIs", "EEF5F1", "003D44")
                 )
             );
         }
@@ -1607,7 +1607,7 @@ namespace HealthIntelligence.Common.Implementation
                 return new TableCell(
                     new TableCellProperties(
                         new TableCellWidth { Width = cellW.ToString(), Type = TableWidthUnitValues.Dxa },
-                        new Shading { Val = ShadingPatternValues.Clear, Fill = "12352F" },
+                        new Shading { Val = ShadingPatternValues.Clear, Fill = "003D44" },
                         new TableCellBorders(
                             new TopBorder    { Val = noBorder }, new BottomBorder { Val = noBorder },
                             new LeftBorder   { Val = noBorder }, new RightBorder  { Val = noBorder })),
@@ -1956,7 +1956,7 @@ namespace HealthIntelligence.Common.Implementation
                 {
                     Val = bottomDivider ? BorderValues.Single : BorderValues.None,
                     Size = 2,
-                    Color = "E0E0E0"
+                    Color = "E4E4E4"
                 });
 
             var rp = new RunProperties(
@@ -2021,9 +2021,9 @@ namespace HealthIntelligence.Common.Implementation
                     new TableWidth { Width = ContentDxa.ToString(), Type = TableWidthUnitValues.Dxa }),
                 new TableRow(
                     Cell(new[] { $"{avg:F1}", "Average Score" },
-                         new[] { GetBarColor(avg).TrimStart('#'), "A5D6A7" }, "12352F"),
+                         new[] { GetBarColor(avg).TrimStart('#'), "A8E063" }, "003D44"),
                     Cell(new[] { $"▲ {Shorten(best.Name ?? "—", 22)}", $"{best.Value:F1}%" },
-                         new[] { "1B5E20", "2E7D32" }, "E8F5E9"),
+                         new[] { "003D44", "2E7D32" }, "E8F5E9"),
                     Cell(new[] { $"▼ {Shorten(worst.Name ?? "—", 22)}", $"{worst.Value:F1}%" },
                          new[] { "B71C1C", "C62828" }, "FDECEA")));
         }
@@ -2080,7 +2080,7 @@ namespace HealthIntelligence.Common.Implementation
                     .SelectMany(h => h.Pillars ?? Enumerable.Empty<PeerCountryPillarHistoryReportDto>())
                     .GroupBy(p => p.PillarID)
                     .Select(g => g.OrderBy(p => p.DisplayOrder).First())
-                    .OrderBy(p => p.DisplayOrder).Take(23).ToList();
+                    .OrderBy(p => p.DisplayOrder).ToList();
 
                 if (pillars.Any())
                 {
@@ -2315,7 +2315,7 @@ namespace HealthIntelligence.Common.Implementation
                     new SpacingBetweenLines { Before = "60", After = "80" }),
                 new Run(
                     new RunProperties(
-                        new Color { Val = "12352F" },
+                        new Color { Val = "003D44" },
                         new FontSize { Val = "17" },
                         new RunFonts { Ascii = "Arial" }),
                     new Text(text) { Space = SpaceProcessingModeValues.Preserve }));
@@ -2354,7 +2354,7 @@ namespace HealthIntelligence.Common.Implementation
             row.AppendChild(new TableCell(
                 new TableCellProperties(
                     new TableCellWidth { Width = leftW.ToString(), Type = TableWidthUnitValues.Dxa },
-                    new Shading { Val = ShadingPatternValues.Clear, Fill = "12352F" },
+                    new Shading { Val = ShadingPatternValues.Clear, Fill = "003D44" },
                     NoBorders()),
                 new Paragraph(
                     new ParagraphProperties(new SpacingBetweenLines { Before = "60", After = "20" }),
@@ -2375,7 +2375,7 @@ namespace HealthIntelligence.Common.Implementation
             row.AppendChild(new TableCell(
                 new TableCellProperties(
                     new TableCellWidth { Width = "1900", Type = TableWidthUnitValues.Dxa },
-                    new Shading { Val = ShadingPatternValues.Clear, Fill = "12352F" },
+                    new Shading { Val = ShadingPatternValues.Clear, Fill = "003D44" },
                     NoBorders()),
                 new Paragraph(
                     new ParagraphProperties(
@@ -2471,7 +2471,7 @@ namespace HealthIntelligence.Common.Implementation
         {
             var borderSingle = new EnumValue<BorderValues>(BorderValues.Single);
             TableCellBorders DataBorders() => new TableCellBorders(
-                new BottomBorder { Val = borderSingle, Size = 4, Color = "E0E0E0" });
+                new BottomBorder { Val = borderSingle, Size = 4, Color = "E4E4E4" });
 
             var table = new Table(new TableProperties(
                 new TableWidth { Width = colWidthsDxa.Sum().ToString(), Type = TableWidthUnitValues.Dxa }));
@@ -2483,7 +2483,7 @@ namespace HealthIntelligence.Common.Implementation
                 hRow.AppendChild(new TableCell(
                     new TableCellProperties(
                         new TableCellWidth { Width = colWidthsDxa[c].ToString(), Type = TableWidthUnitValues.Dxa },
-                        new Shading { Val = ShadingPatternValues.Clear, Fill = "12352F" }),
+                        new Shading { Val = ShadingPatternValues.Clear, Fill = "003D44" }),
                     new Paragraph(
                         new Run(new RunProperties(
                             new Bold(), new Color { Val = White }, new FontSize { Val = "16" }),
@@ -2506,7 +2506,7 @@ namespace HealthIntelligence.Common.Implementation
                             DataBorders()),
                         new Paragraph(
                             new Run(new RunProperties(
-                                new Color { Val = highlight ? "12352F" : "333333" },
+                                new Color { Val = highlight ? "003D44" : "333333" },
                                 new FontSize { Val = "16" }),
                                 new Text(rows[r][c])))));
                 }
@@ -2529,7 +2529,7 @@ namespace HealthIntelligence.Common.Implementation
             TableCell HdrCell(string txt, bool first = false) =>
                 new(new TableCellProperties(
                     new TableCellWidth { Width = (first ? 1300 : yearW).ToString(), Type = TableWidthUnitValues.Dxa },
-                    new Shading { Val = ShadingPatternValues.Clear, Fill = "12352F" }),
+                    new Shading { Val = ShadingPatternValues.Clear, Fill = "003D44" }),
                     new Paragraph(new Run(
                         new RunProperties(new Bold(), new Color { Val = White }, new FontSize { Val = "16" }),
                         new Text(txt))));
@@ -2620,7 +2620,7 @@ namespace HealthIntelligence.Common.Implementation
             hRow.AppendChild(new TableCell(
                 new TableCellProperties(
                     new TableCellWidth { Width = "1600", Type = TableWidthUnitValues.Dxa },
-                    new Shading { Val = ShadingPatternValues.Clear, Fill = "12352F" }),
+                    new Shading { Val = ShadingPatternValues.Clear, Fill = "003D44" }),
                 new Paragraph(new Run(
                     new RunProperties(new Bold(), new Color { Val = White }, new FontSize { Val = "16" }),
                     new Text("Pillar")))));
@@ -2628,7 +2628,7 @@ namespace HealthIntelligence.Common.Implementation
                 hRow.AppendChild(new TableCell(
                     new TableCellProperties(
                         new TableCellWidth { Width = yearW.ToString(), Type = TableWidthUnitValues.Dxa },
-                        new Shading { Val = ShadingPatternValues.Clear, Fill = "12352F" }),
+                        new Shading { Val = ShadingPatternValues.Clear, Fill = "003D44" }),
                     new Paragraph(
                         new ParagraphProperties(new Justification { Val = JustificationValues.Center }),
                         new Run(new RunProperties(new Bold(), new Color { Val = White }, new FontSize { Val = "14" }),
@@ -2645,7 +2645,7 @@ namespace HealthIntelligence.Common.Implementation
                         new TableCellWidth { Width = "1600", Type = TableWidthUnitValues.Dxa },
                         new Shading { Val = ShadingPatternValues.Clear, Fill = rowBg }),
                     new Paragraph(new Run(
-                        new RunProperties(new Bold(), new Color { Val = "12352F" }, new FontSize { Val = "14" }),
+                        new RunProperties(new Bold(), new Color { Val = "003D44" }, new FontSize { Val = "14" }),
                         new Text(pillar.PillarName)))));
 
                 foreach (var yr in allYears)
@@ -2655,7 +2655,7 @@ namespace HealthIntelligence.Common.Implementation
                     bool hasData = ps != null;
                     float score  = hasData ? (float)ps!.ScoreProgress : -1f;
                     string cellBg = !hasData ? "F0F0F0"
-                        : InterpolateColor("FFFFFF", "12352F", score / 100f).TrimStart('#');
+                        : InterpolateColor("FFFFFF", "003D44", score / 100f).TrimStart('#');
 
                     row.AppendChild(new TableCell(
                         new TableCellProperties(
@@ -2863,10 +2863,10 @@ namespace HealthIntelligence.Common.Implementation
         static string GetBarColor(float value)
         {
             if (value >= 80) return "#C62828";
-            else if (value >= 60) return "#c66528";
-            else if (value >= 40) return "#F9A825";
-            else if (value >= 20) return "#469449";
-            return "#2E7D32";
+            else if (value >= 60) return "#E65100";
+            else if (value >= 40) return "#FFC107";
+            else if (value >= 20) return ReportThemeColors.AccentGreen;
+            return ReportThemeColors.Primary;
         }
 
         private static string Shorten(string text, int max) =>
@@ -3169,12 +3169,12 @@ namespace HealthIntelligence.Common.Implementation
             // Table properties
             var tblPr = new TableProperties(
                 new TableBorders(
-                    new TopBorder { Val = BorderValues.Single, Size = 4, Color = "D0D8D0" },
-                    new BottomBorder { Val = BorderValues.Single, Size = 4, Color = "D0D8D0" },
-                    new LeftBorder { Val = BorderValues.Single, Size = 4, Color = "D0D8D0" },
-                    new RightBorder { Val = BorderValues.Single, Size = 4, Color = "D0D8D0" },
-                    new InsideHorizontalBorder { Val = BorderValues.Single, Size = 2, Color = "E0E0E0" },
-                    new InsideVerticalBorder { Val = BorderValues.Single, Size = 2, Color = "E0E0E0" }),
+                    new TopBorder { Val = BorderValues.Single, Size = 4, Color = "E4E4E4" },
+                    new BottomBorder { Val = BorderValues.Single, Size = 4, Color = "E4E4E4" },
+                    new LeftBorder { Val = BorderValues.Single, Size = 4, Color = "E4E4E4" },
+                    new RightBorder { Val = BorderValues.Single, Size = 4, Color = "E4E4E4" },
+                    new InsideHorizontalBorder { Val = BorderValues.Single, Size = 2, Color = "E4E4E4" },
+                    new InsideVerticalBorder { Val = BorderValues.Single, Size = 2, Color = "E4E4E4" }),
                 new TableWidth { Width = "5000", Type = TableWidthUnitValues.Pct });
             table.AppendChild(tblPr);
 
@@ -3194,7 +3194,7 @@ namespace HealthIntelligence.Common.Implementation
                 var cell = new TableCell();
                 cell.AppendChild(new TableCellProperties(
                     new TableCellWidth { Width = widths[col].ToString(), Type = TableWidthUnitValues.Dxa },
-                    new Shading { Val = ShadingPatternValues.Clear, Fill = "12352F" }));
+                    new Shading { Val = ShadingPatternValues.Clear, Fill = "003D44" }));
 
                 var p = new Paragraph();
                 var pp = new ParagraphProperties();
@@ -3245,7 +3245,7 @@ namespace HealthIntelligence.Common.Implementation
                     var rPr = new RunProperties
                     {
                         FontSize = new FontSize { Val = "16" },  // 8pt
-                        Color = new Color { Val = fontColor ?? (isHighlight && col == 0 ? "12352F" : "333333") }
+                        Color = new Color { Val = fontColor ?? (isHighlight && col == 0 ? "003D44" : "333333") }
                     };
                     if (isBold) rPr.AppendChild(new Bold());
                     run.AppendChild(rPr);

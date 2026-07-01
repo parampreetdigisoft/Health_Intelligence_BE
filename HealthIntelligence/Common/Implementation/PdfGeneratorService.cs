@@ -90,7 +90,7 @@ namespace HealthIntelligence.Common.Implementation
                     {
                         page.Size(PageSizes.A4);
                         page.Margin(25);
-                        page.PageColor("#FAFAFA");
+                        page.PageColor(ReportThemeColors.PageBg);
                         page.DefaultTextStyle(x => x.FontSize(10).FontFamily("Segoe UI"));
                         page.Header().Element(header => PillarComposeHeader(header, pillarData));
                         page.Content().Element(content =>
@@ -209,7 +209,7 @@ namespace HealthIntelligence.Common.Implementation
         {
             page.Size(PageSizes.A4);
             page.Margin(25);
-            page.PageColor(Colors.White);
+            page.PageColor(ReportThemeColors.White);
             page.DefaultTextStyle(x => x.FontSize(10).FontFamily("Arial"));
         }
 
@@ -295,7 +295,7 @@ namespace HealthIntelligence.Common.Implementation
         
 
         // -----------------------------------------------------------------------------
-        //  DASHBOARD WIDGET — Score Donut Card
+        //  DASHBOARD WIDGET . Score Donut Card
         // -----------------------------------------------------------------------------
 
         void RenderScoreDonutCard(
@@ -311,8 +311,8 @@ namespace HealthIntelligence.Common.Implementation
 
             // Overall rank label
             var globalRankLabel = country.Rank.HasValue && country.TotalCountry.HasValue && country.TotalCountry > 1
-                ? $"Global Rank: {country.Rank} / {country.TotalCountry}"
-                : "Global Rank: N/A";
+                ? $"Continent Rank: {country.Rank} / {country.TotalCountry}"
+                : "Continent Rank: N/A";
 
             // Regional rank label
             var regionRankLabel = country.RegionRank.HasValue && country.RegionTotalCountry.HasValue && country.RegionTotalCountry >= 1
@@ -321,9 +321,9 @@ namespace HealthIntelligence.Common.Implementation
 
 
             container
-                .Background(Colors.White)
+                .Background(ReportThemeColors.White)
                 .Border(1)
-                .BorderColor("#D8E8E2")
+                .BorderColor(ReportThemeColors.BorderGreen)
                 .Padding(8)
                 .Column(col =>
                 {
@@ -337,7 +337,7 @@ namespace HealthIntelligence.Common.Implementation
                         .Text("Overall Country Score")
                         .FontSize(10)
                         .Bold()
-                        .FontColor("#12352f");
+                        .FontColor(ReportThemeColors.PdfDarkGreen);
 
                     // ---------------------------------------------
                     // Donut chart
@@ -350,7 +350,7 @@ namespace HealthIntelligence.Common.Implementation
                     // Divider
                     col.Item()
                         .Height(1)
-                        .Background("#E8F0EC");
+                        .Background(ReportThemeColors.SurfaceGreen);
 
                     // ---------------------------------------------
                     // Pillars + KPI Counts
@@ -369,18 +369,18 @@ namespace HealthIntelligence.Common.Implementation
                                         .Text(pillarCount.ToString())
                                         .FontSize(16)
                                         .Bold()
-                                        .FontColor("#336b58");
+                                        .FontColor(ReportThemeColors.PdfMediumGreen);
 
                                     c.Item()
                                         .AlignCenter()
                                         .Text("Pillars")
                                         .FontSize(8)
-                                        .FontColor("#757575");
+                                        .FontColor(ReportThemeColors.Gray650);
                                 });
 
                             // Divider
                             row.ConstantItem(1)
-                                .Background("#E0E0E0");
+                                .Background(ReportThemeColors.Gray350);
 
                             // KPIs
                             row.RelativeItem()
@@ -392,18 +392,18 @@ namespace HealthIntelligence.Common.Implementation
                                         .Text(kpiCount.ToString())
                                         .FontSize(16)
                                         .Bold()
-                                        .FontColor("#336b58");
+                                        .FontColor(ReportThemeColors.PdfMediumGreen);
 
                                     c.Item()
                                         .AlignCenter()
                                         .Text("KPIs")
                                         .FontSize(8)
-                                        .FontColor("#757575");
+                                        .FontColor(ReportThemeColors.Gray650);
                                 });
                         });
 
                     // ---------------------------------------------
-                    // Best Pillar + Global Rank
+                    // Best Pillar + Continent Rank
                     // ---------------------------------------------
                     if (best != null)
                     {
@@ -413,25 +413,25 @@ namespace HealthIntelligence.Common.Implementation
                             {
                                 // Best pillar
                                 row.RelativeItem()
-                                    .Background("#E8F5E9")
+                                    .Background(ReportThemeColors.AccentEquityAssessment)
                                     .PaddingVertical(3)
                                     .PaddingHorizontal(5)
                                     .Text(
-                                        $"? {Shorten(best.Name, 16)} ({best.Value:F0})")
+                                        $"â–² {Shorten(best.Name, 16)} ({best.Value:F0})")
                                     .FontSize(7)
-                                    .FontColor("#1B5E20");
+                                    .FontColor(ReportThemeColors.SuccessGreenText);
 
                                 row.ConstantItem(4);
 
                                 // Global rank
                                 row.AutoItem()
-                                    .Background("#E8F0EC")
+                                    .Background(ReportThemeColors.SurfaceGreen)
                                     .PaddingVertical(3)
                                     .PaddingHorizontal(5)
                                     .Text(globalRankLabel)
                                     .FontSize(7)
                                     .Bold()
-                                    .FontColor("#12352f");
+                                    .FontColor(ReportThemeColors.PdfDarkGreen);
                             });
                     }
 
@@ -446,25 +446,25 @@ namespace HealthIntelligence.Common.Implementation
                             {
                                 // Worst pillar
                                 row.RelativeItem()
-                                    .Background("#FDECEA")
+                                    .Background(ReportThemeColors.DangerRedBg)
                                     .PaddingVertical(3)
                                     .PaddingHorizontal(5)
                                     .Text(
-                                        $"? {Shorten(worst.Name, 16)} ({worst.Value:F0})")
+                                        $"â–¼ {Shorten(worst.Name, 16)} ({worst.Value:F0})")
                                     .FontSize(7)
-                                    .FontColor("#B71C1C");
+                                    .FontColor(ReportThemeColors.DangerRedDark);
 
                                 row.ConstantItem(4);
 
                                 // Region rank
                                 row.AutoItem()
-                                    .Background("#FFF3E0")
+                                    .Background(ReportThemeColors.WarningOrangeBg)
                                     .PaddingVertical(3)
                                     .PaddingHorizontal(5)
                                     .Text(regionRankLabel)
                                     .FontSize(7)
                                     .Bold()
-                                    .FontColor("#5D3B00");
+                                    .FontColor(ReportThemeColors.WarningOrangeText);
                             });
                     }
                 });
@@ -486,7 +486,7 @@ namespace HealthIntelligence.Common.Implementation
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = thick,
-                Color = SKColor.Parse("#EEF5F1"),
+                Color = SKColor.Parse(ReportThemeColors.SurfaceGreenAlt),
                 IsAntialias = true
             };
             canvas.DrawOval(rect, bgPaint);
@@ -496,7 +496,7 @@ namespace HealthIntelligence.Common.Implementation
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = thick,
-                Color = SKColor.Parse("#003160"),
+                Color = SKColor.Parse(ReportThemeColors.NavyBlue),
                 IsAntialias = true,
                 StrokeCap = SKStrokeCap.Round
             };
@@ -507,7 +507,7 @@ namespace HealthIntelligence.Common.Implementation
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = 1f,
-                Color = SKColor.Parse("#D0E8DC"),
+                Color = SKColor.Parse(ReportThemeColors.ChartBlueMint),
                 IsAntialias = true
             };
             canvas.DrawOval(
@@ -518,7 +518,7 @@ namespace HealthIntelligence.Common.Implementation
             // Center: score value
             using var bigTxt = new SKPaint
             {
-                Color = SKColor.Parse("#003160"),
+                Color = SKColor.Parse(ReportThemeColors.NavyBlue),
                 TextSize = 26,
                 IsAntialias = true,
                 TextAlign = SKTextAlign.Center,
@@ -529,7 +529,7 @@ namespace HealthIntelligence.Common.Implementation
             // Center: sub-label
             using var subTxt = new SKPaint
             {
-                Color = SKColor.Parse("#9E9E9E"),
+                Color = SKColor.Parse(ReportThemeColors.Gray500),
                 TextSize = 8,
                 IsAntialias = true,
                 TextAlign = SKTextAlign.Center
@@ -538,20 +538,20 @@ namespace HealthIntelligence.Common.Implementation
         }
 
         // -----------------------------------------------------------------------------
-        //  DASHBOARD WIDGET — Pillar Radar / Spider Card
+        //  DASHBOARD WIDGET . Pillar Radar / Spider Card
         // -----------------------------------------------------------------------------
 
         void RenderPillarRadarCard(IContainer container, List<PillarChartItem> pillars)
         {
             container
-                .Background(Colors.White)
-                .Border(1).BorderColor("#afc4db")
+                .Background(ReportThemeColors.White)
+                .Border(1).BorderColor(ReportThemeColors.BorderBlue)
                 .Padding(4)
                 .Column(col =>
                 {
                     col.Item().AlignCenter()
                         .Text("Pillar Performance Radar")
-                        .FontSize(10).Bold().FontColor("#12352f");
+                        .FontSize(10).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
 
                     col.Item().Height(230).Canvas((canvas, size) =>
                         PaintSpiderChart(canvas, size, pillars));
@@ -572,13 +572,13 @@ namespace HealthIntelligence.Common.Implementation
             using var ringPaint = new SKPaint
             {
                 Style = SKPaintStyle.Stroke,
-                Color = SKColor.Parse("#D6E3F0"),
+                Color = SKColor.Parse(ReportThemeColors.ChartBluePale),
                 StrokeWidth = 0.7f,
                 IsAntialias = true
             };
             using var ringLblPaint = new SKPaint
             {
-                Color = SKColor.Parse("#C0C0C0"),
+                Color = SKColor.Parse(ReportThemeColors.Gray450),
                 TextSize = 7,
                 IsAntialias = true,
                 TextAlign = SKTextAlign.Left
@@ -596,7 +596,7 @@ namespace HealthIntelligence.Common.Implementation
             // -- spoke axes ------------------------------------------------------
             using var axisPaint = new SKPaint
             {
-                Color = SKColor.Parse("#B8CCE0"),
+                Color = SKColor.Parse(ReportThemeColors.ChartBlueLight),
                 StrokeWidth = 0.7f,
                 IsAntialias = true
             };
@@ -620,14 +620,14 @@ namespace HealthIntelligence.Common.Implementation
             using var fillPaint = new SKPaint
             {
                 Style = SKPaintStyle.Fill,
-                Color = SKColor.Parse("#2C6EA3").WithAlpha(55),
+                Color = SKColor.Parse(ReportThemeColors.ChartMediumBlue).WithAlpha(55),
                 IsAntialias = true
             };
             using var edgePaint = new SKPaint
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = 2f,
-                Color = SKColor.Parse("#1F4E79"),
+                Color = SKColor.Parse(ReportThemeColors.AccentKeyDevelopments),
                 IsAntialias = true
             };
             canvas.DrawPath(dataPath, fillPaint);
@@ -637,7 +637,7 @@ namespace HealthIntelligence.Common.Implementation
             using var dotPaint = new SKPaint
             {
                 Style = SKPaintStyle.Fill,
-                Color = SKColor.Parse("#1F4E79"),
+                Color = SKColor.Parse(ReportThemeColors.AccentKeyDevelopments),
                 IsAntialias = true
             };
             using var dotBorder = new SKPaint
@@ -658,14 +658,14 @@ namespace HealthIntelligence.Common.Implementation
             // -- axis labels ------------------------------------------------------
             using var lblPaint = new SKPaint
             {
-                Color = SKColor.Parse("#1B2F44"),
+                Color = SKColor.Parse(ReportThemeColors.ChartDarkBlue),
                 TextSize = 8f,
                 IsAntialias = true,
                 TextAlign = SKTextAlign.Center
             };
             using var valPaint = new SKPaint
             {
-                Color = SKColor.Parse("#4F7FA8"),
+                Color = SKColor.Parse(ReportThemeColors.ChartSteelBlue),
                 TextSize = 7f,
                 IsAntialias = true,
                 TextAlign = SKTextAlign.Center
@@ -702,35 +702,35 @@ namespace HealthIntelligence.Common.Implementation
         }
 
         // -----------------------------------------------------------------------------
-        //  DASHBOARD WIDGET — KPI Distribution Band  (4 stat cards)
+        //  DASHBOARD WIDGET . KPI Distribution Band  (4 stat cards)
         // -----------------------------------------------------------------------------
 
         static void RenderKpiDistributionBand(
             IContainer container, int total, int green, int amber, int red)
         {
             container
-                .Background(Colors.White)
-                .Border(1).BorderColor("#afc4db")
+                .Background(ReportThemeColors.White)
+                .Border(1).BorderColor(ReportThemeColors.BorderBlue)
                 .Padding(10)
                 .Column(col =>
                 {
                     col.Item()
                         .Text("KPI Performance Distribution")
-                        .FontSize(9).Bold().FontColor("#12352f");
+                        .FontSize(9).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
 
                     col.Item().PaddingTop(7).Row(row =>
                     {
                         DashboardStatCard(row.RelativeItem(),
-                            green.ToString(), "Performing =70%", "#E8F5E9", "#2E7D32");
+                            green.ToString(), "Performing =70%", ReportThemeColors.AccentEquityAssessment, ReportThemeColors.SuccessGreen);
                         row.ConstantItem(8);
                         DashboardStatCard(row.RelativeItem(),
-                            amber.ToString(), "Developing 40–69%", "#FFF8E1", "#E65100");
+                            amber.ToString(), "Developing 40.69%", ReportThemeColors.WarningAmberBg, ReportThemeColors.WarningOrangeDark);
                         row.ConstantItem(8);
                         DashboardStatCard(row.RelativeItem(),
-                            red.ToString(), "Needs Improvement < 40 %", "#FDECEA", "#C62828");
+                            red.ToString(), "Needs Improvement < 40 %", ReportThemeColors.DangerRedBg, ReportThemeColors.DangerRed);
                         row.ConstantItem(8);
                         DashboardStatCard(row.RelativeItem(),
-                            total.ToString(), "Total KPIs", "#EEF5F1", "#12352f");
+                            total.ToString(), "Total KPIs", ReportThemeColors.SurfaceGreenAlt, ReportThemeColors.PdfDarkGreen);
                     });
                 });
         }
@@ -753,7 +753,7 @@ namespace HealthIntelligence.Common.Implementation
         }
 
         // -----------------------------------------------------------------------------
-        //  DASHBOARD WIDGET — KPI Sparkline (gradient area chart)
+        //  DASHBOARD WIDGET . KPI Sparkline (gradient area chart)
         // -----------------------------------------------------------------------------
 
         void RenderKpiSparklineCard(IContainer container, List<KpiChartItem> kpis)
@@ -761,16 +761,16 @@ namespace HealthIntelligence.Common.Implementation
             float avg = (float)kpis.Average(k => k.Value);
 
             container
-                .Background(Colors.White)
-                .Border(1).BorderColor("#afc4db")
+                .Background(ReportThemeColors.White)
+                .Border(1).BorderColor(ReportThemeColors.BorderBlue)
                 .Padding(10)
                 .Column(col =>
                 {
                     col.Item().Row(hdr =>
                     {
                         hdr.RelativeItem()
-                            .Text("KPI Overview — All Indicators (sorted high ? low)")
-                            .FontSize(9).Bold().FontColor("#12352f");
+                            .Text("KPI Overview . All Indicators (sorted high ? low)")
+                            .FontSize(9).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
                         hdr.AutoItem()
                             .Text($"Avg: {avg:F1}%")
                             .FontSize(9).Bold().FontColor(GetBarColor(avg));
@@ -797,10 +797,10 @@ namespace HealthIntelligence.Common.Implementation
             float sx = w / (n - 1);
 
             // Grid lines
-            using var gp = new SKPaint { Color = SKColor.Parse("#F0F4F1"), StrokeWidth = 0.7f };
+            using var gp = new SKPaint { Color = SKColor.Parse(ReportThemeColors.SurfaceGreenLight), StrokeWidth = 0.7f };
             using var gl = new SKPaint
             {
-                Color = SKColor.Parse("#C0C0C0"),
+                Color = SKColor.Parse(ReportThemeColors.Gray450),
                 TextSize = 7,
                 TextAlign = SKTextAlign.Right,
                 IsAntialias = true
@@ -823,8 +823,8 @@ namespace HealthIntelligence.Common.Implementation
 
             using var shader = SKShader.CreateLinearGradient(
                 new SKPoint(0, tp), new SKPoint(0, tp + h),
-                new[] { SKColor.Parse("#336b58").WithAlpha(95),
-                SKColor.Parse("#336b58").WithAlpha(8) },
+                new[] { SKColor.Parse(ReportThemeColors.PdfMediumGreen).WithAlpha(95),
+                SKColor.Parse(ReportThemeColors.PdfMediumGreen).WithAlpha(8) },
                 null, SKShaderTileMode.Clamp);
             using var fp = new SKPaint { Shader = shader, Style = SKPaintStyle.Fill };
             canvas.DrawPath(fPath, fp);
@@ -841,7 +841,7 @@ namespace HealthIntelligence.Common.Implementation
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = 1.6f,
-                Color = SKColor.Parse("#336b58"),
+                Color = SKColor.Parse(ReportThemeColors.PdfMediumGreen),
                 IsAntialias = true
             };
             canvas.DrawPath(lPath, lPaint);
@@ -850,7 +850,7 @@ namespace HealthIntelligence.Common.Implementation
             float y70 = tp + h - 0.70f * h;
             using var thPaint = new SKPaint
             {
-                Color = SKColor.Parse("#2E7D32").WithAlpha(140),
+                Color = SKColor.Parse(ReportThemeColors.SuccessGreen).WithAlpha(140),
                 StrokeWidth = 0.9f,
                 PathEffect = SKPathEffect.CreateDash(new[] { 4f, 3f }, 0)
             };
@@ -858,7 +858,7 @@ namespace HealthIntelligence.Common.Implementation
 
             using var thLbl = new SKPaint
             {
-                Color = SKColor.Parse("#2E7D32"),
+                Color = SKColor.Parse(ReportThemeColors.SuccessGreen),
                 TextSize = 7,
                 IsAntialias = true
             };
@@ -872,7 +872,7 @@ namespace HealthIntelligence.Common.Implementation
         // -------------------------------------------------------------------------------
 
         // -----------------------------------------------------------------------------
-        //  KPI DASHBOARD PAGE  ·  numbered bar chart + full-name reference tables
+        //  KPI DASHBOARD PAGE  .  numbered bar chart + full-name reference tables
         // -----------------------------------------------------------------------------
 
         void KpiDashboardPage(IContainer container, List<KpiChartItem> kpis)
@@ -886,7 +886,7 @@ namespace HealthIntelligence.Common.Implementation
             int red = kpis.Count(x =>  x.Value < 40);
             float avg = (float)kpis.Average(x => x.Value);
 
-            // 18 bars per chart row — compact but legible
+            // 18 bars per chart row . compact but legible
             var groups = kpis
                 .Select((k, i) => new { k, i })
                 .GroupBy(x => x.i / 18)
@@ -918,7 +918,7 @@ namespace HealthIntelligence.Common.Implementation
         }
 
         // -----------------------------------------------------------------------------
-        //  SUMMARY BAND  ·  five stat cards in a dark-green strip
+        //  SUMMARY BAND  .  five stat cards in a dark-green strip
         // -----------------------------------------------------------------------------
 
         static void DrawKpiSummaryBand(
@@ -926,40 +926,40 @@ namespace HealthIntelligence.Common.Implementation
             int total, int green, int amber, int red, float avg)
         {
             container
-                .Background("#12352f")
+                .Background(ReportThemeColors.PdfDarkGreen)
                 .Padding(10)
                 .Row(row =>
                 {
-                    KpiStatPill(row.RelativeItem(), total.ToString(), "Total KPIs", "#4CAF50", "#4CAF5025");
+                    KpiStatPill(row.RelativeItem(), total.ToString(), "Total KPIs", ReportThemeColors.AccentGreen, ReportThemeColors.AccentGreenAlpha15);
                     row.ConstantItem(6);
-                    KpiStatPill(row.RelativeItem(), green.ToString(), "Performing = 70 %", "#4CAF50", "#4CAF5025");
+                    KpiStatPill(row.RelativeItem(), green.ToString(), "Performing = 70 %", ReportThemeColors.AccentGreen, ReportThemeColors.AccentGreenAlpha15);
                     row.ConstantItem(6);
-                    KpiStatPill(row.RelativeItem(), amber.ToString(), "Developing 40–69 %", "#FFC107", "#FFC10725");
+                    KpiStatPill(row.RelativeItem(), amber.ToString(), "Developing 40.69 %", ReportThemeColors.WarningOrange, ReportThemeColors.WarningOrangeAlpha15);
                     row.ConstantItem(6);
-                    KpiStatPill(row.RelativeItem(), red.ToString(), "Needs Improvement < 40 %", "#EF5350", "#EF535025");
+                    KpiStatPill(row.RelativeItem(), red.ToString(), "Needs Improvement < 40 %", ReportThemeColors.DangerRedLight, ReportThemeColors.DangerRedAlpha15);
                     row.ConstantItem(6);
                     KpiStatPill(row.RelativeItem(), $"{avg:F1}%", "Average Score",
-                        avg >= 70 ? "#4CAF50" : avg >= 40 ? "#FFC107" : "#EF5350",
-                        "#4CAF5025");
+                        avg >= 70 ? ReportThemeColors.AccentGreen : avg >= 40 ? ReportThemeColors.WarningOrange : ReportThemeColors.DangerRedLight,
+                        ReportThemeColors.AccentGreenAlpha15);
                 });
         }
 
 
         // -----------------------------------------------------------------------------
-        //  GROUP SECTION  ·  bar chart on top, two-column legend table below
+        //  GROUP SECTION  .  bar chart on top, two-column legend table below
         // -----------------------------------------------------------------------------
 
         void DrawKpiGroupSection(IContainer container, List<KpiChartItem> group, int offset)
         {
             container
-                .Border(1).BorderColor("#C5D9D0")
+                .Border(1).BorderColor(ReportThemeColors.BorderGreenMid)
                 .Column(col =>
                 {
-                    // bar chart — numbers printed below each bar
+                    // bar chart . numbers printed below each bar
                     col.Item().Height(148).Element(x => DrawKpiBarChart(x, group, offset));
 
                     // hairline separator between chart and table
-                    col.Item().Height(1).Background("#C5D9D0");
+                    col.Item().Height(1).Background(ReportThemeColors.BorderGreenMid);
 
                     // two-column reference table
                     col.Item().Padding(6).Element(x => DrawKpiReferenceTable(x, group, offset));
@@ -968,12 +968,12 @@ namespace HealthIntelligence.Common.Implementation
 
 
         // -----------------------------------------------------------------------------
-        //  BAR CHART  ·  sequential index numbers below each bar (not cryptic codes)
+        //  BAR CHART  .  sequential index numbers below each bar (not cryptic codes)
         // -----------------------------------------------------------------------------
         void DrawKpiBarChart(IContainer container, List<KpiChartItem> data, int offset)
         {
             container
-                .Background(Colors.White)
+                .Background(ReportThemeColors.White)
                 .Canvas((canvas, size) =>
                 {
                     if (!data.Any()) return;
@@ -993,13 +993,13 @@ namespace HealthIntelligence.Common.Implementation
                     // -- background grid lines -------------------------------------
                     using var gridPaint = new SKPaint
                     {
-                        Color = SKColor.Parse("#F2F7F4"),
+                        Color = SKColor.Parse(ReportThemeColors.SurfaceGreenPale),
                         StrokeWidth = 0.6f,
                         IsAntialias = false
                     };
                     using var gridLblPaint = new SKPaint
                     {
-                        Color = SKColor.Parse("#B0BEC5"),
+                        Color = SKColor.Parse(ReportThemeColors.BlueGrayLight),
                         TextSize = 7f,
                         IsAntialias = true,
                         TextAlign = SKTextAlign.Left
@@ -1016,7 +1016,7 @@ namespace HealthIntelligence.Common.Implementation
                     float y70 = tp + chartH - 0.70f * chartH;
                     using var threshPaint = new SKPaint
                     {
-                        Color = SKColor.Parse("#2E7D32").WithAlpha(100),
+                        Color = SKColor.Parse(ReportThemeColors.SuccessGreen).WithAlpha(100),
                         StrokeWidth = 0.9f,
                         PathEffect = SKPathEffect.CreateDash(new[] { 4f, 3f }, 0),
                         IsAntialias = true
@@ -1028,7 +1028,7 @@ namespace HealthIntelligence.Common.Implementation
                     { TextSize = 6.5f, IsAntialias = true, TextAlign = SKTextAlign.Center };
                     using var numLblPaint = new SKPaint
                     {
-                        Color = SKColor.Parse("#546E7A"),
+                        Color = SKColor.Parse(ReportThemeColors.BlueGrayDark),
                         TextSize = 6.5f,
                         IsAntialias = true,
                         TextAlign = SKTextAlign.Center
@@ -1042,7 +1042,7 @@ namespace HealthIntelligence.Common.Implementation
                         float bh = v / 100f * chartH;
                         float by = tp + chartH - bh;
                         SKColor color = GetColor(v);
-                        SKColor textcolor = v > 85 ? SKColors.White : SKColors.Black;
+                        SKColor textcolor = v > 85 ? SKColor.Parse(ReportThemeColors.White) : SKColor.Parse(ReportThemeColors.Black);
 
 
                         // ghost (full-height tinted background)
@@ -1078,7 +1078,7 @@ namespace HealthIntelligence.Common.Implementation
                         valLblPaint.Color = textcolor;
                         canvas.DrawText($"{v:F1}%", bx + innerW / 2f, vly, valLblPaint);
 
-                        // -- sequential index number below bar (e.g. "1", "2", …) --
+                        // -- sequential index number below bar (e.g. "1", "2", .) --
                         // Users cross-reference this with the legend table below.
                         canvas.DrawText(
                             $"{offset + i + 1}",
@@ -1090,7 +1090,7 @@ namespace HealthIntelligence.Common.Implementation
         }
 
         // -----------------------------------------------------------------------------
-        //  REFERENCE TABLE  ·  two-column layout, colored status bar, full KPI names
+        //  REFERENCE TABLE  .  two-column layout, colored status bar, full KPI names
         // -----------------------------------------------------------------------------
         void DrawKpiReferenceTable(IContainer container, List<KpiChartItem> group, int offset)
         {
@@ -1102,7 +1102,7 @@ namespace HealthIntelligence.Common.Implementation
 
 
         /// <summary>
-        /// Renders all KPIs as paired cards — 2 per row.
+        /// Renders all KPIs as paired cards . 2 per row.
         /// Each card: coloured header (code, name, score) + 5-row interpretation mini-table
         /// with the matching range row highlighted.
         /// </summary>
@@ -1159,7 +1159,7 @@ namespace HealthIntelligence.Common.Implementation
                 .Column(inner =>
                 {
                     // -- 1. KPI header band ------------------------------------------
-                    // Definition removed from here — gets its own strip below
+                    // Definition removed from here . gets its own strip below
                     inner.Item()
                          .Background(accent)
                          .PaddingHorizontal(5).PaddingVertical(3)
@@ -1168,10 +1168,10 @@ namespace HealthIntelligence.Common.Implementation
                              // Number bubble
                              h.ConstantItem(16)
                               .AlignMiddle()
-                              .Background("#00000022")
+                              .Background(ReportThemeColors.OverlayBlackAlpha)
                               .AlignCenter()
                               .Text($"{num}")
-                              .FontSize(6f).Bold().FontColor("#FFFFFF");
+                              .FontSize(6f).Bold().FontColor(ReportThemeColors.White);
 
                              // Code + Name
                              h.RelativeItem()
@@ -1181,17 +1181,17 @@ namespace HealthIntelligence.Common.Implementation
                               {
                                   nc.Item()
                                     .Text(kpi.ShortName ?? "")
-                                    .FontSize(7.5f).Bold().FontColor("#FFFFFF");
+                                    .FontSize(7.5f).Bold().FontColor(ReportThemeColors.White);
                                   nc.Item()
                                     .Text(kpi.Name ?? "")
-                                    .FontSize(5f).FontColor("#FFFFFFBB");
+                                    .FontSize(5f).FontColor(ReportThemeColors.WhiteAlpha73);
                               });
 
                              // Score
                              h.ConstantItem(34)
                               .AlignMiddle().AlignRight()
                               .Text($"{v}%")
-                              .FontSize(9.5f).Bold().FontColor("#FFFFFF");
+                              .FontSize(9.5f).Bold().FontColor(ReportThemeColors.White);
                          });
 
                     // -- 2. Definition strip -----------------------------------------
@@ -1199,9 +1199,9 @@ namespace HealthIntelligence.Common.Implementation
                     if (!string.IsNullOrWhiteSpace(kpi.Definition))
                     {
                         inner.Item()
-                             .Background("#F2F6F4")                      // very pale green-grey
+                             .Background(ReportThemeColors.SurfaceGreenMint)                      // very pale green-grey
                              .BorderTop(0.3f).BorderColor(accent)
-                             .BorderBottom(0.3f).BorderColor("#DDDDDD")
+                             .BorderBottom(0.3f).BorderColor(ReportThemeColors.Gray400)
                              .PaddingHorizontal(5).PaddingVertical(3)
                              .Row(dr =>
                              {
@@ -1213,27 +1213,27 @@ namespace HealthIntelligence.Common.Implementation
                                    .FontSize(4.5f).Bold()
                                    .FontColor(accent);
 
-                                 // Definition text — italic, wraps, keeps card compact
+                                 // Definition text . italic, wraps, keeps card compact
                                  dr.RelativeItem()
                                    .Text(kpi.Definition)
                                    .FontSize(5.5f).Italic()
-                                   .FontColor("#444444")
+                                   .FontColor(ReportThemeColors.Gray850)
                                    .LineHeight(1.25f);
                              });
                     }
 
                     // -- 3. Interpretation column sub-header -------------------------
                     inner.Item()
-                         .Background("#EBEBEB")
+                         .Background(ReportThemeColors.Gray200)
                          .PaddingHorizontal(4).PaddingVertical(2)
                          .Row(sh =>
                          {
                              sh.ConstantItem(46)
                                .Text("Range")
-                               .FontSize(5.5f).Bold().FontColor("#666666");
+                               .FontSize(5.5f).Bold().FontColor(ReportThemeColors.Gray700);
                              sh.RelativeItem()
                                .Text("Condition")
-                               .FontSize(5.5f).Bold().FontColor("#666666");
+                               .FontSize(5.5f).Bold().FontColor(ReportThemeColors.Gray700);
                          });
 
                     // -- 4. Five interpretation rows ---------------------------------
@@ -1242,16 +1242,16 @@ namespace HealthIntelligence.Common.Implementation
                         var interp = interps[i];
                         bool isHit = interp == matched;
 
-                        string rowBg = isHit ? accent : (i % 2 == 0 ? "#FFFFFF" : "#F7F7F7");
-                        string rangeFg = isHit ? "#FFFFFF" : "#888888";
-                        string condFg = isHit ? "#FFFFFF" : "#333333";
+                        string rowBg = isHit ? accent : (i % 2 == 0 ? ReportThemeColors.White : ReportThemeColors.SurfaceRowAlt);
+                        string rangeFg = isHit ? ReportThemeColors.White : ReportThemeColors.Gray600;
+                        string condFg = isHit ? ReportThemeColors.White : ReportThemeColors.Gray900;
 
                         string rangeStr = (interp.MinRange.HasValue && interp.MaxRange.HasValue)
-                            ? $"{Math.Round(interp.MinRange.Value, 0)}–{Math.Round(interp.MaxRange.Value, 0)}"
-                            : "—";
+                            ? $"{Math.Round(interp.MinRange.Value, 0)}.{Math.Round(interp.MaxRange.Value, 0)}"
+                            : ".";
 
                         inner.Item()
-                             .BorderBottom(0.3f).BorderColor("#E0E0E0")
+                             .BorderBottom(0.3f).BorderColor(ReportThemeColors.Gray350)
                              .Background(rowBg)
                              .PaddingHorizontal(4).PaddingVertical(2)
                              .Row(r =>
@@ -1261,7 +1261,7 @@ namespace HealthIntelligence.Common.Implementation
                                   .FontSize(6f).FontColor(rangeFg);
 
                                  r.RelativeItem()
-                                  .Text(interp.Condition ?? "—")
+                                  .Text(interp.Condition ?? ".")
                                   .FontSize(6.5f)
                                   .Bold()
                                   .FontColor(condFg);
@@ -1281,17 +1281,17 @@ namespace HealthIntelligence.Common.Implementation
                     c.Item().AlignCenter()
                         .Text(value).FontSize(15).Bold().FontColor(valueColor);
                     c.Item().AlignCenter()
-                        .Text(label).FontSize(6.5f).FontColor("#FFFFFFBB");
+                        .Text(label).FontSize(6.5f).FontColor(ReportThemeColors.WhiteAlpha73);
                 });
         }
 
         // -----------------------------------------------------------------------------
-        //  PILLAR OVERVIEW PAGE  ·  redesigned horizontal bar layout + ring chart
+        //  PILLAR OVERVIEW PAGE  .  redesigned horizontal bar layout + ring chart
         // -----------------------------------------------------------------------------
 
         void PillarLineChartPage(IContainer container, List<PillarChartItem> pillars)
         {
-            var data = pillars.Where(p => p.Value.HasValue).Take(23).ToList();
+            var data = pillars.Where(p => p.Value.HasValue).ToList();
             if (!data.Any()) return;
 
             float avg = (float)data.Average(x => x.Value ?? 0);
@@ -1328,13 +1328,13 @@ namespace HealthIntelligence.Common.Implementation
             var sorted = data.OrderByDescending(x => x.Value).ToList();
 
             container
-                .Background(Colors.White)
-                .Border(1).BorderColor("#DDE8E3")
+                .Background(ReportThemeColors.White)
+                .Border(1).BorderColor(ReportThemeColors.BorderGreenLight)
                 .Padding(14)
                 .Column(col =>
                 {
                     col.Item().PaddingBottom(8)
-                        .Text("Pillar Overview").FontSize(11).Bold().FontColor("#12352f");
+                        .Text("Pillar Overview").FontSize(11).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
 
                     col.Spacing(6);
                     int index = 1;
@@ -1347,12 +1347,12 @@ namespace HealthIntelligence.Common.Implementation
                         {
                             // Pillar label
                             row.ConstantItem(102).AlignMiddle()
-                                .Text(Shorten(item.Name ?? item.ShortName ?? "—", 18))
-                                .FontSize(8).FontColor("#37474F");
+                                .Text(Shorten(item.Name ?? item.ShortName ?? ".", 18))
+                                .FontSize(8).FontColor(ReportThemeColors.BlueGray);
 
                             // Bar track
                             row.RelativeItem().AlignMiddle().Height(13)
-                                .Background("#F0F4F1")
+                                .Background(ReportThemeColors.SurfaceGreenLight)
                                 .Canvas((canvas, size) =>
                                 {
                                     // filled portion with gradient
@@ -1390,63 +1390,63 @@ namespace HealthIntelligence.Common.Implementation
             {
                 // Average score
                 row.RelativeItem(2)
-                    .Background("#12352f")
+                    .Background(ReportThemeColors.PdfDarkGreen)
                     .Padding(12)
                     .Column(c =>
                     {
                         c.Item().AlignCenter()
-                            .Text("Average Score").FontSize(9).FontColor("#A5D6A7");
+                            .Text("Average Score").FontSize(9).FontColor(ReportThemeColors.SuccessGreenMuted);
                         c.Item().AlignCenter()
                             .Text($"{avg:F1}")
                             .FontSize(22).Bold()
-                            .FontColor(GetBarColor(avg) == "#2E7D32" ? "#66BB6A"
-                                     : GetBarColor(avg) == "#F9A825" ? "#FFD54F" : "#EF5350");
+                            .FontColor(GetBarColor(avg) == ReportThemeColors.SuccessGreen ? ReportThemeColors.SuccessGreenLight
+                                     : GetBarColor(avg) == ReportThemeColors.WarningAmber ? ReportThemeColors.WarningAmberLight : ReportThemeColors.DangerRedLight);
                     });
 
                 row.ConstantItem(6);
 
                 // Best pillar
                 row.RelativeItem(3)
-                    .Background("#E8F5E9")
-                    .Border(1).BorderColor("#C8E6C9")
+                    .Background(ReportThemeColors.AccentEquityAssessment)
+                    .Border(1).BorderColor(ReportThemeColors.SuccessGreenBorder)
                     .Padding(10)
                     .Column(c =>
                     {
                         c.Item().Row(r =>
                         {
                             r.AutoItem()
-                                .Background("#2E7D32").Padding(3)
-                                .Text("? BEST").FontSize(7).Bold().FontColor(Colors.White);
+                                .Background(ReportThemeColors.SuccessGreen).Padding(3)
+                                .Text("â–² BEST").FontSize(7).Bold().FontColor(ReportThemeColors.White);
                             r.ConstantItem(6);
                             r.RelativeItem()
-                                .Text(Shorten(best.Name ?? "—", 26))
-                                .FontSize(9).Bold().FontColor("#1B5E20");
+                                .Text(Shorten(best.Name ?? ".", 26))
+                                .FontSize(9).Bold().FontColor(ReportThemeColors.SuccessGreenText);
                         });
                         c.Item().PaddingTop(4)
-                            .Text($"{best.Value:F1}").FontSize(16).Bold().FontColor("#2E7D32");
+                            .Text($"{best.Value:F1}").FontSize(16).Bold().FontColor(ReportThemeColors.SuccessGreen);
                     });
 
                 row.ConstantItem(6);
 
                 // Worst pillar
                 row.RelativeItem(3)
-                    .Background("#FDECEA")
-                    .Border(1).BorderColor("#FFCDD2")
+                    .Background(ReportThemeColors.DangerRedBg)
+                    .Border(1).BorderColor(ReportThemeColors.DangerRedBorder)
                     .Padding(10)
                     .Column(c =>
                     {
                         c.Item().Row(r =>
                         {
                             r.AutoItem()
-                                .Background("#C62828").Padding(3)
-                                .Text("? LOWEST").FontSize(7).Bold().FontColor(Colors.White);
+                                .Background(ReportThemeColors.DangerRed).Padding(3)
+                                .Text("â–¼ LOWEST").FontSize(7).Bold().FontColor(ReportThemeColors.White);
                             r.ConstantItem(6);
                             r.RelativeItem()
-                                .Text(Shorten(worst.Name ?? "—", 26))
-                                .FontSize(9).Bold().FontColor("#B71C1C");
+                                .Text(Shorten(worst.Name ?? ".", 26))
+                                .FontSize(9).Bold().FontColor(ReportThemeColors.DangerRedDark);
                         });
                         c.Item().PaddingTop(4)
-                            .Text($"{worst.Value:F1}").FontSize(16).Bold().FontColor("#C62828");
+                            .Text($"{worst.Value:F1}").FontSize(16).Bold().FontColor(ReportThemeColors.DangerRed);
                     });
             });
         }
@@ -1455,14 +1455,14 @@ namespace HealthIntelligence.Common.Implementation
 
         void DrawPillarsRadialChart(IContainer container, List<PillarChartItem> pillars)
         {
-            var data = pillars.Where(p => p.Value.HasValue).Take(23).ToList();
+            var data = pillars.Where(p => p.Value.HasValue).ToList();
             if (!data.Any()) return;
 
             float avg = (float)data.Average(x => x.Value ?? 0);
 
             container
-                .Background(Colors.White)
-                .Border(1).BorderColor("#DDE8E3")
+                .Background(ReportThemeColors.White)
+                .Border(1).BorderColor(ReportThemeColors.BorderGreenLight)
                 .Canvas((canvas, size) =>
                 {
                     float cx = size.Width / 2f;
@@ -1478,7 +1478,7 @@ namespace HealthIntelligence.Common.Implementation
                     // Chart title
                     using var titlePaint = new SKPaint
                     {
-                        Color = SKColor.Parse("#12352f"),
+                        Color = SKColor.Parse(ReportThemeColors.PdfDarkGreen),
                         TextSize = 10f,
                         IsAntialias = true,
                         TextAlign = SKTextAlign.Center,
@@ -1540,7 +1540,7 @@ namespace HealthIntelligence.Common.Implementation
                     // -- centre: average score ----------------------------------
                     using var circleFill = new SKPaint
                     {
-                        Color = SKColor.Parse("#12352f"),
+                        Color = SKColor.Parse(ReportThemeColors.PdfDarkGreen),
                         Style = SKPaintStyle.Fill,
                         IsAntialias = true
                     };
@@ -1568,7 +1568,7 @@ namespace HealthIntelligence.Common.Implementation
 
                     using var avgLblPaint = new SKPaint
                     {
-                        Color = SKColor.Parse("#A5D6A7"),
+                        Color = SKColor.Parse(ReportThemeColors.SuccessGreenMuted),
                         TextSize = cr * 0.26f,
                         IsAntialias = true,
                         TextAlign = SKTextAlign.Center
@@ -1576,7 +1576,7 @@ namespace HealthIntelligence.Common.Implementation
                     canvas.DrawText("avg", cx, cy + avgNumPaint.TextSize * 0.36f + avgLblPaint.TextSize + 1f, avgLblPaint);
 
                     // -- legend on the right side -------------------------------
-                    float legendX = cx + Math.Min(cx, cy) + 2f;  // just outside chart — won't fit; draw below instead
+                    float legendX = cx + Math.Min(cx, cy) + 2f;  // just outside chart . won't fit; draw below instead
                                                                  // (legend is in the horizontal bar panel on the right; no need to repeat here)
                 });
         }
@@ -1592,11 +1592,11 @@ namespace HealthIntelligence.Common.Implementation
         {
             var logoPath = Path.Combine(
                 Directory.GetCurrentDirectory(),
-                "wwwroot/assets/images/pem.png");
+                "wwwroot/assets/images/ahi.png");
 
             container.Column(column =>
             {
-                column.Item().Background("#003160").Padding(8).Row(row =>
+                column.Item().Background(ReportThemeColors.NavyBlue).Padding(8).Row(row =>
                 {
                     // Left content
                     row.RelativeItem().Column(col =>
@@ -1608,29 +1608,29 @@ namespace HealthIntelligence.Common.Implementation
                         col.Item().Text(title)
                             .FontSize(21)
                             .Bold()
-                            .FontColor(Colors.White);
+                            .FontColor(ReportThemeColors.White);
 
                         col.Item().Text($"{data.CountryName}, {data.Continent} | Data Year: {data.Year}")
                             .FontSize(10)
-                            .FontColor("#E8F3F0");
+                            .FontColor(ReportThemeColors.HeaderTextPale);
 
                         col.Item().Text($"Generated: {DateTime.Now:MMM dd, yyyy}")
                             .FontSize(8)
-                            .FontColor("#CFE3DD");
+                            .FontColor(ReportThemeColors.HeaderTextMuted);
                     });
 
                     // Right logo
                     row.ConstantItem(80)
                         .AlignRight()
                         .AlignMiddle()
-                        .Background(Colors.White)
+                        .Background(ReportThemeColors.White)
                         .Padding(4)
                         .Image(logoPath)
                         .FitArea();
                 });
 
                 // Divider
-                column.Item().LineHorizontal(1).LineColor("#d9e2df");
+                column.Item().LineHorizontal(1).LineColor(ReportThemeColors.BorderDivider);
             });
         }        
 
@@ -1638,11 +1638,11 @@ namespace HealthIntelligence.Common.Implementation
         {
             var logoPath = Path.Combine(
                 Directory.GetCurrentDirectory(),
-                "wwwroot/assets/images/pem.png");
+                "wwwroot/assets/images/ahi.png");
 
             container.Column(column =>
             {
-                column.Item().Background("#003160").Padding(12).Row(row =>
+                column.Item().Background(ReportThemeColors.NavyBlue).Padding(12).Row(row =>
                 {
                     // Left content
                     row.RelativeItem().Column(col =>
@@ -1652,28 +1652,28 @@ namespace HealthIntelligence.Common.Implementation
                         col.Item().Text(data.PillarName)
                             .FontSize(21)
                             .Bold()
-                            .FontColor(Colors.White);
+                            .FontColor(ReportThemeColors.White);
 
                         col.Item().Text($"{data.CountryName}, {data.Continent} | Data Year: {data.AIDataYear}")
                             .FontSize(10)
-                            .FontColor("#E8F3F0");
+                            .FontColor(ReportThemeColors.HeaderTextPale);
 
                         col.Item().Text($"Generated: {DateTime.Now:MMM dd, yyyy}")
                             .FontSize(8)
-                            .FontColor("#CFE3DD");
+                            .FontColor(ReportThemeColors.HeaderTextMuted);
                     });
 
                     // Logo
                     row.ConstantItem(90)
                         .AlignRight()
                         .AlignMiddle()
-                        .Background(Colors.White)
+                        .Background(ReportThemeColors.White)
                         .Padding(1)
                         .Image(logoPath)
                         .FitArea();
                 });
 
-                column.Item().LineHorizontal(1).LineColor("#d9e2df");
+                column.Item().LineHorizontal(1).LineColor(ReportThemeColors.BorderDivider);
             });
         }
 
@@ -1689,7 +1689,7 @@ namespace HealthIntelligence.Common.Implementation
                         text.Span(" of "); text.TotalPages();
                     });
                     col.Item().PaddingTop(5).AlignCenter()
-                        .Text("Country Assessment Platform").FontSize(8).FontColor("#9E9E9E");
+                        .Text("Country Assessment Platform").FontSize(8).FontColor(ReportThemeColors.Gray500);
                 });
             });
         }
@@ -1724,20 +1724,20 @@ namespace HealthIntelligence.Common.Implementation
                 // EXECUTIVE SUMMARY
                 // =========================
                 column.Item().PaddingTop(10).Element(c =>
-                    PillarContentSection(c, "Executive Summary", SanitizeText(data.EvidenceSummary), "#163329"));
+                    PillarContentSection(c, "Executive Summary", SanitizeText(data.EvidenceSummary), ReportThemeColors.AccentExecutiveSummary));
 
                 // =====================================================
                 // Current situation
                 // =====================================================
                 if(!string.IsNullOrEmpty(data.KeyDevelopments))
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Key Developments", SanitizeText(data.KeyDevelopments), "#1f4e79"));
+                    PillarContentSection(c, "Key Developments", SanitizeText(data.KeyDevelopments), ReportThemeColors.AccentKeyDevelopments));
                 if (!string.IsNullOrEmpty(data.CriticalRisks))
                     column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Critical Risks", SanitizeText(data.CriticalRisks), "#2e75b6"));
+                    PillarContentSection(c, "Critical Risks", SanitizeText(data.CriticalRisks), ReportThemeColors.AccentCriticalRisks));
                 if (!string.IsNullOrEmpty(data.Gaps))
                     column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Gaps", SanitizeText(data.Gaps), "#5b9bd5"));
+                    PillarContentSection(c, "Gaps", SanitizeText(data.Gaps), ReportThemeColors.AccentGaps));
 
 
 
@@ -1749,16 +1749,16 @@ namespace HealthIntelligence.Common.Implementation
 
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Structural Evidence", SanitizeText(data.StructuralEvidence), "#e6ccff"));
+                    PillarContentSection(c, "Structural Evidence", SanitizeText(data.StructuralEvidence), ReportThemeColors.AccentStructuralEvidence));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Operational Evidence", SanitizeText(data.OperationalEvidence), "#c2f0f0"));
+                    PillarContentSection(c, "Operational Evidence", SanitizeText(data.OperationalEvidence), ReportThemeColors.AccentOperationalEvidence));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Outcome Evidence", SanitizeText(data.OutcomeEvidence), "#ffe6cc"));
+                    PillarContentSection(c, "Outcome Evidence", SanitizeText(data.OutcomeEvidence), ReportThemeColors.AccentOutcomeEvidence));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Perception Evidence", SanitizeText(data.PerceptionEvidence), "#e6f7ff"));
+                    PillarContentSection(c, "Perception Evidence", SanitizeText(data.PerceptionEvidence), ReportThemeColors.AccentPerceptionEvidence));
 
                 // =====================================================
                 // INTEGRITY CHECKS
@@ -1769,13 +1769,13 @@ namespace HealthIntelligence.Common.Implementation
                 //    .FontSize(16).Bold();
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Temporal Scope", SanitizeText(data.TemporalScope), "#d9e6ff"));
+                    PillarContentSection(c, "Temporal Scope", SanitizeText(data.TemporalScope), ReportThemeColors.AccentTemporalScope));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Distortion Screening", SanitizeText(data.DistortionScreening), "#f2d9e6"));
+                    PillarContentSection(c, "Distortion Screening", SanitizeText(data.DistortionScreening), ReportThemeColors.AccentDistortionScreening));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Relational Integrity", SanitizeText(data.RelationalIntegrity), "#f0ffe6"));
+                    PillarContentSection(c, "Relational Integrity", SanitizeText(data.RelationalIntegrity), ReportThemeColors.AccentRelationalIntegrity));
 
                 // =====================================================
                 // STRESS TESTS
@@ -1786,20 +1786,20 @@ namespace HealthIntelligence.Common.Implementation
                 //    .FontSize(16).Bold();
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Political Shock", SanitizeText(data.PoliticalShock), "#ffd9cc"));
+                    PillarContentSection(c, "Political Shock", SanitizeText(data.PoliticalShock), ReportThemeColors.AccentPoliticalShock));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Economic Shock", SanitizeText(data.EconomicShock), "#fff2cc"));
+                    PillarContentSection(c, "Economic Shock", SanitizeText(data.EconomicShock), ReportThemeColors.AccentEconomicShock));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Narrative Shock", SanitizeText(data.NarrativeShock), "#e6f2ff"));
+                    PillarContentSection(c, "Narrative Shock", SanitizeText(data.NarrativeShock), ReportThemeColors.AccentNarrativeShock));
                 //column.Item().PageBreak();
 
                 //column.Item().PaddingTop(8).Element(c =>
-                //    PillarContentSection(c, "Overall Stress Resilience", SanitizeText(data.OverallStressResilience), "#e6ffe6"));
+                //    PillarContentSection(c, "Overall Stress Resilience", SanitizeText(data.OverallStressResilience), ReportThemeColors.AccentStressResilience));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Stress Score Adjustment", SanitizeText(data.StressScoreAdjustment), "#ffe6f2"));
+                    PillarContentSection(c, "Stress Score Adjustment", SanitizeText(data.StressScoreAdjustment), ReportThemeColors.AccentStressAdjustment));
 
                 // =====================================================
                 // GOVERNANCE ADJUSTMENTS
@@ -1810,13 +1810,13 @@ namespace HealthIntelligence.Common.Implementation
                 //    .FontSize(16).Bold();
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Inequality Adjustment", SanitizeText(data.InequalityAdjustment), "#f9e6ff"));
+                    PillarContentSection(c, "Inequality Adjustment", SanitizeText(data.InequalityAdjustment), ReportThemeColors.AccentInequalityAdj));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Opacity Risk", SanitizeText(data.OpacityRisk), "#fff0e6"));
+                    PillarContentSection(c, "Opacity Risk", SanitizeText(data.OpacityRisk), ReportThemeColors.AccentOpacityRisk));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Non Compensation Note", SanitizeText(data.NonCompensationNote), "#e6fff9"));
+                    PillarContentSection(c, "Non Compensation Note", SanitizeText(data.NonCompensationNote), ReportThemeColors.AccentNonCompensation));
 
                 // =====================================================
                 // SYSTEM ANALYSIS
@@ -1827,17 +1827,17 @@ namespace HealthIntelligence.Common.Implementation
                 //    .FontSize(16).Bold();
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Cross-Pillar System Dynamics", SanitizeText(data.CrossPillarPatterns), "#6e9688"));
+                    PillarContentSection(c, "Cross-Pillar System Dynamics", SanitizeText(data.CrossPillarPatterns), ReportThemeColors.AccentCrossPillar));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Institutional Capacity Assessment", SanitizeText(data.InstitutionalCapacity), "#0d8057"));
+                    PillarContentSection(c, "Institutional Capacity Assessment", SanitizeText(data.InstitutionalCapacity), ReportThemeColors.DeepTeal));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Equity Assessment", SanitizeText(data.EquityAssessment), "#e8f5e9"));
+                    PillarContentSection(c, "Equity Assessment", SanitizeText(data.EquityAssessment), ReportThemeColors.AccentEquityAssessment));
 
                 //column.Item().PageBreak();
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Conflict Risk Outlook", SanitizeText(data.ConflictRiskOutlook), "#fce4ec"));
+                    PillarContentSection(c, "Conflict Risk Outlook", SanitizeText(data.ConflictRiskOutlook), ReportThemeColors.AccentConflictRisk));
 
                 // =====================================================
                 // STRATEGIC OUTPUT
@@ -1845,10 +1845,10 @@ namespace HealthIntelligence.Common.Implementation
                 //column.Item().PageBreak();                
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Strategic Policy Priorities", SanitizeText(data.StrategicRecommendation), "#2e9975"));
+                    PillarContentSection(c, "Strategic Policy Priorities", SanitizeText(data.StrategicRecommendation), ReportThemeColors.AccentStrategicPolicy));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Why This Assessment Matters", SanitizeText(data.DataTransparencyNote), "#63a68f"));
+                    PillarContentSection(c, "Why This Assessment Matters", SanitizeText(data.DataTransparencyNote), ReportThemeColors.AccentDataTransparency));
             });
         }
 
@@ -1867,23 +1867,23 @@ namespace HealthIntelligence.Common.Implementation
                 // EXECUTIVE SUMMARY
                 // =========================
                 column.Item().PaddingTop(10).Element(c =>
-                    PillarContentSection(c, "Executive Summary", SanitizeText(data.EvidenceSummary), "#163329"));
+                    PillarContentSection(c, "Executive Summary", SanitizeText(data.EvidenceSummary), ReportThemeColors.AccentExecutiveSummary));
 
                
                 // =====================================================
                 // EVIDENCE SECTION
                 // =====================================================
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Structural Evidence", SanitizeText(data.StructuralEvidence), "#1f4e79"));
+                    PillarContentSection(c, "Structural Evidence", SanitizeText(data.StructuralEvidence), ReportThemeColors.AccentKeyDevelopments));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Operational Evidence", SanitizeText(data.OperationalEvidence), "#2e75b6"));
+                    PillarContentSection(c, "Operational Evidence", SanitizeText(data.OperationalEvidence), ReportThemeColors.AccentCriticalRisks));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Outcome Evidence", SanitizeText(data.OutcomeEvidence), "#5b9bd5"));
+                    PillarContentSection(c, "Outcome Evidence", SanitizeText(data.OutcomeEvidence), ReportThemeColors.AccentGaps));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Perception Evidence", SanitizeText(data.PerceptionEvidence), "#9dc3e6"));
+                    PillarContentSection(c, "Perception Evidence", SanitizeText(data.PerceptionEvidence), ReportThemeColors.AccentPerceptionEvidenceAlt));
 
                 // =====================================================
                 // INTEGRITY CHECKS
@@ -1891,13 +1891,13 @@ namespace HealthIntelligence.Common.Implementation
                 //column.Item().PageBreak();
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Temporal Scope", SanitizeText(data.TemporalScope), "#5f497a"));
+                    PillarContentSection(c, "Temporal Scope", SanitizeText(data.TemporalScope), ReportThemeColors.AccentTemporalScopeAlt));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Distortion Screening", SanitizeText(data.DistortionScreening), "#8064a2"));
+                    PillarContentSection(c, "Distortion Screening", SanitizeText(data.DistortionScreening), ReportThemeColors.AccentDistortionScreeningAlt));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Relational Integrity", SanitizeText(data.RelationalIntegrity), "#b1a0c7"));
+                    PillarContentSection(c, "Relational Integrity", SanitizeText(data.RelationalIntegrity), ReportThemeColors.AccentRelationalIntegrityAlt));
 
                 // =====================================================
                 // STRESS TESTS
@@ -1905,21 +1905,21 @@ namespace HealthIntelligence.Common.Implementation
                 //column.Item().PageBreak();
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Political Shock", SanitizeText(data.StressPoliticalShock), "#7f6000"));
+                    PillarContentSection(c, "Political Shock", SanitizeText(data.StressPoliticalShock), ReportThemeColors.AccentPoliticalShockAlt));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Economic Shock", SanitizeText(data.StressEconomicShock), "#bf9000"));
+                    PillarContentSection(c, "Economic Shock", SanitizeText(data.StressEconomicShock), ReportThemeColors.AccentEconomicShockAlt));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Narrative Shock", SanitizeText(data.StressNarrativeShock), "#ffd966"));
+                    PillarContentSection(c, "Narrative Shock", SanitizeText(data.StressNarrativeShock), ReportThemeColors.AccentNarrativeShockAlt));
 
                 //column.Item().PageBreak();
 
                 //column.Item().PaddingTop(8).Element(c =>
-                //    PillarContentSection(c, "Overall Stress Resilience", SanitizeText(data.StressOverallResilience), "#c55a11"));
+                //    PillarContentSection(c, "Overall Stress Resilience", SanitizeText(data.StressOverallResilience), ReportThemeColors.AccentStressResilienceAlt));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Stress Score Adjustment", SanitizeText(data.StressScoreAdjustment), "#e26b0a"));
+                    PillarContentSection(c, "Stress Score Adjustment", SanitizeText(data.StressScoreAdjustment), ReportThemeColors.AccentStressAdjustmentAlt));
 
                 // =====================================================
                 // GOVERNANCE ADJUSTMENTS
@@ -1927,13 +1927,13 @@ namespace HealthIntelligence.Common.Implementation
                 //column.Item().PageBreak();
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Inequality Adjustment", SanitizeText(data.InequalityAdjustment), "#274e13"));
+                    PillarContentSection(c, "Inequality Adjustment", SanitizeText(data.InequalityAdjustment), ReportThemeColors.AccentInequalityAdjAlt));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Opacity Risk", SanitizeText(data.OpacityRisk), "#38761d"));
+                    PillarContentSection(c, "Opacity Risk", SanitizeText(data.OpacityRisk), ReportThemeColors.AccentOpacityRiskAlt));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Non Compensation Note", SanitizeText(data.NonCompensationNote), "#6aa84f"));
+                    PillarContentSection(c, "Non Compensation Note", SanitizeText(data.NonCompensationNote), ReportThemeColors.AccentNonCompensationAlt));
 
                 // =====================================================
                 // ALERTS & EQUITY
@@ -1941,10 +1941,10 @@ namespace HealthIntelligence.Common.Implementation
                 //column.Item().PageBreak();
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Red Flags", SanitizeText(data.RedFlag), "#ED561A", "#eb4634"));
+                    PillarContentSection(c, "Red Flags", SanitizeText(data.RedFlag), ReportThemeColors.DangerRedFlag, ReportThemeColors.DangerRedFlagAlt));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Geographic Equity Note", SanitizeText(data.GeographicEquityNote), "#0d8057"));
+                    PillarContentSection(c, "Geographic Equity Note", SanitizeText(data.GeographicEquityNote), ReportThemeColors.DeepTeal));
 
                 // =====================================================
                 // SYSTEM / INSTITUTIONAL ANALYSIS
@@ -1952,10 +1952,10 @@ namespace HealthIntelligence.Common.Implementation
                 //column.Item().PageBreak();
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Institutional Assessment", SanitizeText(data.InstitutionalAssessment), "#2e9975"));
+                    PillarContentSection(c, "Institutional Assessment", SanitizeText(data.InstitutionalAssessment), ReportThemeColors.AccentStrategicPolicy));
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Analytical Foundations and Data Integration", SanitizeText(data.DataGapAnalysis), "#a4bab2"));
+                    PillarContentSection(c, "Analytical Foundations and Data Integration", SanitizeText(data.DataGapAnalysis), ReportThemeColors.AccentDataGap));
 
                 // =====================================================
                 // DATA SOURCES
@@ -1973,8 +1973,8 @@ namespace HealthIntelligence.Common.Implementation
         void CountryProgressSection(IContainer container, AiCountrySummeryDto data, UserRole userRole)
         {
             container
-                .Background(Colors.White)
-                .Border(1).BorderColor("#E5E7EB")
+                .Background(ReportThemeColors.White)
+                .Border(1).BorderColor(ReportThemeColors.Gray300)
                 .Padding(18)
                 .Column(column =>
                 {
@@ -1982,17 +1982,17 @@ namespace HealthIntelligence.Common.Implementation
                     column.Item().Text("Overview")
                         .FontSize(16)
                         .SemiBold()
-                        .FontColor("#1F2937");
+                        .FontColor(ReportThemeColors.GrayTailwind800);
 
                     column.Item().PaddingTop(8).Column(col =>
                     {
                         // Score Section
-                        PillarProgressBar(col, "Total Score", data.AIProgress, "#22A06B");
+                        PillarProgressBar(col, "Total Score", data.AIProgress, ReportThemeColors.ProgressGreen);
 
                         col.Item().PaddingVertical(12);
 
                         // Divider
-                        col.Item().Height(1).Background("#F0F0F0");
+                        col.Item().Height(1).Background(ReportThemeColors.Gray150);
 
                         col.Item().PaddingTop(12);
 
@@ -2000,15 +2000,15 @@ namespace HealthIntelligence.Common.Implementation
                         col.Item().Text("Rankings")
                             .FontSize(13)
                             .SemiBold()
-                            .FontColor("#374151");
+                            .FontColor(ReportThemeColors.GrayTailwind700);
 
                         col.Item().PaddingTop(8);
 
-                        RankRowModern(col, "Global Rank", data.Rank, data.TotalCountry, "#16A34A");
+                        RankRowModern(col, "Continent Rank", data.Rank, data.TotalCountry, ReportThemeColors.RankGreen);
 
                         col.Item().PaddingTop(2);
 
-                        RankRowModern(col, $"{data.Region} Region Rank", data.RegionRank, data.RegionTotalCountry, "#2563EB");
+                        RankRowModern(col, $"{data.Region} Region Rank", data.RegionRank, data.RegionTotalCountry, ReportThemeColors.RankBlue);
                     });
                 });
         }
@@ -2019,16 +2019,16 @@ namespace HealthIntelligence.Common.Implementation
                 row.RelativeItem()
                     .Text(label)
                     .FontSize(11)
-                    .FontColor("#4B5563");
+                    .FontColor(ReportThemeColors.GrayTailwind500);
 
                 row.AutoItem().AlignRight().Element(e =>
                 {
                     e.PaddingHorizontal(10)
                      .PaddingVertical(4)
                      .Padding(2)
-                     .Background("#F9FAFB")
+                     .Background(ReportThemeColors.Gray50)
                      .Border(1)
-                     .BorderColor("#E5E7EB")
+                     .BorderColor(ReportThemeColors.Gray300)
                      .Text(txt =>
                      {
                          if (rank.HasValue && total.HasValue)
@@ -2038,11 +2038,11 @@ namespace HealthIntelligence.Common.Implementation
                                 .FontColor(color);
 
                              txt.Span($" / {total}")
-                                .FontColor("#6B7280");
+                                .FontColor(ReportThemeColors.GrayTailwind400);
                          }
                          else
                          {
-                             txt.Span("-").FontColor("#9CA3AF");
+                             txt.Span("-").FontColor(ReportThemeColors.Gray550);
                          }
                      });
                 });
@@ -2053,19 +2053,19 @@ namespace HealthIntelligence.Common.Implementation
             IContainer container, AiCountryPillarResponse data, UserRole userRole, bool isCity = false)
         {
             container
-                .Background(Colors.White)
-                .Border(1).BorderColor("#E5E7EB")
+                .Background(ReportThemeColors.White)
+                .Border(1).BorderColor(ReportThemeColors.Gray300)
                 .Padding(18)
                 .Column(column =>
                 {
                     column.Item().Text(isCity ? "Total Overview" : "Pillar Score")
                         .FontSize(16)
                         .SemiBold()
-                        .FontColor("#1F2937");
+                        .FontColor(ReportThemeColors.GrayTailwind800);
 
                     column.Item().PaddingTop(15);
 
-                    PillarProgressBar(column, "Score", data.AIProgress, "#22A06B");
+                    PillarProgressBar(column, "Score", data.AIProgress, ReportThemeColors.ProgressGreen);
                 });
         }
         void PillarProgressBar(ColumnDescriptor column, string label, decimal? percentage, string color)
@@ -2080,19 +2080,19 @@ namespace HealthIntelligence.Common.Implementation
                     row.RelativeItem()
                         .Text(label)
                         .FontSize(11)
-                        .FontColor("#4B5563");
+                        .FontColor(ReportThemeColors.GrayTailwind500);
 
                     row.AutoItem()
                         .Text($"{percentage ?? 0:F1}")
                         .FontSize(11)
                         .Bold()
-                        .FontColor("#111827");
+                        .FontColor(ReportThemeColors.GrayTailwind900);
                 });
 
                 col.Item().PaddingTop(6);
 
                 // Progress Bar
-                col.Item().Height(8).Background("#E5E7EB").Row(barRow =>
+                col.Item().Height(8).Background(ReportThemeColors.Gray300).Row(barRow =>
                 {
                     barRow.RelativeItem(per)
                         .Background(color);
@@ -2104,20 +2104,20 @@ namespace HealthIntelligence.Common.Implementation
 
         /// <summary>Generic titled content block with accent bar.</summary>
         static void PillarContentSection(
-            IContainer container, string title, string content, string accentColor, string textcolor = "#424242")
+            IContainer container, string title, string content, string accentColor, string textcolor = ReportThemeColors.SectionContentText)
         {
             container.Column(column =>
             {
                 column.Item().Row(row =>
                 {
                     row.ConstantItem(5).Background(accentColor);
-                    row.RelativeItem().Background("#F5F5F5").Padding(12)
-                        .Text(title).FontSize(15).Bold().FontColor("#212121");
+                    row.RelativeItem().Background(ReportThemeColors.Gray100).Padding(12)
+                        .Text(title).FontSize(15).Bold().FontColor(ReportThemeColors.Gray950);
                 });
 
                 column.Item()
-                    .Background(Colors.White)
-                    .Border(1).BorderColor("#E0E0E0")
+                    .Background(ReportThemeColors.White)
+                    .Border(1).BorderColor(ReportThemeColors.Gray350)
                     .Padding(18)
                     .Text(content)
                     .FontSize(10).LineHeight(1.6f).FontColor(textcolor);
@@ -2144,20 +2144,20 @@ namespace HealthIntelligence.Common.Implementation
                 // Header
                 column.Item().Row(row =>
                 {
-                    row.ConstantItem(5).Background("#396154");
+                    row.ConstantItem(5).Background(ReportThemeColors.SectionAccentBar);
 
                     row.RelativeItem()
-                        .Background("#F5F5F5")
+                        .Background(ReportThemeColors.Gray100)
                         .Padding(12)
                         .Text(SanitizeText("Data Source Citations")) // ?? safe
-                        .FontSize(15).Bold().FontColor("#212121");
+                        .FontSize(15).Bold().FontColor(ReportThemeColors.Gray950);
                 });
 
                 // Content Box
                 column.Item().PaddingTop(10)
-                    .Background(Colors.White)
+                    .Background(ReportThemeColors.White)
                     .Border(1)
-                    .BorderColor("#E0E0E0")
+                    .BorderColor(ReportThemeColors.Gray350)
                     .Padding(15)
                     .Column(col =>
                     {
@@ -2170,14 +2170,14 @@ namespace HealthIntelligence.Common.Implementation
                                 {
                                     row.RelativeItem()
                                         .Text(source.SourceName ?? "-")
-                                        .FontSize(11).Bold().FontColor("#2c423b");
+                                        .FontSize(11).Bold().FontColor(ReportThemeColors.SectionTitleGreen);
 
                                     row.ConstantItem(100).AlignRight()
                                         .Background(GetSourceTypeBadgeColor(source.SourceType))
                                         .Padding(3)
                                         .Text(source.SourceType ?? "-")
                                         .FontSize(8)
-                                        .FontColor(Colors.White);
+                                        .FontColor(ReportThemeColors.White);
                                 });
 
                                 // -- Row 2: Trust + Year --------------------
@@ -2185,12 +2185,12 @@ namespace HealthIntelligence.Common.Implementation
                                 {
                                     row.AutoItem()
                                         .Text(SanitizeText($"Trust Level: {source.TrustLevel}/7"))
-                                        .FontSize(9).FontColor("#757575");
+                                        .FontSize(9).FontColor(ReportThemeColors.Gray650);
 
                                     row.AutoItem()
                                         .PaddingLeft(15)
                                         .Text(SanitizeText($"Year: {source.DataYear}"))
-                                        .FontSize(9).FontColor("#757575");
+                                        .FontSize(9).FontColor(ReportThemeColors.Gray650);
                                 });
 
                                 // -- Data Extract ---------------------------
@@ -2199,7 +2199,7 @@ namespace HealthIntelligence.Common.Implementation
                                     sourceCol.Item().PaddingTop(6)
                                         .Text(TruncateText(source.DataExtract, 200))
                                         .FontSize(9)
-                                        .FontColor("#616161")
+                                        .FontColor(ReportThemeColors.Gray750)
                                         .Italic();
                                 }
 
@@ -2209,7 +2209,7 @@ namespace HealthIntelligence.Common.Implementation
                                     sourceCol.Item().PaddingTop(4)
                                         .Text(source.SourceURL)
                                         .FontSize(8)
-                                        .FontColor("#305246")
+                                        .FontColor(ReportThemeColors.LabelGreen)
                                         .Underline();
                                 }
                             });
@@ -2220,7 +2220,7 @@ namespace HealthIntelligence.Common.Implementation
                                 col.Item()
                                     .PaddingBottom(10)
                                     .LineHorizontal(1)
-                                    .LineColor("#EEEEEE");
+                                    .LineColor(ReportThemeColors.BorderLight);
                             }
                         }
                     });
@@ -2234,34 +2234,34 @@ namespace HealthIntelligence.Common.Implementation
 
         static SKColor GetColor(float value)
         {
-            if (value >= 80) return SKColor.Parse("#C62828");
-            else if (value >= 60) return SKColor.Parse("#c66528");
-            else if(value >= 40) return SKColor.Parse("#F9A825");
-            else if(value >= 20) return SKColor.Parse("#469449");
-            return SKColor.Parse("#2E7D32");
+            if (value >= 80) return SKColor.Parse(ReportThemeColors.DangerRed);
+            else if (value >= 60) return SKColor.Parse(ReportThemeColors.BarOrangeMid);
+            else if(value >= 40) return SKColor.Parse(ReportThemeColors.WarningAmber);
+            else if(value >= 20) return SKColor.Parse(ReportThemeColors.BarGreenLow);
+            return SKColor.Parse(ReportThemeColors.SuccessGreen);
         }
         static string GetBarColor(float value)
         {
-            if (value >= 80) return "#C62828";
-            else if (value >= 60) return "#c66528";
-            else if (value >= 40) return "#F9A825";
-            else if (value >= 20) return "#469449";
-            return "#2E7D32";
+            if (value >= 80) return ReportThemeColors.DangerRed;
+            else if (value >= 60) return ReportThemeColors.BarOrangeMid;
+            else if (value >= 40) return ReportThemeColors.WarningAmber;
+            else if (value >= 20) return ReportThemeColors.BarGreenLow;
+            return ReportThemeColors.SuccessGreen;
         }
 
         static string GetSourceTypeBadgeColor(string sourceType) => sourceType?.ToLower() switch
         {
-            "government" => "#133328",
-            "academic" => "#172923",
-            "international" => "#4d7d6d",
-            "news/ngo" => "#1ec990",
-            _ => "#0eeba1"
+            "government" => ReportThemeColors.SourceGovernment,
+            "academic" => ReportThemeColors.SourceAcademic,
+            "international" => ReportThemeColors.SourceInternational,
+            "news/ngo" => ReportThemeColors.SourceNewsNgo,
+            _ => ReportThemeColors.SourceDefault
         };
 
         static string Shorten(string text, int max)
         {
             if (string.IsNullOrWhiteSpace(text)) return "";
-            return text.Length <= max ? text : text[..max] + "…";
+            return text.Length <= max ? text : text[..max] + ".";
         }
 
         static string TruncateText(string text, int maxLength)
@@ -2280,26 +2280,13 @@ namespace HealthIntelligence.Common.Implementation
     {   
 
         // Palette: index 0 = selected country (gold), 1-5 = peer countries
-        private static readonly string[] CountryPalette =
-        {
-            "#F0B429",   // gold  – selected country
-            "#4CAF8A",   // teal
-            "#1E88E5",   // blue
-            "#FB8C00",   // orange
-            "#7B61FF",   // purple
-            "#E05252",   // red
-        };
+        private static readonly string[] CountryPalette = ReportThemeColors.CountryChartPalette;
 
         // Pillar palette (up to 14 distinct colours)
-        private static readonly string[] PillarPalette =
-        {
-            "#12352F","#336B58","#4CAF8A","#F0B429","#F5A623",
-            "#E05252","#7B61FF","#1E88E5","#43A047","#FB8C00",
-            "#0097A7","#8D6E63","#E91E63","#607D8B"
-        };
+        private static readonly string[] PillarPalette = ReportThemeColors.PillarChartPalette;
 
         // --------------------------------------------------------------------------
-        //  ENTRY POINTS  – called from AddCountryDetailsPdf
+        //  ENTRY POINTS  . called from AddCountryDetailsPdf
         // --------------------------------------------------------------------------
 
         void AddPeerCountryComparisonSection(
@@ -2429,7 +2416,7 @@ namespace HealthIntelligence.Common.Implementation
 
                 // -- Population bar chart --------------------------------------
                 col.Item().Text("Population Size by Country")
-                    .FontSize(11).Bold().FontColor("#12352f");
+                    .FontSize(11).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
 
                 col.Item().Height(all.Count * 40).Canvas((canvas, size) =>
                     DrawPopulationBars(canvas, size, all, countryDetails, maxPop));
@@ -2439,7 +2426,7 @@ namespace HealthIntelligence.Common.Implementation
                 // -- Score vs Population scatter -------------------------------
                 col.Item().PaddingTop(8)
                     .Text("Score vs Population  (each dot = one country)")
-                    .FontSize(11).Bold().FontColor("#12352f");
+                    .FontSize(11).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
 
                 col.Item().Height(all.Count * 40).Canvas((canvas, size) =>
                     DrawScatterPlot(canvas, size, all, countryDetails,
@@ -2469,15 +2456,15 @@ namespace HealthIntelligence.Common.Implementation
                 // Row background
                 if (i % 2 == 0)
                     canvas.DrawRect(new SKRect(0, y - 2, size.Width, y + rowH - 4),
-                        new SKPaint { Color = SKColor.Parse("#f4f7f5") });
+                        new SKPaint { Color = SKColor.Parse(ReportThemeColors.SurfaceGreenRow) });
 
                 // Highlight selected country row
                 if (isMain)
                     canvas.DrawRect(new SKRect(0, y - 2, size.Width, y + rowH - 4),
-                        new SKPaint { Color = SKColor.Parse("#FFF8E1") });
+                        new SKPaint { Color = SKColor.Parse(ReportThemeColors.WarningAmberBg) });
 
                 DrawCanvasText(canvas, country.CountryName, 4, y + 5, 9,
-                    isMain ? "#12352f" : "#444444", bold: isMain);
+                    isMain ? ReportThemeColors.PdfDarkGreen : ReportThemeColors.Gray850, bold: isMain);
 
                 string barColor = isMain ? CountryPalette[0] : CountryPalette[1 + (i % (CountryPalette.Length - 1))];
                 canvas.DrawRoundRect(
@@ -2485,7 +2472,7 @@ namespace HealthIntelligence.Common.Implementation
                     new SKPaint { Color = SKColor.Parse(barColor), IsAntialias = true });
 
                 DrawCanvasText(canvas, FormatPop(country.Population),
-                    labelW + barW + 5, y + 5, 9, "#555555");
+                    labelW + barW + 5, y + 5, 9, ReportThemeColors.Gray800);
             }
         }
 
@@ -2514,7 +2501,7 @@ namespace HealthIntelligence.Common.Implementation
                     $"{byRegion.Count} region(s)  |  {all.Count} total countries analysed"));
 
                 col.Item().Text("Country Distribution by Region")
-                    .FontSize(11).Bold().FontColor("#12352f");
+                    .FontSize(11).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
 
                 col.Item().Height(180).Canvas((canvas, size) =>
                     DrawDonutChart(canvas, size,
@@ -2522,7 +2509,7 @@ namespace HealthIntelligence.Common.Implementation
 
                 col.Item().PaddingTop(4)
                     .Text("Average Score per Region")
-                    .FontSize(11).Bold().FontColor("#12352f");
+                    .FontSize(11).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
 
                 col.Item().Canvas((canvas, size) =>
                 {
@@ -2547,14 +2534,14 @@ namespace HealthIntelligence.Common.Implementation
 
                         if (i % 2 == 0)
                             canvas.DrawRect(new SKRect(0, y - 2, size.Width, y + barH - 4),
-                                new SKPaint { Color = SKColor.Parse("#f4f7f5") });
+                                new SKPaint { Color = SKColor.Parse(ReportThemeColors.SurfaceGreenRow) });
 
-                        DrawCanvasText(canvas, r.Region, 4, y + 5, 9, "#333333");
+                        DrawCanvasText(canvas, r.Region, 4, y + 5, 9, ReportThemeColors.Gray900);
                         canvas.DrawRoundRect(
                             new SKRoundRect(new SKRect(labelW, y + 3, labelW + barW, y + barH - 6), 3),
                             new SKPaint { Color = SKColor.Parse(ScoreColor(r.Avg)), IsAntialias = true });
                         DrawCanvasText(canvas, $"{r.Avg:F1}  (n={r.Count})",
-                            labelW + barW + 5, y + 5, 9, "#555555");
+                            labelW + barW + 5, y + 5, 9, ReportThemeColors.Gray800);
                     }
                 });
             });
@@ -2574,11 +2561,11 @@ namespace HealthIntelligence.Common.Implementation
         {
             return category switch
             {
-                "Low Income" => "#D9534F",          // softer red
-                "Lower-Middle Income" => "#F0AD4E", // amber
-                "Upper-Middle Income" => "#5BC0DE", // blue-green
-                "High Income" => "#2E7D32",         // strong green
-                _ => "#999999"
+                "Low Income" => ReportThemeColors.IncomeLow,          // softer red
+                "Lower-Middle Income" => ReportThemeColors.IncomeLowerMiddle, // amber
+                "Upper-Middle Income" => ReportThemeColors.BootstrapInfo, // blue-green
+                "High Income" => ReportThemeColors.SuccessGreen,         // strong green
+                _ => ReportThemeColors.GrayLight
             };
         }
 
@@ -2609,11 +2596,11 @@ namespace HealthIntelligence.Common.Implementation
                 // -- Insight band ---------------------------------------------
                 col.Item().Element(x => DrawInsightBand(x,
                     $"Income quartile analysis  |  {withIncome.Count} countries  |  " +
-                    $"Range: {withIncome.Min(p => p.Income):C0} – {withIncome.Max(p => p.Income):C0}"));
+                    $"Range: {withIncome.Min(p => p.Income):C0} . {withIncome.Max(p => p.Income):C0}"));
 
                 // -- Avg score per quartile bars (UNCHANGED) ------------------
                 col.Item().Text("Average Score by Income Quartile")
-                    .FontSize(11).Bold().FontColor("#12352f");
+                    .FontSize(11).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
 
                 col.Item().Height(130).Canvas((canvas, size) =>
                 {
@@ -2631,16 +2618,16 @@ namespace HealthIntelligence.Common.Implementation
                             new SKRoundRect(new SKRect(x, 100 - barH, x + barAreaW, 100), 6),
                             new SKPaint { Color = SKColor.Parse(GetSegmentColor(label)), IsAntialias = true });
 
-                        DrawCanvasText(canvas, $"{avg:F1}", x + barAreaW / 2 - 10, 100 - barH - 14, 9, "#12352f", true);
-                        DrawCanvasText(canvas, label, x, 108, 8, "#555555");
-                        DrawCanvasText(canvas, $"n={countries.Count}", x, 118, 8, "#888888");
+                        DrawCanvasText(canvas, $"{avg:F1}", x + barAreaW / 2 - 10, 100 - barH - 14, 9, ReportThemeColors.PdfDarkGreen, true);
+                        DrawCanvasText(canvas, label, x, 108, 8, ReportThemeColors.Gray800);
+                        DrawCanvasText(canvas, $"n={countries.Count}", x, 118, 8, ReportThemeColors.Gray600);
                     }
                 });
 
                 // -- Scatter: Income vs Score (UNCHANGED) ---------------------
                 col.Item().PaddingTop(4)
                     .Text("Income vs Composite Score  (each dot = one country)")
-                    .FontSize(11).Bold().FontColor("#12352f");
+                    .FontSize(11).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
 
                 col.Item().Height(160).Canvas((canvas, size) =>
                     DrawScatterPlot(canvas, size, withIncome, countryDetails,
@@ -2649,10 +2636,10 @@ namespace HealthIntelligence.Common.Implementation
                         "Income (USD)", "Score"));
 
 
-                // -- Top performers table (UPDATED — PPP column added) --------
+                // -- Top performers table (UPDATED . PPP column added) --------
                 col.Item().PaddingTop(8)
                     .Text("Top Performers by Income Group")
-                    .FontSize(11).Bold().FontColor("#12352f");
+                    .FontSize(11).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
 
                 col.Item().Table(table =>
                 {
@@ -2676,20 +2663,20 @@ namespace HealthIntelligence.Common.Implementation
                         foreach (var country in countries.OrderByDescending(c => GetLatestScoreOrZero(c)))
                         {
                             bool isMain = IsSameCountry(country.CountryName, countryDetails.Continent);
-                            string rowBg = isMain ? "#fff9e6" : Colors.White;
+                            string rowBg = isMain ? ReportThemeColors.SurfaceSelected : ReportThemeColors.White;
                             float score = GetLatestScoreOrZero(country);
 
-                            table.Cell().Background(rowBg).BorderBottom(0.5f).BorderColor("#e0e0e0")
+                            table.Cell().Background(rowBg).BorderBottom(0.5f).BorderColor(ReportThemeColors.Gray350)
                                 .Padding(5).Text(country.CountryName).FontSize(8)
-                                .FontColor(isMain ? "#12352f" : "#333333");
-                            table.Cell().Background(rowBg).BorderBottom(0.5f).BorderColor("#e0e0e0")
-                                .Padding(5).Text(country.Country ?? "—").FontSize(8).FontColor("#555555");
-                            table.Cell().Background(rowBg).BorderBottom(0.5f).BorderColor("#e0e0e0")
+                                .FontColor(isMain ? ReportThemeColors.PdfDarkGreen : ReportThemeColors.Gray900);
+                            table.Cell().Background(rowBg).BorderBottom(0.5f).BorderColor(ReportThemeColors.Gray350)
+                                .Padding(5).Text(country.Country ?? ".").FontSize(8).FontColor(ReportThemeColors.Gray800);
+                            table.Cell().Background(rowBg).BorderBottom(0.5f).BorderColor(ReportThemeColors.Gray350)
                                 .Padding(5).Text($"{score:F1}").FontSize(8).Bold().FontColor(ScoreColor(score));
-                            table.Cell().Background(rowBg).BorderBottom(0.5f).BorderColor("#e0e0e0")
-                                .Padding(5).Text(label).FontSize(8).FontColor("#555555");
-                            table.Cell().Background(rowBg).BorderBottom(0.5f).BorderColor("#e0e0e0")
-                                .Padding(5).Text(FormatPop(country.Income).ToString()).FontSize(8).FontColor("#555555");
+                            table.Cell().Background(rowBg).BorderBottom(0.5f).BorderColor(ReportThemeColors.Gray350)
+                                .Padding(5).Text(label).FontSize(8).FontColor(ReportThemeColors.Gray800);
+                            table.Cell().Background(rowBg).BorderBottom(0.5f).BorderColor(ReportThemeColors.Gray350)
+                                .Padding(5).Text(FormatPop(country.Income).ToString()).FontSize(8).FontColor(ReportThemeColors.Gray800);
 
 
                         }
@@ -2725,35 +2712,35 @@ namespace HealthIntelligence.Common.Implementation
                 col.Spacing(12);
 
                 // -- Hero rank banner ------------------------------------------
-                col.Item().Background("#12352f").Padding(14).Row(row =>
+                col.Item().Background(ReportThemeColors.PdfDarkGreen).Padding(14).Row(row =>
                 {
                     row.RelativeItem().Column(c =>
                     {
                         c.Item().Text($"#{mainRank} of {total}")
-                            .FontSize(32).Bold().FontColor("#f0b429");
+                            .FontSize(32).Bold().FontColor(ReportThemeColors.WarningGold);
                         c.Item().Text($"{countryDetails.CountryName}  \u00b7  {countryDetails.Continent}")
-                            .FontSize(12).FontColor("#a5d6c2");
+                            .FontSize(12).FontColor(ReportThemeColors.SuccessGreenSoft);
                     });
                     row.ConstantItem(130).Column(c =>
                     {
-                        c.Item().AlignRight().Text("Score").FontSize(9).FontColor("#a5a8ad");
+                        c.Item().AlignRight().Text("Score").FontSize(9).FontColor(ReportThemeColors.GraySilver);
                         c.Item().AlignRight().Text($"{mainScore:F1}")
-                            .FontSize(28).Bold().FontColor(Colors.White);
+                            .FontSize(28).Bold().FontColor(ReportThemeColors.White);
                         c.Item().AlignRight().Text($"Top {100 - pctile:F0}% of peers")
-                            .FontSize(10).FontColor("#4caf8a");
+                            .FontSize(10).FontColor(ReportThemeColors.PdfTealGreen);
                     });
                 });
 
                 // -- Score distribution histogram ------------------------------
                 col.Item().Text("Score Distribution Among All countries")
-                    .FontSize(11).Bold().FontColor("#12352f");
+                    .FontSize(11).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
 
                 col.Item().Height(150).Canvas((canvas, size) =>
                     DrawHistogram(canvas, size,
                         all.Select(r => r.Score).ToList(), mainScore, 10));
 
                 // -- Full ranking table ----------------------------------------
-                col.Item().Text("Full Country Ranking").FontSize(11).Bold().FontColor("#12352f");
+                col.Item().Text("Full Country Ranking").FontSize(11).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
 
                 col.Item().Table(table =>
                 {
@@ -2773,36 +2760,36 @@ namespace HealthIntelligence.Common.Implementation
                     foreach (var (entry, idx) in all.Select((e, i) => (e, i)))
                     {
                         bool isMain = IsSameCountry(entry.Country.CountryName, countryDetails.CountryName);
-                        string bg = isMain ? "#fff9e6" : (idx % 2 == 0 ? Colors.White : "#fafafa");
-                        string rankColor = idx == 0 ? "#f0b429"
-                                         : idx == 1 ? "#a5a8ad"
-                                         : idx == 2 ? "#cd7f32" : "#555555";
+                        string bg = isMain ? ReportThemeColors.SurfaceSelected : (idx % 2 == 0 ? ReportThemeColors.White : ReportThemeColors.PageBg);
+                        string rankColor = idx == 0 ? ReportThemeColors.WarningGold
+                                         : idx == 1 ? ReportThemeColors.GraySilver
+                                         : idx == 2 ? ReportThemeColors.WarningBronze : ReportThemeColors.Gray800;
 
-                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#e8e8e8")
+                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor(ReportThemeColors.Gray250)
                             .Padding(4).Text($"{idx + 1}").FontSize(8).FontColor(rankColor);
-                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#e8e8e8")
+                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor(ReportThemeColors.Gray250)
                             .Padding(4).Text(entry.Country.CountryName).FontSize(8)
-                            .FontColor(isMain ? "#12352f" : "#333333");
-                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#e8e8e8")
-                            .Padding(4).Text(entry.Country.Continent ?? "—").FontSize(8).FontColor("#555555");
-                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#e8e8e8")
-                            .Padding(4).Text(entry.Country.Region ?? "—").FontSize(8).FontColor("#555555");
-                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor("#e8e8e8")
+                            .FontColor(isMain ? ReportThemeColors.PdfDarkGreen : ReportThemeColors.Gray900);
+                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor(ReportThemeColors.Gray250)
+                            .Padding(4).Text(entry.Country.Continent ?? ".").FontSize(8).FontColor(ReportThemeColors.Gray800);
+                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor(ReportThemeColors.Gray250)
+                            .Padding(4).Text(entry.Country.Region ?? ".").FontSize(8).FontColor(ReportThemeColors.Gray800);
+                        table.Cell().Background(bg).BorderBottom(0.5f).BorderColor(ReportThemeColors.Gray250)
                             .Padding(4).AlignRight()
-                            .Text(FormatPop(entry.Country.Population)).FontSize(8).FontColor("#555555");
+                            .Text(FormatPop(entry.Country.Population)).FontSize(8).FontColor(ReportThemeColors.Gray800);
 
                         table.Cell()
                         .Background(bg)
                         .BorderBottom(0.5f)
-                        .BorderColor("#e8e8e8")
+                        .BorderColor(ReportThemeColors.Gray250)
                         .Padding(4)
                         .Row(r =>
                         {
                             var percent = entry.Score / 100f;
 
-                            r.RelativeItem().Height(10).Background("#eeeeee").Layers(layer =>
+                            r.RelativeItem().Height(10).Background(ReportThemeColors.BorderLight).Layers(layer =>
                             {
-                                layer.PrimaryLayer().Background("#eeeeee");
+                                layer.PrimaryLayer().Background(ReportThemeColors.BorderLight);
 
                                 layer.Layer().Width((float)percent * 100)
                                     .Background(ScoreColor(entry.Score));
@@ -2810,7 +2797,7 @@ namespace HealthIntelligence.Common.Implementation
 
                             r.ConstantItem(24).AlignRight().Text($"{entry.Score:F1}")
                                 .FontSize(8)
-                                .FontColor("#333333");
+                                .FontColor(ReportThemeColors.Gray900);
                         });
                     }
                 });
@@ -2868,7 +2855,7 @@ namespace HealthIntelligence.Common.Implementation
                     float last = (float)mainHistory.Last().ScoreProgress;
                     float delta = last - first;
                     col.Item().Element(x => DrawInsightBand(x,
-                        $"Period: {allYears.First()} – {allYears.Last()}  |  " +
+                        $"Period: {allYears.First()} . {allYears.Last()}  |  " +
                         $"{mainCountry.CountryName}: {(delta >= 0 ? "+" : "")}{delta:F1} pts  |  " +
                         $"Latest score: {last:F1}  |  " +
                         $"{peers.Count} peer country(ies)"));
@@ -2876,7 +2863,7 @@ namespace HealthIntelligence.Common.Implementation
 
                 // -- 6.1  Multi-line trend ------------------------------------
                 col.Item().Text("6.1  Historical Score Trend")
-                    .FontSize(12).Bold().FontColor("#12352f");
+                    .FontSize(12).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
 
                 col.Item().Height(190).Canvas((canvas, size) =>
                     DrawMultiLineTrendChart(canvas, size, allYears, peers, mainCountry, countryDetails, peerAvg));
@@ -2884,11 +2871,11 @@ namespace HealthIntelligence.Common.Implementation
                 // Legend: one entry per country
                 col.Item().Element(x => DrawCountryLineLegend(x, mainCountry, peers, countryDetails));
 
-                col.Item().PaddingVertical(4).LineHorizontal(0.5f).LineColor("#e0e0e0");
+                col.Item().PaddingVertical(4).LineHorizontal(0.5f).LineColor(ReportThemeColors.Gray350);
 
                 // -- 6.2  Five-year area chart --------------------------------
                 col.Item().Text("6.2  Five-Year Composite Score Evolution")
-                    .FontSize(12).Bold().FontColor("#12352f");
+                    .FontSize(12).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
 
                 var last5 = allYears.TakeLast(5).ToList();
                 var mainLast5 = mainHistory.Where(h => last5.Contains(h.Year))
@@ -2923,52 +2910,52 @@ namespace HealthIntelligence.Common.Implementation
                 });
 
                 // Header
-                table.Cell().Background("#12352f").Padding(5)
-                    .Text("Metric").FontSize(8).Bold().FontColor(Colors.White);
+                table.Cell().Background(ReportThemeColors.PdfDarkGreen).Padding(5)
+                    .Text("Metric").FontSize(8).Bold().FontColor(ReportThemeColors.White);
                 foreach (var yr in years)
-                    table.Cell().Background("#12352f").Padding(5).AlignRight()
-                        .Text(yr.ToString()).FontSize(8).Bold().FontColor(Colors.White);
+                    table.Cell().Background(ReportThemeColors.PdfDarkGreen).Padding(5).AlignRight()
+                        .Text(yr.ToString()).FontSize(8).Bold().FontColor(ReportThemeColors.White);
 
                 // Score row
-                table.Cell().Background("#f4f7f5").Padding(5)
-                    .Text("Score").FontSize(8).FontColor("#333333");
+                table.Cell().Background(ReportThemeColors.SurfaceGreenRow).Padding(5)
+                    .Text("Score").FontSize(8).FontColor(ReportThemeColors.Gray900);
                 foreach (var yr in years)
                 {
                     float s = (float)(mainHistory.FirstOrDefault(h => h.Year == yr)?.ScoreProgress ?? 0);
-                    table.Cell().Background("#f4f7f5").Padding(5).AlignRight()
+                    table.Cell().Background(ReportThemeColors.SurfaceGreenRow).Padding(5).AlignRight()
                         .Text($"{s:F1}").FontSize(8).Bold().FontColor(ScoreColor(s));
                 }
 
                 // YoY delta
-                table.Cell().Background(Colors.White).Padding(5)
-                    .Text("YoY \u0394").FontSize(8).FontColor("#333333");
+                table.Cell().Background(ReportThemeColors.White).Padding(5)
+                    .Text("YoY \u0394").FontSize(8).FontColor(ReportThemeColors.Gray900);
                 for (int i = 0; i < years.Count; i++)
                 {
                     if (i == 0)
                     {
-                        table.Cell().Background(Colors.White).Padding(5)
-                            .Text("—").FontSize(8).FontColor("#aaaaaa");
+                        table.Cell().Background(ReportThemeColors.White).Padding(5)
+                            .Text(".").FontSize(8).FontColor(ReportThemeColors.GrayMuted);
                         continue;
                     }
                     float prev = (float)(mainHistory.FirstOrDefault(h => h.Year == years[i - 1])?.ScoreProgress ?? 0);
                     float curr = (float)(mainHistory.FirstOrDefault(h => h.Year == years[i])?.ScoreProgress ?? 0);
                     float d = curr - prev;
-                    table.Cell().Background(Colors.White).Padding(5).AlignRight()
+                    table.Cell().Background(ReportThemeColors.White).Padding(5).AlignRight()
                         .Text($"{(d >= 0 ? "+" : "")}{d:F1}").FontSize(8)
-                        .FontColor(d >= 0 ? "#336b58" : "#e05252");
+                        .FontColor(d >= 0 ? ReportThemeColors.PdfMediumGreen : ReportThemeColors.DangerRedAccent);
                 }
 
                 // vs Peers
-                table.Cell().Background("#f4f7f5").Padding(5)
-                    .Text("vs Peers").FontSize(8).FontColor("#333333");
+                table.Cell().Background(ReportThemeColors.SurfaceGreenRow).Padding(5)
+                    .Text("vs Peers").FontSize(8).FontColor(ReportThemeColors.Gray900);
                 foreach (var yr in years)
                 {
                     float myS = (float)(mainHistory.FirstOrDefault(h => h.Year == yr)?.ScoreProgress ?? 0);
                     float pAvg = peerAvg.FirstOrDefault(p => p.Year == yr).Avg;
                     float d = myS - pAvg;
-                    table.Cell().Background("#f4f7f5").Padding(5).AlignRight()
+                    table.Cell().Background(ReportThemeColors.SurfaceGreenRow).Padding(5).AlignRight()
                         .Text($"{(d >= 0 ? "+" : "")}{d:F1}").FontSize(8)
-                        .FontColor(d >= 0 ? "#336b58" : "#e05252");
+                        .FontColor(d >= 0 ? ReportThemeColors.PdfMediumGreen : ReportThemeColors.DangerRedAccent);
                 }
             });
         }
@@ -3005,7 +2992,7 @@ namespace HealthIntelligence.Common.Implementation
                     $"{pillars.Count} pillar(s)  |  {allYears.Count} year(s)  |  Country: {mainCountry.CountryName}"));
 
                 col.Item().Text("Pillar Score Trajectory Over Time")
-                    .FontSize(11).Bold().FontColor("#12352f");
+                    .FontSize(11).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
 
                 col.Item().Height(200).Canvas((canvas, size) =>
                     DrawPillarLineChart(canvas, size, allYears, history, pillars));
@@ -3018,7 +3005,7 @@ namespace HealthIntelligence.Common.Implementation
                 // -- Pillar heatmap table --------------------------------------
                 col.Item().PaddingTop(4)
                     .Text("Pillar Score Heatmap  (darker = higher score)")
-                    .FontSize(11).Bold().FontColor("#12352f");
+                    .FontSize(11).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
 
                 col.Item().Table(table =>
                 {
@@ -3028,19 +3015,19 @@ namespace HealthIntelligence.Common.Implementation
                         foreach (var _ in allYears) cols.RelativeColumn();
                     });
 
-                    table.Cell().Background("#12352f").Padding(5)
-                        .Text("Pillar").FontSize(8).Bold().FontColor(Colors.White);
+                    table.Cell().Background(ReportThemeColors.PdfDarkGreen).Padding(5)
+                        .Text("Pillar").FontSize(8).Bold().FontColor(ReportThemeColors.White);
                     foreach (var yr in allYears)
-                        table.Cell().Background("#12352f").Padding(5).AlignCenter()
-                            .Text(yr.ToString()).FontSize(8).Bold().FontColor(Colors.White);
+                        table.Cell().Background(ReportThemeColors.PdfDarkGreen).Padding(5).AlignCenter()
+                            .Text(yr.ToString()).FontSize(8).Bold().FontColor(ReportThemeColors.White);
 
                     foreach (var (pillar, pi) in pillars.Select((p, i) => (p, i)))
                     {
-                        string rowBg = pi % 2 == 0 ? "#f4f7f5" : Colors.White;
+                        string rowBg = pi % 2 == 0 ? ReportThemeColors.SurfaceGreenRow : ReportThemeColors.White;
 
-                        table.Cell().Background(rowBg).BorderBottom(0.5f).BorderColor("#e0e0e0")
+                        table.Cell().Background(rowBg).BorderBottom(0.5f).BorderColor(ReportThemeColors.Gray350)
                             .Padding(5).Text(pillar.PillarName).FontSize(8)
-                            .Bold().FontColor("#12352f");
+                            .Bold().FontColor(ReportThemeColors.PdfDarkGreen);
 
                         foreach (var yr in allYears)
                         {
@@ -3050,13 +3037,13 @@ namespace HealthIntelligence.Common.Implementation
                             bool hasData = ps != null;
                             float score = hasData ? (float)ps!.ScoreProgress : -1f;
 
-                            string cellBg = !hasData ? "#f0f0f0"
-                                : InterpolateColor("#ffffff", "#12352f", score / 100f);
+                            string cellBg = !hasData ? ReportThemeColors.Gray150
+                                : InterpolateColor(ReportThemeColors.White, ReportThemeColors.PdfDarkGreen, score / 100f);
 
-                            table.Cell().Background(cellBg).BorderBottom(0.5f).BorderColor("#e0e0e0")
+                            table.Cell().Background(cellBg).BorderBottom(0.5f).BorderColor(ReportThemeColors.Gray350)
                                 .Padding(4).AlignCenter()
-                                .Text(!hasData ? "—" : $"{score:F1}").FontSize(8)
-                                .FontColor(score >= 50 ? Colors.White : "#333333");
+                                .Text(!hasData ? "." : $"{score:F1}").FontSize(8)
+                                .FontColor(score >= 50 ? ReportThemeColors.White : ReportThemeColors.Gray900);
                         }
                     }
                 });
@@ -3065,7 +3052,7 @@ namespace HealthIntelligence.Common.Implementation
                 if (allYears.Count >= 2 && pillars.Any())
                 {
                     col.Item().PaddingTop(6)
-                        .Text("Pillar Trend Highlights").FontSize(11).Bold().FontColor("#12352f");
+                        .Text("Pillar Trend Highlights").FontSize(11).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
 
                     var pillarDeltas = pillars.Select(p =>
                     {
@@ -3080,30 +3067,30 @@ namespace HealthIntelligence.Common.Implementation
                     col.Item().Row(row =>
                     {
                         // Most improved  (replaced emoji with ASCII arrow)
-                        row.RelativeItem().Background("#e8f5e9").Padding(10).Column(c =>
+                        row.RelativeItem().Background(ReportThemeColors.AccentEquityAssessment).Padding(10).Column(c =>
                         {
-                            c.Item().Text("(+) Most Improved").FontSize(9).Bold().FontColor("#336b58");
+                            c.Item().Text("(+) Most Improved").FontSize(9).Bold().FontColor(ReportThemeColors.PdfMediumGreen);
                             foreach (var pd in pillarDeltas.Take(3))
                                 c.Item().Row(r =>
                                 {
-                                    r.RelativeItem().Text(Shorten(pd.Name, 28)).FontSize(8).FontColor("#333333");
+                                    r.RelativeItem().Text(Shorten(pd.Name, 28)).FontSize(8).FontColor(ReportThemeColors.Gray900);
                                     r.ConstantItem(44).AlignRight()
-                                        .Text($"+{pd.Delta:F1}").FontSize(8).Bold().FontColor("#336b58");
+                                        .Text($"+{pd.Delta:F1}").FontSize(8).Bold().FontColor(ReportThemeColors.PdfMediumGreen);
                                 });
                         });
 
                         row.ConstantItem(10);
 
                         // Needs attention  (replaced emoji with ASCII)
-                        row.RelativeItem().Background("#fdecea").Padding(10).Column(c =>
+                        row.RelativeItem().Background(ReportThemeColors.DangerRedBg).Padding(10).Column(c =>
                         {
-                            c.Item().Text("(!) Needs Attention").FontSize(9).Bold().FontColor("#e05252");
+                            c.Item().Text("(!) Needs Attention").FontSize(9).Bold().FontColor(ReportThemeColors.DangerRedAccent);
                             foreach (var pd in pillarDeltas.TakeLast(3).Reverse())
                                 c.Item().Row(r =>
                                 {
-                                    r.RelativeItem().Text(Shorten(pd.Name, 28)).FontSize(8).FontColor("#333333");
+                                    r.RelativeItem().Text(Shorten(pd.Name, 28)).FontSize(8).FontColor(ReportThemeColors.Gray900);
                                     r.ConstantItem(44).AlignRight()
-                                        .Text($"{pd.Delta:F1}").FontSize(8).Bold().FontColor("#e05252");
+                                        .Text($"{pd.Delta:F1}").FontSize(8).Bold().FontColor(ReportThemeColors.DangerRedAccent);
                                 });
                         });
                     });
@@ -3141,15 +3128,15 @@ namespace HealthIntelligence.Common.Implementation
             {
                 float y = Yp(s);
                 canvas.DrawLine(padL, y, padL + w, y,
-                    new SKPaint { Color = SKColor.Parse("#e8e8e8"), StrokeWidth = 0.5f });
-                DrawCanvasText(canvas, s.ToString(), 2, y - 5, 7, "#aaaaaa");
+                    new SKPaint { Color = SKColor.Parse(ReportThemeColors.Gray250), StrokeWidth = 0.5f });
+                DrawCanvasText(canvas, s.ToString(), 2, y - 5, 7, ReportThemeColors.GrayMuted);
             }
             foreach (int yr in years)
             {
                 float x = Xp(yr);
                 canvas.DrawLine(x, padT, x, padT + h,
-                    new SKPaint { Color = SKColor.Parse("#f0f0f0"), StrokeWidth = 0.5f });
-                DrawCanvasText(canvas, yr.ToString(), x - 14, padT + h + 7, 7, "#888888");
+                    new SKPaint { Color = SKColor.Parse(ReportThemeColors.Gray150), StrokeWidth = 0.5f });
+                DrawCanvasText(canvas, yr.ToString(), x - 14, padT + h + 7, 7, ReportThemeColors.Gray600);
             }
 
             // Peer average (dashed green)
@@ -3158,7 +3145,7 @@ namespace HealthIntelligence.Common.Implementation
             DrawDashedPolyline(canvas, avgPts,
                 new SKPaint
                 {
-                    Color = SKColor.Parse("#4CAF8A"),
+                    Color = SKColor.Parse(ReportThemeColors.PdfTealGreen),
                     StrokeWidth = 1.5f,
                     IsAntialias = true,
                     IsStroke = true
@@ -3226,11 +3213,11 @@ namespace HealthIntelligence.Common.Implementation
             {
                 float y = Yp(s);
                 canvas.DrawLine(padL, y, padL + w, y,
-                    new SKPaint { Color = SKColor.Parse("#e8e8e8"), StrokeWidth = 0.5f });
-                DrawCanvasText(canvas, s.ToString(), 2, y - 5, 7, "#aaaaaa");
+                    new SKPaint { Color = SKColor.Parse(ReportThemeColors.Gray250), StrokeWidth = 0.5f });
+                DrawCanvasText(canvas, s.ToString(), 2, y - 5, 7, ReportThemeColors.GrayMuted);
             }
             foreach (int yr in years)
-                DrawCanvasText(canvas, yr.ToString(), Xp(yr) - 12, padT + h + 5, 7, "#888888");
+                DrawCanvasText(canvas, yr.ToString(), Xp(yr) - 12, padT + h + 5, 7, ReportThemeColors.Gray600);
 
             // Peer area
             var peerPath = new SKPath();
@@ -3243,7 +3230,7 @@ namespace HealthIntelligence.Common.Implementation
             peerPath.LineTo(Xp(years.Last()), Yp(0));
             peerPath.Close();
             canvas.DrawPath(peerPath,
-                new SKPaint { Color = SKColor.Parse("#4CAF8A").WithAlpha(40), IsAntialias = true });
+                new SKPaint { Color = SKColor.Parse(ReportThemeColors.PdfTealGreen).WithAlpha(40), IsAntialias = true });
 
             // Main area
             var mainPath = new SKPath();
@@ -3264,7 +3251,7 @@ namespace HealthIntelligence.Common.Implementation
                     Yp(peerAvg.FirstOrDefault(p => p.Year == yr).Avg))).ToList(),
                 new SKPaint
                 {
-                    Color = SKColor.Parse("#4CAF8A"),
+                    Color = SKColor.Parse(ReportThemeColors.PdfTealGreen),
                     StrokeWidth = 1.5f,
                     IsAntialias = true,
                     IsStroke = true
@@ -3282,7 +3269,7 @@ namespace HealthIntelligence.Common.Implementation
                 });
         }
 
-        /// <summary>Multi-pillar line chart — one coloured line per pillar (up to 14).</summary>
+        /// <summary>Multi-pillar line chart . one coloured line per pillar (up to 14).</summary>
         void DrawPillarLineChart(
             SKCanvas canvas, Size size,
             List<int> years,
@@ -3302,11 +3289,11 @@ namespace HealthIntelligence.Common.Implementation
             {
                 float y = Yp(s);
                 canvas.DrawLine(padL, y, padL + w, y,
-                    new SKPaint { Color = SKColor.Parse("#e8e8e8"), StrokeWidth = 0.5f });
-                DrawCanvasText(canvas, s.ToString(), 2, y - 5, 7, "#aaaaaa");
+                    new SKPaint { Color = SKColor.Parse(ReportThemeColors.Gray250), StrokeWidth = 0.5f });
+                DrawCanvasText(canvas, s.ToString(), 2, y - 5, 7, ReportThemeColors.GrayMuted);
             }
             foreach (int yr in years)
-                DrawCanvasText(canvas, yr.ToString(), Xp(yr) - 12, padT + h + 5, 7, "#888888");
+                DrawCanvasText(canvas, yr.ToString(), Xp(yr) - 12, padT + h + 5, 7, ReportThemeColors.Gray600);
 
             for (int pi = 0; pi < pillars.Count; pi++)
             {
@@ -3361,16 +3348,16 @@ namespace HealthIntelligence.Common.Implementation
 
             // Axes
             canvas.DrawLine(padL, padT, padL, padT + h,
-                new SKPaint { Color = SKColor.Parse("#aaaaaa"), StrokeWidth = 0.8f });
+                new SKPaint { Color = SKColor.Parse(ReportThemeColors.GrayMuted), StrokeWidth = 0.8f });
             canvas.DrawLine(padL, padT + h, padL + w, padT + h,
-                new SKPaint { Color = SKColor.Parse("#aaaaaa"), StrokeWidth = 0.8f });
+                new SKPaint { Color = SKColor.Parse(ReportThemeColors.GrayMuted), StrokeWidth = 0.8f });
 
             foreach (int s in new[] { 0, 25, 50, 75, 100 })
             {
                 float y = Yp(s);
                 canvas.DrawLine(padL, y, padL + w, y,
-                    new SKPaint { Color = SKColor.Parse("#eeeeee"), StrokeWidth = 0.5f });
-                DrawCanvasText(canvas, s.ToString(), 2, y - 5, 7, "#999999");
+                    new SKPaint { Color = SKColor.Parse(ReportThemeColors.BorderLight), StrokeWidth = 0.5f });
+                DrawCanvasText(canvas, s.ToString(), 2, y - 5, 7, ReportThemeColors.GrayLight);
             }
 
             for (int i = 0; i < countries.Count; i++)
@@ -3388,15 +3375,15 @@ namespace HealthIntelligence.Common.Implementation
                     canvas.DrawCircle(x, y, 6f,
                         new SKPaint
                         {
-                            Color = SKColor.Parse("#12352f"),
+                            Color = SKColor.Parse(ReportThemeColors.PdfDarkGreen),
                             IsStroke = true,
                             StrokeWidth = 1.5f,
                             IsAntialias = true
                         });
             }
 
-            DrawCanvasText(canvas, xLabel, padL + w / 2 - 22, padT + h + 14, 8, "#666666");
-            DrawCanvasText(canvas, yLabel, 2, padT + h / 2, 8, "#666666");
+            DrawCanvasText(canvas, xLabel, padL + w / 2 - 22, padT + h + 14, 8, ReportThemeColors.Gray700);
+            DrawCanvasText(canvas, yLabel, 2, padT + h / 2, 8, ReportThemeColors.Gray700);
         }
 
         void DrawDonutChart(SKCanvas canvas, Size size, List<(string Label, float Value)> segments)
@@ -3427,8 +3414,8 @@ namespace HealthIntelligence.Common.Implementation
             }
 
             // Centre count
-            DrawCanvasText(canvas, $"{segments.Count}", cx - 8, cy - 8, 14, "#12352f", bold: true);
-            DrawCanvasText(canvas, "groups", cx - 16, cy + 6, 7, "#555555");
+            DrawCanvasText(canvas, $"{segments.Count}", cx - 8, cy - 8, 14, ReportThemeColors.PdfDarkGreen, bold: true);
+            DrawCanvasText(canvas, "groups", cx - 16, cy + 6, 7, ReportThemeColors.Gray800);
 
             // Legend right of donut
             float lx = cx + outerR + 14f;
@@ -3444,7 +3431,7 @@ namespace HealthIntelligence.Common.Implementation
                     });
                 DrawCanvasText(canvas,
                     $"{Shorten(segments[i].Label, 18)}  ({segments[i].Value:F0})",
-                    lx + 14, ly, 8, "#333333");
+                    lx + 14, ly, 8, ReportThemeColors.Gray900);
             }
         }
 
@@ -3479,12 +3466,12 @@ namespace HealthIntelligence.Common.Implementation
                     new SKPaint { Color = SKColor.Parse(ScoreColor(midScr)), IsAntialias = true });
 
                 if (counts[b] > 0)
-                    DrawCanvasText(canvas, counts[b].ToString(), x + 3, padT + h - bH - 12, 7, "#555555");
+                    DrawCanvasText(canvas, counts[b].ToString(), x + 3, padT + h - bH - 12, 7, ReportThemeColors.Gray800);
             }
 
             for (int b = 0; b <= bins; b += 2)
                 DrawCanvasText(canvas, (b * bucketSz).ToString("F0"),
-                    padL + b * binW - 6, padT + h + 5, 7, "#888888");
+                    padL + b * binW - 6, padT + h + 5, 7, ReportThemeColors.Gray600);
 
             // Marker for selected country
             float mx = padL + Math.Clamp(markerValue, 0, 100) / 100f * w;
@@ -3504,15 +3491,15 @@ namespace HealthIntelligence.Common.Implementation
 
         void DrawInsightBand(IContainer container, string text)
         {
-            container.Background("#e8f5e9").Padding(8)
-                .Text(text).FontSize(8.5f).FontColor("#12352f");
+            container.Background(ReportThemeColors.AccentEquityAssessment).Padding(8)
+                .Text(text).FontSize(8.5f).FontColor(ReportThemeColors.PdfDarkGreen);
         }
 
         void DrawNoDataPage(IContainer container)
         {
             container.AlignCenter().AlignMiddle()
                 .Text("No data available for this section.")
-                .FontSize(12).FontColor("#aaaaaa");
+                .FontSize(12).FontColor(ReportThemeColors.GrayMuted);
         }
         void DrawLegend(IContainer container, (string Color, string Label)[] items, int textsize = 20)
         {
@@ -3528,7 +3515,7 @@ namespace HealthIntelligence.Common.Implementation
                     row.AutoItem().AlignMiddle()
                         .Text("Legend:  ")
                         .FontSize(8)
-                        .FontColor("#888888");
+                        .FontColor(ReportThemeColors.Gray600);
                 });
 
                 foreach (var group in groups)
@@ -3547,7 +3534,7 @@ namespace HealthIntelligence.Common.Implementation
                                 .PaddingRight(10)
                                 .Text(Shorten(label, textsize))
                                 .FontSize(8)
-                                .FontColor("#555555");
+                                .FontColor(ReportThemeColors.Gray800);
                         }
                     });
                 }
@@ -3564,7 +3551,7 @@ namespace HealthIntelligence.Common.Implementation
             var items = new List<(string Color, string Label)>
             {
                 (CountryPalette[0],  $"{countryDetails.CountryName} (selected)"),
-                ("#4CAF8A",       "Peer Average")
+                (ReportThemeColors.PdfTealGreen,       "Peer Average")
             };
             for (int i = 0; i < peers.Count; i++)
                 items.Add((CountryPalette[1 + (i % (CountryPalette.Length - 1))], peers[i].CountryName));
@@ -3593,8 +3580,8 @@ namespace HealthIntelligence.Common.Implementation
         static void DrawTableHeader(TableDescriptor table, string[] headers)
         {
             foreach (string h in headers)
-                table.Cell().Background("#12352f").Padding(5)
-                    .Text(h).FontSize(8).Bold().FontColor(Colors.White);
+                table.Cell().Background(ReportThemeColors.PdfDarkGreen).Padding(5)
+                    .Text(h).FontSize(8).Bold().FontColor(ReportThemeColors.White);
         }
 
         static void DrawPolyline(SKCanvas canvas, List<SKPoint> pts, SKPaint paint)
@@ -3663,7 +3650,7 @@ namespace HealthIntelligence.Common.Implementation
         }
 
         static string ScoreColor(float score) =>
-            score >= 70 ? "#336b58" : score >= 40 ? "#f5a623" : "#e05252";
+            score >= 70 ? ReportThemeColors.PdfMediumGreen : score >= 40 ? ReportThemeColors.WarningGoldAlt : ReportThemeColors.DangerRedAccent;
 
         static string DeriveRole(PeerCountryHistoryReportDto country)
         {

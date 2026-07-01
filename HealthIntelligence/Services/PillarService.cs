@@ -509,7 +509,7 @@ namespace HealthIntelligence.Services
         {
             var logoPath = Path.Combine(
                 Directory.GetCurrentDirectory(),
-                "wwwroot/assets/images/pem.png");
+                "wwwroot/assets/images/ahi.png");
 
             return Document.Create(container =>
             {

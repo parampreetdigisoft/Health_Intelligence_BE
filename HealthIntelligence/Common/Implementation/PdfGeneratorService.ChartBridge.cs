@@ -67,8 +67,8 @@ namespace HealthIntelligence.Common.Implementation
             float innerW = barW * 0.62f;
             float barGap = (barW - innerW) / 2f;
 
-            using var gridPaint = new SKPaint { Color = SKColor.Parse("#F2F7F4"), StrokeWidth = 0.6f };
-            using var gridLbl   = new SKPaint { Color = SKColor.Parse("#B0BEC5"), TextSize = 7f, IsAntialias = true, TextAlign = SKTextAlign.Left };
+            using var gridPaint = new SKPaint { Color = SKColor.Parse(ReportThemeColors.Background), StrokeWidth = 0.6f };
+            using var gridLbl   = new SKPaint { Color = SKColor.Parse(ReportThemeColors.BlueGrayLight), TextSize = 7f, IsAntialias = true, TextAlign = SKTextAlign.Left };
             foreach (float pct in new[] { 25f, 50f, 75f, 100f })
             {
                 float gy = tp + chartH - pct / 100f * chartH;
@@ -79,13 +79,13 @@ namespace HealthIntelligence.Common.Implementation
             float y70 = tp + chartH - 0.70f * chartH;
             using var thPaint = new SKPaint
             {
-                Color = SKColor.Parse("#2E7D32").WithAlpha(100), StrokeWidth = 0.9f,
+                Color = SKColor.Parse(ReportThemeColors.AccentGreen).WithAlpha(100), StrokeWidth = 0.9f,
                 PathEffect = SKPathEffect.CreateDash(new[] { 4f, 3f }, 0), IsAntialias = true
             };
             c.DrawLine(lp, y70, lp + chartW, y70, thPaint);
 
             using var valLbl = new SKPaint { TextSize = 6.5f, IsAntialias = true, TextAlign = SKTextAlign.Center };
-            using var numLbl = new SKPaint { Color = SKColor.Parse("#546E7A"), TextSize = 6.5f, IsAntialias = true, TextAlign = SKTextAlign.Center };
+            using var numLbl = new SKPaint { Color = SKColor.Parse(ReportThemeColors.LightText), TextSize = 6.5f, IsAntialias = true, TextAlign = SKTextAlign.Center };
 
             for (int i = 0; i < n; i++)
             {
@@ -94,7 +94,7 @@ namespace HealthIntelligence.Common.Implementation
                 float bh = v / 100f * chartH;
                 float by = tp + chartH - bh;
                 SKColor color = GetColorStatic(v);
-                SKColor textColor = v > 85 ? SKColors.White : SKColors.Black;
+                SKColor textColor = v > 85 ? SKColor.Parse(ReportThemeColors.White) : SKColor.Parse(ReportThemeColors.Black);
 
                 using var ghost = new SKPaint { Color = color.WithAlpha(35), IsAntialias = true };
                 c.DrawRoundRect(new SKRoundRect(new SKRect(bx, tp, bx + innerW, tp + chartH), 2), ghost);
@@ -120,7 +120,7 @@ namespace HealthIntelligence.Common.Implementation
         internal static void DrawPillarsRadialChartCanvas(
             SKCanvas c, QPDF.Size s, List<PillarChartItem> pillars)
         {
-            var data = pillars.Where(p => p.Value.HasValue).Take(23).ToList();
+            var data = pillars.Where(p => p.Value.HasValue).ToList();
             if (!data.Any()) return;
             float cx = s.Width / 2f, cy = s.Height / 2f;
             float maxR = Math.Min(cx, cy) - 18f;
@@ -129,7 +129,7 @@ namespace HealthIntelligence.Common.Implementation
             float thick = step * 0.68f;
             float avg   = (float)data.Average(x => x.Value ?? 0);
 
-            using var title = new SKPaint { Color = SKColor.Parse("#12352f"), TextSize = 10f, IsAntialias = true, TextAlign = SKTextAlign.Center, FakeBoldText = true };
+            using var title = new SKPaint { Color = SKColor.Parse(ReportThemeColors.Text), TextSize = 10f, IsAntialias = true, TextAlign = SKTextAlign.Center, FakeBoldText = true };
             c.DrawText("Pillar Performance", cx, 14f, title);
 
             for (int i = 0; i < data.Count; i++)
@@ -151,7 +151,7 @@ namespace HealthIntelligence.Common.Implementation
             }
 
             float cr = minR - step * 0.6f;
-            using var fill = new SKPaint { Color = SKColor.Parse("#12352f"), Style = SKPaintStyle.Fill, IsAntialias = true };
+            using var fill = new SKPaint { Color = SKColor.Parse(ReportThemeColors.Text), Style = SKPaintStyle.Fill, IsAntialias = true };
             c.DrawCircle(cx, cy, cr, fill);
             using var numP = new SKPaint { Color = GetColorStatic(avg), TextSize = cr * 0.60f, IsAntialias = true, TextAlign = SKTextAlign.Center, FakeBoldText = true };
             c.DrawText($"{avg:F0}", cx, cy + numP.TextSize * 0.36f, numP);
@@ -166,7 +166,7 @@ namespace HealthIntelligence.Common.Implementation
             float labelW = 110f;
             float barArea = s.Width - labelW - 50f;
 
-            using var lbl = new SKPaint { Color = SKColor.Parse("#37474F"), TextSize = 8.5f, IsAntialias = true };
+            using var lbl = new SKPaint { Color = SKColor.Parse(ReportThemeColors.LightText), TextSize = 8.5f, IsAntialias = true };
             for (int i = 0; i < sorted.Count; i++)
             {
                 float v  = (float)(sorted[i].Value ?? 0);
@@ -174,7 +174,7 @@ namespace HealthIntelligence.Common.Implementation
                 float bw = v / 100f * barArea;
                 SKColor col = GetColorStatic(v);
 
-                if (i % 2 == 0) c.DrawRect(new SKRect(0, y, s.Width, y + rowH), new SKPaint { Color = SKColor.Parse("#F4F7F5") });
+                if (i % 2 == 0) c.DrawRect(new SKRect(0, y, s.Width, y + rowH), new SKPaint { Color = SKColor.Parse(ReportThemeColors.Background) });
 
                 c.DrawText(Shorten(sorted[i].Name ?? "—", 16), 4, y + rowH * 0.65f, lbl);
                 using var shader = SKShader.CreateLinearGradient(new SKPoint(0, 0), new SKPoint(bw, 0),
@@ -203,14 +203,14 @@ namespace HealthIntelligence.Common.Implementation
                 float y  = i * rowH;
                 float bw = (float)((country.Population ?? 0) / (double)maxPop * barArea);
                 bool isMain = IsSameCountryStatic(country.CountryName, countryDetails.CountryName);
-                if (i % 2 == 0) c.DrawRect(new SKRect(0, y, s.Width, y + rowH), new SKPaint { Color = SKColor.Parse("#F4F7F5") });
-                if (isMain)     c.DrawRect(new SKRect(0, y, s.Width, y + rowH), new SKPaint { Color = SKColor.Parse("#FFF8E1") });
+                if (i % 2 == 0) c.DrawRect(new SKRect(0, y, s.Width, y + rowH), new SKPaint { Color = SKColor.Parse(ReportThemeColors.Background) });
+                if (isMain)     c.DrawRect(new SKRect(0, y, s.Width, y + rowH), new SKPaint { Color = SKColor.Parse(ReportThemeColors.WarningAmberBg) });
 
-                using var txt = new SKPaint { Color = SKColor.Parse(isMain ? "#12352f" : "#444444"), TextSize = 9f, IsAntialias = true, FakeBoldText = isMain };
+                using var txt = new SKPaint { Color = SKColor.Parse(isMain ? ReportThemeColors.Text : ReportThemeColors.Gray850), TextSize = 9f, IsAntialias = true, FakeBoldText = isMain };
                 c.DrawText(country.CountryName, 4, y + rowH * 0.65f, txt);
                 string clr = isMain ? palette[0] : palette[1 + (i % (palette.Length - 1))];
                 c.DrawRoundRect(new SKRoundRect(new SKRect(labelW, y + 4, labelW + bw, y + rowH - 6), 3), new SKPaint { Color = SKColor.Parse(clr), IsAntialias = true });
-                using var num = new SKPaint { Color = SKColor.Parse("#555555"), TextSize = 9f, IsAntialias = true };
+                using var num = new SKPaint { Color = SKColor.Parse(ReportThemeColors.Gray800), TextSize = 9f, IsAntialias = true };
                 c.DrawText(FormatPopStatic(country.Population), labelW + bw + 5, y + rowH * 0.65f, num);
             }
         }
@@ -234,12 +234,12 @@ namespace HealthIntelligence.Common.Implementation
                 float avg = (float)g.Average(country => GetLatestScoreOrZeroStatic(country));
                 if (avg < 0) avg = 0;
                 float bw = avg / 100f * barArea;
-                if (i % 2 == 0) c.DrawRect(new SKRect(0, y, s.Width, y + barH), new SKPaint { Color = SKColor.Parse("#F4F7F5") });
-                using var lbl = new SKPaint { Color = SKColor.Parse("#333333"), TextSize = 9f, IsAntialias = true };
+                if (i % 2 == 0) c.DrawRect(new SKRect(0, y, s.Width, y + barH), new SKPaint { Color = SKColor.Parse(ReportThemeColors.Background) });
+                using var lbl = new SKPaint { Color = SKColor.Parse(ReportThemeColors.Gray900), TextSize = 9f, IsAntialias = true };
                 c.DrawText(g.Key, 4, y + barH * 0.65f, lbl);
                 c.DrawRoundRect(new SKRoundRect(new SKRect(labelW, y + 3, labelW + bw, y + barH - 6), 3),
                     new SKPaint { Color = SKColor.Parse(palette[i % palette.Length]), IsAntialias = true });
-                using var sc = new SKPaint { Color = SKColor.Parse("#555555"), TextSize = 9f, IsAntialias = true };
+                using var sc = new SKPaint { Color = SKColor.Parse(ReportThemeColors.Gray800), TextSize = 9f, IsAntialias = true };
                 c.DrawText($"{avg:F1}  (n={g.Count()})", labelW + bw + 5, y + barH * 0.65f, sc);
             }
         }
@@ -257,10 +257,10 @@ namespace HealthIntelligence.Common.Implementation
             float Xp(int yr) => padL + (yr - years.First()) / (float)(years.Last() - years.First()) * w;
             float Yp(float v) => padT + h - Math.Clamp(v, 0, 100) / 100f * h;
 
-            using var grid  = new SKPaint { Color = SKColor.Parse("#e8e8e8"), StrokeWidth = 0.5f };
-            using var glbl  = new SKPaint { Color = SKColor.Parse("#aaaaaa"), TextSize = 7f, IsAntialias = true };
+            using var grid  = new SKPaint { Color = SKColor.Parse(ReportThemeColors.Gray250), StrokeWidth = 0.5f };
+            using var glbl  = new SKPaint { Color = SKColor.Parse(ReportThemeColors.GrayMuted), TextSize = 7f, IsAntialias = true };
             foreach (int sc in new[] { 0, 25, 50, 75, 100 }) { float y = Yp(sc); c.DrawLine(padL, y, padL + w, y, grid); c.DrawText(sc.ToString(), 2, y - 5, glbl); }
-            foreach (int yr in years)                          { float x = Xp(yr); c.DrawLine(x, padT, x, padT + h, new SKPaint { Color = SKColor.Parse("#F0F0F0"), StrokeWidth = 0.5f }); c.DrawText(yr.ToString(), x - 14, padT + h + 7, glbl); }
+            foreach (int yr in years)                          { float x = Xp(yr); c.DrawLine(x, padT, x, padT + h, new SKPaint { Color = SKColor.Parse(ReportThemeColors.Gray150), StrokeWidth = 0.5f }); c.DrawText(yr.ToString(), x - 14, padT + h + 7, glbl); }
 
             // Peer lines
             string[] pal = { "F0B429","4CAF8A","1E88E5","FB8C00","7B61FF","E05252" };
@@ -291,8 +291,8 @@ namespace HealthIntelligence.Common.Implementation
             float Xp(int yr) => padL + (yr - years.First()) / (float)(years.Last() - years.First()) * w;
             float Yp(float v) => padT + h - Math.Clamp(v, 0, 100) / 100f * h;
 
-            using var grid = new SKPaint { Color = SKColor.Parse("#e8e8e8"), StrokeWidth = 0.5f };
-            using var glbl = new SKPaint { Color = SKColor.Parse("#aaaaaa"), TextSize = 7f, IsAntialias = true };
+            using var grid = new SKPaint { Color = SKColor.Parse(ReportThemeColors.Gray250), StrokeWidth = 0.5f };
+            using var glbl = new SKPaint { Color = SKColor.Parse(ReportThemeColors.GrayMuted), TextSize = 7f, IsAntialias = true };
             foreach (int sc in new[] { 0, 25, 50, 75, 100 }) { float y = Yp(sc); c.DrawLine(padL, y, padL + w, y, grid); c.DrawText(sc.ToString(), 2, y - 5, glbl); }
             foreach (int yr in years) c.DrawText(yr.ToString(), Xp(yr) - 12, padT + h + 5, glbl);
 
@@ -318,7 +318,7 @@ namespace HealthIntelligence.Common.Implementation
         // ── Private static helpers shared by canvas methods above ─────────────
 
         private static SKColor GetColorStatic(float v)
-            => v >= 70 ? SKColor.Parse("#2E7D32") : v >= 40 ? SKColor.Parse("#F9A825") : SKColor.Parse("#C62828");
+            => v >= 70 ? SKColor.Parse(ReportThemeColors.AccentGreen) : v >= 40 ? SKColor.Parse(ReportThemeColors.WarningOrange) : SKColor.Parse(ReportThemeColors.DangerRed);
 
         private static bool IsSameCountryStatic(string? a, string? b)
             => string.Equals(a?.Trim(), b?.Trim(), StringComparison.OrdinalIgnoreCase);
@@ -358,7 +358,7 @@ namespace HealthIntelligence.Common.Implementation
         {
             if (!countries.Any()) return;
 
-            string[] palette = { "#F0B429", "#4CAF8A", "#1E88E5", "#FB8C00", "#7B61FF", "#E05252" };
+            string[] palette = ReportThemeColors.CountryChartPalette;
 
             const float padL = 42f, padR = 14f, padT = 12f, padB = 28f;
             float w = s.Width - padL - padR;
@@ -372,9 +372,9 @@ namespace HealthIntelligence.Common.Implementation
             float Yp(float v) => padT + h - Math.Clamp(v, 0, 100) / 100f * h;
 
             // Grid + axes
-            using var axis = new SKPaint { Color = SKColor.Parse("#AAAAAA"), StrokeWidth = 0.8f };
-            using var grid = new SKPaint { Color = SKColor.Parse("#EEEEEE"), StrokeWidth = 0.5f };
-            using var glbl = new SKPaint { Color = SKColor.Parse("#999999"), TextSize = 7f, IsAntialias = true };
+            using var axis = new SKPaint { Color = SKColor.Parse(ReportThemeColors.GrayMuted), StrokeWidth = 0.8f };
+            using var grid = new SKPaint { Color = SKColor.Parse(ReportThemeColors.BorderLight), StrokeWidth = 0.5f };
+            using var glbl = new SKPaint { Color = SKColor.Parse(ReportThemeColors.GrayLight), TextSize = 7f, IsAntialias = true };
             c.DrawLine(padL, padT, padL, padT + h, axis);
             c.DrawLine(padL, padT + h, padL + w, padT + h, axis);
             foreach (int sc in new[] { 0, 25, 50, 75, 100 })
@@ -399,7 +399,7 @@ namespace HealthIntelligence.Common.Implementation
                 {
                     using var ring = new SKPaint
                     {
-                        Color = SKColor.Parse("#12352F"),
+                        Color = SKColor.Parse(ReportThemeColors.Text),
                         Style = SKPaintStyle.Stroke,
                         StrokeWidth = 1.8f,
                         IsAntialias = true
@@ -409,8 +409,8 @@ namespace HealthIntelligence.Common.Implementation
             }
 
             // Axis labels
-            using var xlbl = new SKPaint { Color = SKColor.Parse("#666666"), TextSize = 8f, IsAntialias = true, TextAlign = SKTextAlign.Center };
-            using var ylbl = new SKPaint { Color = SKColor.Parse("#666666"), TextSize = 8f, IsAntialias = true };
+            using var xlbl = new SKPaint { Color = SKColor.Parse(ReportThemeColors.Gray700), TextSize = 8f, IsAntialias = true, TextAlign = SKTextAlign.Center };
+            using var ylbl = new SKPaint { Color = SKColor.Parse(ReportThemeColors.Gray700), TextSize = 8f, IsAntialias = true };
             c.DrawText(xLabel, padL + w / 2f, padT + h + 20, xlbl);
             c.DrawText(yLabel, 2, padT + h / 2f, ylbl);
         }
@@ -421,7 +421,7 @@ namespace HealthIntelligence.Common.Implementation
             List<PeerCountryHistoryReportDto> all)
         {
             string[] categoryOrder = { "Low Income", "Lower-Middle Income", "Upper-Middle Income", "High Income" };
-            string[] segColors = { "#D9534F", "#F0AD4E", "#5BC0DE", "#2E7D32" };
+            string[] segColors = ReportThemeColors.IncomeTierPalette;
 
             var segments = all
                 .GroupBy(x => PdfGeneratorService.GetIncomeCategory(x.Income ?? 0))
@@ -434,8 +434,8 @@ namespace HealthIntelligence.Common.Implementation
             float maxBarH = baseY - 10f;
 
             using var valPaint = new SKPaint { TextSize = 9f, IsAntialias = true, FakeBoldText = true, TextAlign = SKTextAlign.Center };
-            using var catPaint = new SKPaint { Color = SKColor.Parse("#555555"), TextSize = 7f, IsAntialias = true };
-            using var nPaint = new SKPaint { Color = SKColor.Parse("#888888"), TextSize = 7f, IsAntialias = true };
+            using var catPaint = new SKPaint { Color = SKColor.Parse(ReportThemeColors.Gray800), TextSize = 7f, IsAntialias = true };
+            using var nPaint = new SKPaint { Color = SKColor.Parse(ReportThemeColors.Gray600), TextSize = 7f, IsAntialias = true };
 
             for (int i = 0; i < categoryOrder.Length; i++)
             {
@@ -445,7 +445,7 @@ namespace HealthIntelligence.Common.Implementation
 
                 if (!segments.TryGetValue(label, out var countries) || !countries.Any())
                 {
-                    using var noData = new SKPaint { Color = SKColor.Parse("#DDDDDD"), IsAntialias = true };
+                    using var noData = new SKPaint { Color = SKColor.Parse(ReportThemeColors.Gray400), IsAntialias = true };
                     c.DrawRoundRect(new SKRoundRect(new SKRect(barX, baseY - 4, barX + barW, baseY), 4), noData);
                     c.DrawText(label.Length > 14 ? label[..14] + "…" : label, slotX, baseY + 12, catPaint);
                     continue;
@@ -457,7 +457,7 @@ namespace HealthIntelligence.Common.Implementation
                 using var barPaint = new SKPaint { Color = SKColor.Parse(segColors[i]), IsAntialias = true };
                 c.DrawRoundRect(new SKRoundRect(new SKRect(barX, baseY - barH, barX + barW, baseY), 6), barPaint);
 
-                valPaint.Color = SKColor.Parse("#12352F");
+                valPaint.Color = SKColor.Parse(ReportThemeColors.Text);
                 c.DrawText($"{avg:F1}", barX + barW / 2f, baseY - barH - 5, valPaint);
 
                 string shortLabel = label.Length > 14 ? label[..14] + "…" : label;
@@ -489,8 +489,8 @@ namespace HealthIntelligence.Common.Implementation
                 counts[Math.Clamp((int)(sc / bucket), 0, bins - 1)]++;
             int maxCnt = counts.Max() == 0 ? 1 : counts.Max();
 
-            using var axisLbl = new SKPaint { Color = SKColor.Parse("#888888"), TextSize = 7f, IsAntialias = true };
-            using var cntLbl = new SKPaint { Color = SKColor.Parse("#555555"), TextSize = 7f, IsAntialias = true, TextAlign = SKTextAlign.Center };
+            using var axisLbl = new SKPaint { Color = SKColor.Parse(ReportThemeColors.Gray600), TextSize = 7f, IsAntialias = true };
+            using var cntLbl = new SKPaint { Color = SKColor.Parse(ReportThemeColors.Gray800), TextSize = 7f, IsAntialias = true, TextAlign = SKTextAlign.Center };
 
             for (int b = 0; b < bins; b++)
             {
@@ -513,7 +513,7 @@ namespace HealthIntelligence.Common.Implementation
             float mx = padL + Math.Clamp(markerValue, 0, 100) / 100f * w;
             using var marker = new SKPaint
             {
-                Color = SKColor.Parse("#F0B429"),
+                Color = SKColor.Parse(ReportThemeColors.WarningGold),
                 StrokeWidth = 2f,
                 PathEffect = SKPathEffect.CreateDash(new[] { 5f, 3f }, 0)
             };
@@ -521,7 +521,7 @@ namespace HealthIntelligence.Common.Implementation
 
             using var mLbl = new SKPaint
             {
-                Color = SKColor.Parse("#F0B429"),
+                Color = SKColor.Parse(ReportThemeColors.WarningGold),
                 TextSize = 7.5f,
                 IsAntialias = true,
                 FakeBoldText = true,

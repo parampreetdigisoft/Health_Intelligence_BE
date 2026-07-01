@@ -383,7 +383,7 @@ namespace HealthIntelligence.Services
 
                 foreach (var c in result)
                 {
-                    var totalQuestions = pillars.FirstOrDefault(x => x.PillarID == c.PillarID)?.TotalQuestions ?? 0;
+                    var totalQuestions = pillars.FirstOrDefault(x => x.PillarID == c.PillarID)?.TotalQuestions ?? 1;
                     var answeredQuestion = answeredQuestions.FirstOrDefault(x => x.PillarID == c.PillarID)?.AnsweredQuestions ?? 0;
                     var pillarScore = countries
                         .Where(x => x.PillarID == c.PillarID)
@@ -392,7 +392,7 @@ namespace HealthIntelligence.Services
                         .Sum();
                     c.EvaluatorScore = pillarScore;
                     c.Discrepancy = Math.Abs(pillarScore - (c.AIProgress ?? 0));
-                    c.AICompletionRate = answeredQuestion * 100.0M / totalQuestions;
+                    c.AICompletionRate = totalQuestions == 0 ? 0 :answeredQuestion * 100.0M / totalQuestions;
                 }
 
                 var finalResutl = new AiCountryPillarResponseDto
