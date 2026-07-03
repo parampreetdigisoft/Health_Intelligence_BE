@@ -1,5 +1,6 @@
 using HealthIntelligence.Common.Interface;
 using HealthIntelligence.Common.Models.settings;
+using HealthIntelligence.Common.Models.views;
 using HealthIntelligence.Data;
 using HealthIntelligence.Dtos.CountryDto;
 using HealthIntelligence.IServices;
@@ -161,6 +162,30 @@ namespace HealthIntelligence.Common.Implementation
         public void ClearPillarCache()
         {
             _memoryCache.Remove(PILLAR_CACHE_KEY);
+        }
+
+        public async Task<List<GetDashboardModeResult>> GetDashboardModeResults(int userId, int role, int dashboardModeID, int countryID = 0)
+        {
+            try
+            {
+                var result = await _context.GetDashboardModeResults
+                 .FromSqlRaw(
+                     "EXEC usp_getDashboardModeResult @userID, @role, @DashboardModeID, @countryID",
+                     new SqlParameter("@userID", userId),
+                     new SqlParameter("@role", role),
+                     new SqlParameter("@DashboardModeID", dashboardModeID),
+                     new SqlParameter("@countryID", countryID)
+                 )
+                 .AsNoTracking()
+                 .ToListAsync();
+
+                return result ?? new List<GetDashboardModeResult>();
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("Error in Executing usp_getDashboardModeResult", ex);
+                return new List<GetDashboardModeResult>();
+            }
         }
     }
 }

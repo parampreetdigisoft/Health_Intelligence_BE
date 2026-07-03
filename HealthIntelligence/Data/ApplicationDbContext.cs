@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using HealthIntelligence.Common.Models;
 using HealthIntelligence.Dtos.CountryDto;
 using HealthIntelligence.Models;
+using HealthIntelligence.Common.Models.views;
 
 namespace HealthIntelligence.Data
 {
@@ -47,6 +48,8 @@ namespace HealthIntelligence.Data
         public DbSet<DocumentTOC> DocumentTOC { get; set; }
         public DbSet<DashboardMode> DashboardModes { get; set; } = default!;
         public DbSet<DashboardModeKPIMapping> DashboardModeKPIMappings { get; set; } = default!;
+        public DbSet<GetDashboardModeResult> GetDashboardModeResults { get; set; } = default!;
+        public DbSet<DashboardInterpretation> DashboardInterpretations { get; set; } = default!;
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -180,13 +183,6 @@ namespace HealthIntelligence.Data
                 entity.HasKey(e => e.DashboardModeID);
                 entity.ToTable("DashboardModes");
 
-                entity.Property(e => e.ModeName)
-                    .HasMaxLength(100)
-                    .IsRequired();
-
-                entity.Property(e => e.Description)
-                    .HasMaxLength(500);
-
                 entity.HasMany(e => e.DashboardModeKPIMappings)
                     .WithOne(m => m.DashboardMode)
                     .HasForeignKey(m => m.DashboardModeID)
@@ -197,15 +193,13 @@ namespace HealthIntelligence.Data
             {
                 entity.HasKey(e => e.DashboardModeKPIMappingID);
                 entity.ToTable("DashboardModeKPIMappings");
+            });
 
-                entity.Property(e => e.Description)
-                    .HasMaxLength(500);
+            modelBuilder.Entity<GetDashboardModeResult>().HasNoKey().ToView(null);
 
-                entity.Property(e => e.PriorityLevel)
-                    .HasDefaultValue(1);
-
-                entity.Property(e => e.IsActive)
-                    .HasDefaultValue(true);
+            modelBuilder.Entity<DashboardInterpretation>(entity =>
+            {
+                entity.HasKey(al => al.DashboardInterpretationID);
             });
 
             base.OnModelCreating(modelBuilder);

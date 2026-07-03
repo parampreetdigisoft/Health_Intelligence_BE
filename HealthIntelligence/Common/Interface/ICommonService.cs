@@ -1,3 +1,4 @@
+using HealthIntelligence.Common.Models.views;
 using HealthIntelligence.Dtos.CountryDto;
 using HealthIntelligence.Models;
 
@@ -11,5 +12,6 @@ namespace HealthIntelligence.Common.Interface
         Task<List<CountryRankingResultDto>> GetCountriesRankings(int countryId, int year);
         Task<List<Pillar>> GetPillars();
         void ClearPillarCache();
+        Task<List<GetDashboardModeResult>> GetDashboardModeResults(int userId, int role, int dashboardModeID, int countryID = 0);
     }
 }

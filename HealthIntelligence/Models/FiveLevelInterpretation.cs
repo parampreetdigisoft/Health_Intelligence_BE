@@ -10,4 +10,14 @@ namespace HealthIntelligence.Models
         public string Descriptor { get; set; }        
         public AnalyticalLayer? AnalyticalLayer { get; set; }
     }
+
+    public class DashboardInterpretation
+    {
+        public int DashboardInterpretationID { get; set; }
+        public int DashboardModeID { get; set; }
+        public decimal? MinRange { get; set; }
+        public decimal? MaxRange { get; set; }
+        public string Condition { get; set; }
+        public string Description { get; set; }
+    }
 }

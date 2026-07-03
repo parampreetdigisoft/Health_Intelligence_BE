@@ -7,7 +7,6 @@ using HealthIntelligence.Dtos.CountryUserDto;
 using HealthIntelligence.Enums;
 using HealthIntelligence.IServices;
 using HealthIntelligence.Models;
-using HealthIntelligence.Services;
 using System.Security.Claims;
 
 namespace HealthIntelligence.Controllers
@@ -18,12 +17,10 @@ namespace HealthIntelligence.Controllers
     public class CountryUserController : ControllerBase
     {
         private readonly ICountryUserService _countryUserService;
-        private readonly ISignalDashboardService _signalDashboardService;
 
-        public CountryUserController(ICountryUserService countryUserService, ISignalDashboardService signalDashboardService)
+        public CountryUserController(ICountryUserService countryUserService)
         {
             _countryUserService = countryUserService;
-            _signalDashboardService = signalDashboardService;
         }
         private int? GetUserIdFromClaims()
         {
@@ -274,39 +271,6 @@ namespace HealthIntelligence.Controllers
             return File(content.Item2,
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 content.Item1);
-        }
-
-        [HttpGet("getPeaceStressTestDashboard")]
-        public async Task<IActionResult> GetPeaceStressTestDashboard([FromQuery] int countryID, [FromQuery] int year)
-        {
-            var userId = GetUserIdFromClaims();
-            if (userId == null)
-                return Unauthorized("User ID not found in token.");
-
-            var result = await _signalDashboardService.GetPeaceStressTestDashboard(countryID, year, userId.Value);
-            return Ok(result);
-        }
-
-        [HttpGet("getEarlyWarningDashboard")]
-        public async Task<IActionResult> GetEarlyWarningDashboard([FromQuery] int countryID, [FromQuery] int year)
-        {
-            var userId = GetUserIdFromClaims();
-            if (userId == null)
-                return Unauthorized("User ID not found in token.");
-
-            var result = await _signalDashboardService.GetEarlyWarningDashboard(countryID, year, userId.Value);
-            return Ok(result);
-        }
-
-        [HttpGet("getResilienceScorecard")]
-        public async Task<IActionResult> GetResilienceScorecard([FromQuery] int countryID, [FromQuery] int year)
-        {
-            var userId = GetUserIdFromClaims();
-            if (userId == null)
-                return Unauthorized("User ID not found in token.");
-
-            var result = await _signalDashboardService.GetResilienceScorecard(countryID, year, userId.Value);
-            return Ok(result);
         }
 
     }
