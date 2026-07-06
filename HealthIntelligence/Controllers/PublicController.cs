@@ -98,9 +98,9 @@ namespace HealthIntelligence.Controllers
         }
 
         [HttpGet("emergingTrendsAndIssues")]
-        public async Task<IActionResult> GetEmergingTrendsAndIssues([FromQuery] int countryCount = 8)
+        public async Task<IActionResult> GetEmergingTrendsAndIssues()
         {
-            return Ok(await _publicService.GetEmergingTrendsAndIssues(countryCount));
+            return Ok(await _publicService.GetEmergingTrendsAndIssues());
         }
 
         [HttpGet("pillarLiveSignals")]
@@ -109,5 +109,11 @@ namespace HealthIntelligence.Controllers
             return Ok(await _publicService.GetPillarLiveSignals());
         }
 
+        [HttpGet("getResilienceScorecard")]
+        public async Task<IActionResult> GetResilienceScorecard()
+        {
+            var result = await _publicService.GetResilienceScorecard();
+            return Ok(result);
+        }
     }
 }

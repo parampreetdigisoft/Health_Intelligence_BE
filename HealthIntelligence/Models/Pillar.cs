@@ -6,7 +6,7 @@ namespace HealthIntelligence.Models
         public string PillarName { get; set; }
         public string Description { get; set; }
         public int DisplayOrder { get; set; }
-        public string ImagePath { get; set; }
+        public string? ImagePath { get; set; }
         public double Weight { get; set; } = 1.0; 
         public bool Reliability { get; set; } = true; 
         public string? PillarCode { get; set; } 

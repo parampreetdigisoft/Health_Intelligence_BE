@@ -1,6 +1,3 @@
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using HealthIntelligence.Common.Implementation;
 using HealthIntelligence.Common.Interface;
 using HealthIntelligence.Common.Models;
@@ -9,6 +6,9 @@ using HealthIntelligence.Dtos.chatDto;
 using HealthIntelligence.Dtos.CommonDto;
 using HealthIntelligence.Dtos.PublicDto;
 using HealthIntelligence.IServices;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using System.Text.Json;
 
 namespace HealthIntelligence.Services
@@ -534,11 +534,11 @@ namespace HealthIntelligence.Services
             return true;
         }
 
-        public async Task<ResultResponseDto<EmergingTrendsResult>> GetEmergingTrendsAndIssues(int countryCount)
+        public async Task<ResultResponseDto<EmergingTrendsResult>> GetEmergingTrendsAndIssues()
         {
             try
             {
-                countryCount = _configuration.GetValue("EmergingTrendsCache:CountryCount", 8);
+                var countryCount = _configuration.GetValue("EmergingTrendsCache:CountryCount", 8);
 
                 if (TryGetEmergingTrendsFromCache(countryCount, out var cachedResult, allowStale: true)
                     && cachedResult != null)
@@ -753,6 +753,100 @@ namespace HealthIntelligence.Services
                 );
             }
         }
+
+        public async Task<ResultResponseDto<ROSEWPublicDashboardDto>> GetResilienceScorecard()
+        {
+            int dashboardModeId = 3;
+        
+            try
+            {
+                var dashboardMode = await _context.DashboardModes
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.DashboardModeID == dashboardModeId);
+
+                if (dashboardMode == null)
+                {
+                    return ResultResponseDto<ROSEWPublicDashboardDto>.Failure(new[] { "Dashboard configuration not found." });
+                }
+
+                var mappings = await _context.DashboardModeKPIMappings
+                .AsNoTracking()
+                .Where(x => x.DashboardModeID == dashboardModeId && x.IsActive && !x.IsDeleted)
+                .ToListAsync(); 
+
+                if (!mappings.Any())
+                {
+                    return ResultResponseDto<ROSEWPublicDashboardDto>.Failure(new[] { "Dashboard KPI mappings not found." });
+                }
+
+                var interpretations = await _context.DashboardInterpretations
+                    .AsNoTracking()
+                    .Where(x => x.DashboardModeID == dashboardModeId)
+                    .ToListAsync();
+
+                var spResults = await _commonService.GetDashboardModeResults(1, 1, dashboardModeId);
+                var spResultsByQuestion = spResults
+                    .Where(x => x.QuestionID.HasValue)
+                    .GroupBy(x => x.QuestionID!.Value)
+                    .ToDictionary(g => g.Key, g => g.Average(x => x.AiQuestionScore));
+
+
+                var questions = new List<ROSEWPublicQuestionDto>();
+
+                foreach (var mapping in mappings)
+                {
+                    spResultsByQuestion.TryGetValue(mapping.QuestionID, out var totalScore);
+                     var Score = (decimal)totalScore.GetValueOrDefault();
+                    var questionScore = new ROSEWPublicQuestionDto
+                    {
+                        QuestionDescription = mapping.Description ?? "",
+                        Condition = interpretations.FirstOrDefault(i => i.MaxRange >= Score && i.MinRange <= Score)?.Condition ?? "Moderate Stress (Watch)"
+                    };
+                    questions.Add(questionScore);
+                }
+
+                var spResultsByCountry = spResults
+                    .Where(x => x.CountryID.HasValue)
+                    .GroupBy(x => x.CountryID!.Value)
+                        .ToDictionary(g => g.Key, g => g.Average(x => x.AiQuestionScore)).OrderByDescending(x=>x.Value).Take(3);
+
+
+                var dbCountries = _context.Countries.Where(x=> spResultsByCountry.Select(k=>k.Key).Contains(x.CountryID)).ToList();
+                var countries = new List<ROSEWPublicCountryDto>();
+
+                foreach (var country in spResultsByCountry)
+                {
+                    var Score = (decimal)country.Value.GetValueOrDefault();
+                    var countryScore = new ROSEWPublicCountryDto
+                    {
+                        Country = dbCountries.FirstOrDefault(x=>x.CountryID == country.Key)?.CountryName ?? "",
+                        UpdatedAt = DateTime.UtcNow,
+                        Condition = interpretations.FirstOrDefault(i => i.MaxRange >= Score && i.MinRange <= Score)?.Condition ?? "Moderate Stress (Watch)"
+                    };
+                    countries.Add(countryScore);
+                }
+
+
+                var overAllScore = spResultsByQuestion.Any() ? (decimal?)spResultsByQuestion?.Select(x => x.Value)?.Average() : 0m;
+
+                var response = new ROSEWPublicDashboardDto
+                {
+                    Score = overAllScore ?? 0m,
+                    UpdatedAt = spResults.Max(x => x.AiUpdatedAt),
+                    OverallCondition = interpretations.FirstOrDefault(i => i.MaxRange >= (overAllScore ?? 0m) && i.MinRange <= (overAllScore ?? 0m))?.Condition ?? "Moderate Stress (Watch)",
+                    Countries = countries,
+                    Questions = questions
+
+                };
+
+                return ResultResponseDto<ROSEWPublicDashboardDto>.Success(response, new[] { "Response get successfully" });
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync($"Error in GetDashboardMode for mode {dashboardModeId}", ex);
+                return ResultResponseDto<ROSEWPublicDashboardDto>.Failure(new[] { "There is an error, please try later" });
+            }
+        }       
     }
 }
 

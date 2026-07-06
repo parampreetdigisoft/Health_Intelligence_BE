@@ -180,7 +180,7 @@ namespace HealthIntelligence.Services
                     existing.Reliability = pillar.Reliability;
                     _download.InsertAnalyticalLayerResults();
                 }
-
+                 _commonService.ClearPillarCache();
                 await SyncPillarKpiMappingsAsync(id, pillar.KpiLayerIds);
                 await _context.SaveChangesAsync();
                 return existing;
