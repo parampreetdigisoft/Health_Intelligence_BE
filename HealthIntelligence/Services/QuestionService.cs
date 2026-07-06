@@ -673,6 +673,9 @@ namespace HealthIntelligence.Services
                         $"  \"\")," +
                         $"\"\")";
 
+
+                    ws.Cell(ansRow, 10).FormulaA1 =
+                        $"=IF(D{ansRow}=\"\",\"\",IFERROR(VALUE(LEFT(D{ansRow},FIND(\" -\",D{ansRow})-1)),\"\"))";
                     // -- Comment row (row+1) ---------------------------
                     int commentRow = ansRow + 1;
 
