@@ -26,9 +26,9 @@ namespace HealthIntelligence.Dtos.dashboard
         public int? EvaluationTotalAns { get; set; }
         public int? EvaluationTotalNA { get; set; }
         public int? EvaluationTotalUnknown { get; set; }
-        public string? Condition { get; set; }
-        public string? Interpretation { get; set; }  
+        public DateTime? EvaluationUpdatedAt { get; set; }
+        public DateTime? AiUpdatedAt { get; set; }
     }
 
-    
+
 }

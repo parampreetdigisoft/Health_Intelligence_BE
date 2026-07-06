@@ -126,6 +126,8 @@ namespace HealthIntelligence.Services
             dto.AiTotalAns = result.AiTotalAns;
             dto.AiTotalNA = result.AiTotalNA;
             dto.AiTotalUnknown = result.AiTotalUnknown;
+            dto.AiTotalUnknown = result.AiTotalUnknown;
+            dto.AiUpdatedAt = result.AiUpdatedAt;
 
             if (!isCountryUser)
             {
@@ -134,6 +136,7 @@ namespace HealthIntelligence.Services
                 dto.EvaluationTotalAns = result.TotalAns;
                 dto.EvaluationTotalNA = result.TotalNA;
                 dto.EvaluationTotalUnknown = result.TotalUnknown;
+                dto.EvaluationUpdatedAt = result.UpdatedAt;
             }
 
             var scoreForInterpretation = isCountryUser ? result.AiQuestionScore : result.QuestionScore;
@@ -145,8 +148,7 @@ namespace HealthIntelligence.Services
         private static void ApplyInterpretation(DashboardQuestionScoreDto dto, IReadOnlyList<DashboardInterpretation> interpretations, decimal score)
         {
             var interpretation = MatchInterpretation(interpretations, score);
-            dto.Condition = interpretation?.Condition ?? CommonStaticMethods.GetConditionByScore(score);
-            dto.Interpretation = interpretation?.Description;
+        
         }
 
         private static DashboardInterpretation? MatchInterpretation(IReadOnlyList<DashboardInterpretation> interpretations, decimal score)

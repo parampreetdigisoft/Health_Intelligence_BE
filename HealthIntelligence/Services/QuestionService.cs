@@ -48,7 +48,7 @@ namespace HealthIntelligence.Services
                     .Include(q => q.Pillar)
                     .Include(o => o.QuestionOptions)
                 where !q.IsDeleted
-                   && (!request.PillarID.HasValue || q.PillarID == request.PillarID.Value)                
+                   && (!request.PillarID.HasValue || q.PillarID == request.PillarID.Value)
                 select new GetQuestionResponse
                 {
                     QuestionID = q.QuestionID,
@@ -304,6 +304,8 @@ namespace HealthIntelligence.Services
                     if (assessment != null)
                     {
                         answeredPillarIds = assessment.PillarAssessments
+                       .OrderByDescending(r => r.Responses
+                       .Select(resp => (DateTime?)resp.UpdatedAt).Max())
                        .Select(r => r.PillarID)
                        .ToList();
                     }
@@ -313,13 +315,24 @@ namespace HealthIntelligence.Services
                         request.PillarID = assessment.PillarAssessments.First().PillarID;
                     }
 
+                    if (!request.PillarID.HasValue)
+                    {
+                        if (answeredPillarIds.Any())
+                        {
+                            request.PillarID = answeredPillarIds.First();
+                        }
+                        else
+                        {
+                            request.PillarID = (await _commonService.GetPillars()).FirstOrDefault()?.PillarID;
+                        }
+                    }
+
                     // Get next unanswered pillar
-                    var selectPillar = await _context.Pillars.Where(x => x.IsActive && !x.IsDeleted)
-                        .Include(p => p.Questions.Where(x => !x.IsDeleted))
-                            .ThenInclude(q => q.QuestionOptions)
-                        .Where(p => !request.PillarID.HasValue ? !answeredPillarIds.Contains(p.PillarID) : p.PillarID == request.PillarID)
-                        .OrderBy(p => p.DisplayOrder)
-                        .FirstOrDefaultAsync();
+                    var selectPillar = await _context.Pillars
+                   .Where(x => x.IsActive && !x.IsDeleted && x.PillarID == request.PillarID)
+                   .Include(p => p.Questions.Where(x => !x.IsDeleted))
+                   .ThenInclude(q => q.QuestionOptions)
+                   .FirstOrDefaultAsync();
 
                     var summitedPillar = (await _commonService.GetPillars())
                         .Where(p => !answeredPillarIds.Contains(p.PillarID))
@@ -397,7 +410,7 @@ namespace HealthIntelligence.Services
 
                 var fileName = (from m in _context.UserCountryMappings
                                 join c in _context.Countries on m.CountryID equals c.CountryID
-                                join u in _context.Users on m.UserID equals u.UserID 
+                                join u in _context.Users on m.UserID equals u.UserID
                                 where m.UserCountryMappingID == userCountryMappingID
                                 select new
                                 {
@@ -434,17 +447,17 @@ namespace HealthIntelligence.Services
         private const int FIRST_Q_ROW = 9;
         private const int ROWS_PER_Q = 4;
 
-        private static readonly XLColor ColHeaderBlue = XLColor.FromArgb(0, 109, 119);   
-        private static readonly XLColor ColAccentBlue = XLColor.FromArgb(76, 175, 80); 
+        private static readonly XLColor ColHeaderBlue = XLColor.FromArgb(0, 109, 119);
+        private static readonly XLColor ColAccentBlue = XLColor.FromArgb(76, 175, 80);
         private static readonly XLColor ColLightBlue = XLColor.FromArgb(126, 200, 207);
-        private static readonly XLColor ColRowAlt = XLColor.FromArgb(245, 248, 247); 
-        private static readonly XLColor ColEditableYellow = XLColor.FromArgb(168, 224, 99);  
-        private static readonly XLColor ColSeparator = XLColor.FromArgb(228, 228, 228); 
-        private static readonly XLColor ColInputBorder = XLColor.FromArgb(228, 228, 228); 
-        private static readonly XLColor ColGrayText = XLColor.FromArgb(74, 95, 98);   
-        private static readonly XLColor ColDescBg = XLColor.FromArgb(245, 248, 247); 
-        private static readonly XLColor ColDescBorder = XLColor.FromArgb(0, 90, 98);   
-        private static readonly XLColor ColTotalBg = XLColor.FromArgb(126, 200, 207); 
+        private static readonly XLColor ColRowAlt = XLColor.FromArgb(245, 248, 247);
+        private static readonly XLColor ColEditableYellow = XLColor.FromArgb(168, 224, 99);
+        private static readonly XLColor ColSeparator = XLColor.FromArgb(228, 228, 228);
+        private static readonly XLColor ColInputBorder = XLColor.FromArgb(228, 228, 228);
+        private static readonly XLColor ColGrayText = XLColor.FromArgb(74, 95, 98);
+        private static readonly XLColor ColDescBg = XLColor.FromArgb(245, 248, 247);
+        private static readonly XLColor ColDescBorder = XLColor.FromArgb(0, 90, 98);
+        private static readonly XLColor ColTotalBg = XLColor.FromArgb(126, 200, 207);
 
         private byte[] MakePillarSheetClientReadable_Updated(
              List<Pillar> pillars,
@@ -666,13 +679,7 @@ namespace HealthIntelligence.Services
                     // -- Col J (hidden) : Numeric score formula ---------
                     // Extracts the leading digit from the dropdown text (e.g. "3 - Good...") ? 3
                     // Returns "" for N/A, Unknown, or blank
-                    ws.Cell(ansRow, 10).FormulaA1 =
-                        $"=IFERROR(" +
-                        $"IF(LEN(D{ansRow})>0," +
-                        $"  IF(ISNUMBER(VALUE(LEFT(D{ansRow},1))), VALUE(LEFT(D{ansRow},1)), \"\")," +
-                        $"  \"\")," +
-                        $"\"\")";
-
+                   
 
                     ws.Cell(ansRow, 10).FormulaA1 =
                         $"=IF(D{ansRow}=\"\",\"\",IFERROR(VALUE(LEFT(D{ansRow},FIND(\" -\",D{ansRow})-1)),\"\"))";
@@ -1039,7 +1046,8 @@ namespace HealthIntelligence.Services
                                            && !x.IsDeleted);
 
                 if (userCountryMappings == null)
-                    return null;
+                    return ResultResponseDto<GetPillarQuestionByCountryResponse>.Failure(
+                        new[] { "User country mapping not found." });
 
                 var year = DateTime.Now.Year;
 
@@ -1051,33 +1059,43 @@ namespace HealthIntelligence.Services
                              && a.UpdatedAt.Year == year
                              && a.IsActive)
                     .FirstOrDefaultAsync();
+                var sql = _context.Assessments
+                    .Include(x => x.PillarAssessments)
+                        .ThenInclude(x => x.Responses)
+                    .Where(a => a.UserCountryMappingID == request.UserCountryMappingID
+                             && a.UpdatedAt.Year == year
+                             && a.IsActive).ToQueryString();
 
                 var answeredPillarIds = assessment?.PillarAssessments
-                    .Select(r => r.PillarID)
-                    .ToList() ?? new List<int>();
+                     .OrderByDescending(r => r.Responses
+                     .Select(resp => (DateTime?)resp.UpdatedAt).Max())
+                     .Select(r => r.PillarID)
+                     .ToList() ?? new List<int>();
 
                 int pillarCount = (await _commonService.GetPillars()).Count;
 
                 if (assessment != null && answeredPillarIds.Count == pillarCount && !request.PillarID.HasValue)
                     request.PillarID = assessment.PillarAssessments.First().PillarID;
+                if (!request.PillarID.HasValue)
+                {
+                    if (answeredPillarIds.Any())
+                    {
+                        request.PillarID = answeredPillarIds.First();
+                    }
+                    else
+                    {
+                        request.PillarID = (await _commonService.GetPillars()).FirstOrDefault()?.PillarID;
+                    }
+                }
 
                 // Get the target pillar (next unanswered or specific)
                 var selectPillar = await _context.Pillars
-                    .Where(x => x.IsActive && !x.IsDeleted)
-                    .Include(p => p.Questions.Where(x => !x.IsDeleted))
-                        .ThenInclude(q => q.QuestionOptions)
-                    .Where(p => !request.PillarID.HasValue
-                        ? !answeredPillarIds.Contains(p.PillarID)
-                        : p.PillarID == request.PillarID)
-                    .OrderBy(p => p.DisplayOrder)
-                    .FirstOrDefaultAsync();
+                   .Where(x => x.IsActive && !x.IsDeleted && x.PillarID == request.PillarID)
+                   .Include(p => p.Questions.Where(x => !x.IsDeleted))
+                   .ThenInclude(q => q.QuestionOptions)
+                   .FirstOrDefaultAsync();
 
-                var nextUnansweredPillar = (await _commonService.GetPillars())
-                    .Where(p => !answeredPillarIds.Contains(p.PillarID))
-                    .OrderBy(p => p.DisplayOrder)
-                    .FirstOrDefault();
-
-                if (selectPillar?.Questions == null)
+                if (selectPillar == null || !selectPillar.Questions.Any())
                     return ResultResponseDto<GetPillarQuestionByCountryResponse>.Failure(
                         new[] { "You have submitted assessment for this country" });
 
@@ -1085,13 +1103,9 @@ namespace HealthIntelligence.Services
                 var editAssessmentResponse = assessment?.PillarAssessments
                     .Where(a => a.PillarID == request.PillarID)
                     .SelectMany(x => x.Responses)
-                    .ToDictionary(x => x.QuestionID)
+                    .GroupBy(x => x.QuestionID)
+                    .ToDictionary(g => g.Key,g => g.OrderByDescending(x => x.UpdatedAt).First()) 
                     ?? new Dictionary<int, AssessmentResponse>();
-
-                // Build option text lookup for history display
-                var optionTextLookup = selectPillar.Questions
-                    .SelectMany(q => q.QuestionOptions)
-                    .ToDictionary(o => o.OptionID, o => o.OptionText);
 
                 // Project questions with pre-filled answers
                 var questions = selectPillar.Questions
@@ -1215,9 +1229,7 @@ namespace HealthIntelligence.Services
                     PillarID = selectPillar.PillarID,
                     Description = selectPillar.Description,
                     DisplayOrder = selectPillar.DisplayOrder,
-                    SubmittedPillarDisplayOrder = answeredPillarIds.Count == pillarCount
-                                                   ? pillarCount
-                                                   : nextUnansweredPillar?.DisplayOrder ?? selectPillar.DisplayOrder,
+                    SubmittedPillarDisplayOrder = selectPillar.DisplayOrder,
                     Questions = questions
                 };
 
@@ -1231,6 +1243,5 @@ namespace HealthIntelligence.Services
                     new[] { "There is an error please try later" });
             }
         }
-
     }
 }
