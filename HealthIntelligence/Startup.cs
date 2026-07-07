@@ -59,12 +59,13 @@ namespace HealthIntelligence
                 {
                     builder.WithOrigins(
                         "http://localhost:4200",
-                        "http://peacemappers.ai",
-                        "https://peacemappers.ai",
-                        "http://portal.peacemappers.ai",
-                        "https://portal.peacemappers.ai",
-                        "https://app.peacemappers.ai",
-                        "https://app.peacemappers.ai"
+                        "https://localhost:4200",
+                        "http://africahealthintelligence.ai",
+                        "https://africahealthintelligence.ai",
+                        "http://admin.africahealthintelligence.ai",
+                        "https://admin.africahealthintelligence.ai",
+                        "http://www.africahealthintelligence.ai",
+                        "https://www.africahealthintelligence.ai"
                         )
                         .AllowAnyHeader()
                         .AllowAnyMethod()
