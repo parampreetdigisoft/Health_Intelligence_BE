@@ -3,6 +3,7 @@ using HealthIntelligence.Common.Models.settings;
 using HealthIntelligence.Common.Models.views;
 using HealthIntelligence.Data;
 using HealthIntelligence.Dtos.CountryDto;
+using HealthIntelligence.Dtos.PillarDto;
 using HealthIntelligence.IServices;
 using HealthIntelligence.Models;
 using Microsoft.Data.SqlClient;
@@ -132,11 +133,11 @@ namespace HealthIntelligence.Common.Implementation
         }
 
 
-        public async Task<List<Pillar>> GetPillars()
+        public async Task<List<GetPillarDto>> GetPillars()
         {
             try
             {
-                if (_memoryCache.TryGetValue(PILLAR_CACHE_KEY, out List<Pillar> pillars))
+                if (_memoryCache.TryGetValue(PILLAR_CACHE_KEY, out List<GetPillarDto> pillars))
                 {
                     return pillars;
                 }
@@ -144,6 +145,19 @@ namespace HealthIntelligence.Common.Implementation
                 pillars = await _context.Pillars
                     .Where(x => x.IsActive && !x.IsDeleted)
                     .OrderBy(x=>x.DisplayOrder)
+                    .Select(x=> new GetPillarDto
+                    {
+                        PillarID = x.PillarID,
+                        PillarName = x.PillarName,
+                        Description = x.Description,
+                        DisplayOrder = x.DisplayOrder,
+                        ImagePath = x.ImagePath,
+                        Weight = x.Weight,
+                        Reliability = x.Reliability,
+                        PillarCode = x.PillarCode,
+                        IsActive = x.IsActive,
+                        QuestionCount = x.Questions.Where(x=>!x.IsDeleted).Count()
+                    })
                     .ToListAsync();
 
                 var cacheOptions = new MemoryCacheEntryOptions()
@@ -156,7 +170,7 @@ namespace HealthIntelligence.Common.Implementation
             catch (Exception ex)
             {
                 await _appLogger.LogAsync("Error in GetPillars", ex);
-                return new List<Pillar>();
+                return new List<GetPillarDto>();
             }
         }
         public void ClearPillarCache()

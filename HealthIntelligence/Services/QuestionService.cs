@@ -1,17 +1,16 @@
 using ClosedXML.Excel;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-using HealthIntelligence.Common.Implementation;
-using HealthIntelligence.Common.Models;
-using HealthIntelligence.Common.Models.settings;
 using HealthIntelligence.Data;
-using HealthIntelligence.Dtos.AssessmentDto;
-using HealthIntelligence.Dtos.CommonDto;
-using HealthIntelligence.Dtos.QuestionDto;
-using HealthIntelligence.IServices;
 using HealthIntelligence.Models;
-using System.Text;
+using HealthIntelligence.IServices;
+using Microsoft.EntityFrameworkCore;
+using HealthIntelligence.Common.Models;
+using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.Dtos.PillarDto;
 using HealthIntelligence.Common.Interface;
+using HealthIntelligence.Dtos.QuestionDto;
+using HealthIntelligence.Dtos.AssessmentDto;
+using HealthIntelligence.Common.Implementation;
+
 namespace HealthIntelligence.Services
 {
     public class QuestionService : IQuestionService
@@ -26,7 +25,7 @@ namespace HealthIntelligence.Services
             _commonService = commonService;
         }
 
-        public async Task<List<Pillar>> GetPillarsAsync()
+        public async Task<List<GetPillarDto>> GetPillarsAsync()
         {
             try
             {
@@ -35,7 +34,7 @@ namespace HealthIntelligence.Services
             catch (Exception ex)
             {
                 await _appLogger.LogAsync("Error Occure in GetPillarsAsync", ex);
-                return new List<Pillar>();
+                return new List<GetPillarDto>();
             }
         }
 

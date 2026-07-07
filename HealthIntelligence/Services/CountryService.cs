@@ -864,33 +864,21 @@ namespace HealthIntelligence.Services
         {
             try
             {
-                var user = await _context.Users.FirstOrDefaultAsync(x => x.UserID == r.UserID);
-                if (user == null)
-                    return ResultResponseDto<List<UserCountryMappingResponseDto>>.Failure(new[] { "Invalid user" });
-
                 var year = DateTime.Now.Year;
 
-                Expression<Func<Assessment, bool>> predicate = a =>
-                    !a.UserCountryMapping.IsDeleted &&
-                    a.UserCountryMapping.UserID == r.UserID &&
-                    a.UpdatedAt.Year == year &&
-                    (a.AssessmentPhase == AssessmentPhase.Completed ||
-                     a.AssessmentPhase == AssessmentPhase.EditRejected ||
-                     a.AssessmentPhase == AssessmentPhase.EditRequested);
-
-                var userCountryMappingIds = await _context.Assessments
-                    .Where(predicate)
-                    .Select(a => a.UserCountryMappingID)
-                    .Distinct()
-                    .ToListAsync();
-
-                // First get data from DB (no static method call inside query)
                 var cityList = await (
                     from c in _context.Countries
                     join cm in _context.UserCountryMappings
-                        .Where(x => !x.IsDeleted && x.UserID == r.UserID && !userCountryMappingIds.Contains(x.UserCountryMappingID))
+                        .Where(x => !x.IsDeleted && x.UserID == r.UserID)
                         on c.CountryID equals cm.CountryID
-                    join u in _context.Users on cm.AssignedByUserId equals u.UserID
+                    join u in _context.Users
+                        on cm.AssignedByUserId equals u.UserID
+
+                    join a in _context.Assessments
+                            .Where(x => x.IsActive && x.UpdatedAt.Year == year)
+                        on cm.UserCountryMappingID equals a.UserCountryMappingID into assessmentGroup
+                    from a in assessmentGroup.DefaultIfEmpty()
+
                     select new UserCountryMappingResponseDto
                     {
                         CountryID = c.CountryID,
@@ -905,8 +893,10 @@ namespace HealthIntelligence.Services
                         AssignedBy = u.FullName,
                         UserCountryMappingID = cm.UserCountryMappingID,
                         Latitude = c.Latitude,
-                        Longitude = c.Longitude
-                    }).ToListAsync();
+                        Longitude = c.Longitude,
+                        AssessmentPhase = a != null ? a.AssessmentPhase : null
+                    })
+                    .ToListAsync();
 
                 // Then calculate distance in memory using static method
                 foreach (var country in cityList)

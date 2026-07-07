@@ -11,6 +11,7 @@ namespace HealthIntelligence.Dtos.CountryDto
     public class UserCountryMappingResponseDto : CountryResponseDto
     {
         public int UserCountryMappingID { get; set; }
+        public AssessmentPhase? AssessmentPhase { get; set; } = Models.AssessmentPhase.InProgress;
         public double? Distance { get; set; }
         public List<int>? PeerCountryIDs { get; set; }
     }

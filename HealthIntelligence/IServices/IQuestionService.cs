@@ -1,6 +1,7 @@
 using HealthIntelligence.Common.Models;
 using HealthIntelligence.Dtos.AssessmentDto;
 using HealthIntelligence.Dtos.CommonDto;
+using HealthIntelligence.Dtos.PillarDto;
 using HealthIntelligence.Dtos.QuestionDto;
 using HealthIntelligence.Models;
 using System.Collections.Generic;
@@ -10,7 +11,7 @@ namespace HealthIntelligence.IServices
 {
     public interface IQuestionService
     {
-        Task<List<Pillar>> GetPillarsAsync();
+        Task<List<GetPillarDto>> GetPillarsAsync();
         Task<PaginationResponse<GetQuestionResponse>> GetQuestionsAsync(GetQuestionRequestDto requestDto);
         Task<Question> AddQuestionAsync(Question q);
         Task<ResultResponseDto<string>> AddUpdateQuestion(AddUpdateQuestionDto q);

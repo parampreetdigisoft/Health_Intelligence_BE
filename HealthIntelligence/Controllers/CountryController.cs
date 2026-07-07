@@ -133,7 +133,7 @@ namespace HealthIntelligence.Controllers
             if (claimUserId == null || claimUserId != q.AssignedByUserId)
                 return Unauthorized("User ID not found.");
 
-            var result = await _countryService.EditAssingCountry(id, q.UserId,q.CountryId,q.AssignedByUserId);
+            var result = await _countryService.EditAssingCountry(id, q.UserId, q.CountryId, q.AssignedByUserId);
             if (result == null) return NotFound();
             return Ok(result);
         }
@@ -169,7 +169,7 @@ namespace HealthIntelligence.Controllers
         [Route("getCountryHistory/{updatedAt}")]
         public async Task<IActionResult> GetCountryHistory(DateTime updatedAt)
         {
-            var claimUserId = GetUserIdFromClaims();                                    
+            var claimUserId = GetUserIdFromClaims();
             if (claimUserId == null)
                 return Unauthorized("User ID not found.");
 
@@ -208,7 +208,24 @@ namespace HealthIntelligence.Controllers
         }
 
         [HttpGet("getAllCountryByLocation")]
-        public async Task<IActionResult> GetAllCountryByLocation([FromQuery] GetNearestCountryRequestDto r) => Ok(await _countryService.getAllCountryByLocation(r));
+        public async Task<IActionResult> GetAllCountryByLocation([FromQuery] GetNearestCountryRequestDto r) 
+        {
+            var claimUserId = GetUserIdFromClaims();
+            if (claimUserId == null)
+                return Unauthorized("User ID not found.");
+
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                return Unauthorized("You Don't have access.");
+            }
+            r.UserID = claimUserId.GetValueOrDefault();
+            return Ok(await _countryService.getAllCountryByLocation(r));
+        }
+    
          
         [HttpGet("getAiAccessCountry")]
         public async Task<IActionResult> GetAiAccessCountry()

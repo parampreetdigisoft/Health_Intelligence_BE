@@ -29,7 +29,7 @@ namespace HealthIntelligence.Services
             _commonService = commonService;
         }
 
-        public async Task<List<Pillar>> GetAllAsync(int userId, UserRole userRole)
+        public async Task<List<GetPillarDto>> GetAllAsync(int userId, UserRole userRole)
         {
             try
             {
@@ -45,6 +45,19 @@ namespace HealthIntelligence.Services
                         .Where(x => x != null)
                         .Select(x => x!)
                         .Where(x => !x.IsDeleted)
+                        .Select(x => new GetPillarDto
+                        {
+                            PillarID = x.PillarID,
+                            PillarName = x.PillarName,
+                            Description = x.Description,
+                            DisplayOrder = x.DisplayOrder,
+                            ImagePath = x.ImagePath,
+                            Weight = x.Weight,
+                            Reliability = x.Reliability,
+                            PillarCode = x.PillarCode,
+                            IsActive = x.IsActive,
+                            QuestionCount = x.Questions.Where(x => !x.IsDeleted).Count()
+                        })
                         .Distinct()
                         .ToListAsync();
 
@@ -54,7 +67,7 @@ namespace HealthIntelligence.Services
             catch (Exception ex)
             {
                 await _appLogger.LogAsync("Error Occure in GetAllAsync", ex);
-                return new List<Pillar>();
+                return new List<GetPillarDto>();
             }
         }
 
@@ -854,7 +867,7 @@ namespace HealthIntelligence.Services
                         PillarID = g.Key,
                         Score = g.Sum(x => x.AIScore ?? 0),
                         ScoreProgress = g.Average(x => x.AIProgress ?? 0),
-                        Count = g.Count()
+                        Count = _context.AIEstimatedQuestionScores.Where(x=> x.PillarID == g.Key && x.CountryID == request.CountryID && x.Year == year).Count()
                     })
                     .ToListAsync();
 
@@ -865,7 +878,7 @@ namespace HealthIntelligence.Services
                 var pillars = await _context.Pillars
                     .Where(p => p.IsActive && !p.IsDeleted && (!request.PillarID.HasValue || p.PillarID == request.PillarID))
                     .Select(p => new
-                    {
+                     {
                         p.PillarID,
                         p.PillarName,
                         p.DisplayOrder,
@@ -881,7 +894,6 @@ namespace HealthIntelligence.Services
                         FullName = "AI_Result",
                         Score = Convert.ToDecimal(Math.Round(x.Score,0)),
                         ScoreProgress = x.ScoreProgress,
-                        TotalQuestion = x.Count,
                         AnsQuestion = x.Count,
                         AnsPillar =1
                     }

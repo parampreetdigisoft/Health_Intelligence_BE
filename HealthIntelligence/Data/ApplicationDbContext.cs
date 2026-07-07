@@ -142,7 +142,7 @@ namespace HealthIntelligence.Data
             modelBuilder.Entity<CountryPeer>(entity =>
             {
                 entity.HasKey(e => e.CountryPeerID);
-                entity.ToTable("CountryPeer");
+                entity.ToTable("CountryPeers");
             });
 
             modelBuilder.Entity<CountryDocument>(entity =>

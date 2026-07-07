@@ -10,7 +10,7 @@ namespace HealthIntelligence.IServices
 {
     public interface IPillarService
     {
-        Task<List<Pillar>> GetAllAsync(int userId, UserRole userRole);
+        Task<List<GetPillarDto>> GetAllAsync(int userId, UserRole userRole);
         Task<Pillar> GetByIdAsync(int id);
         Task<Pillar> AddAsync(Pillar pillar);
         Task<ResultResponseDto<Pillar>> AddPillarAsync(AddPillarDto pillar);
