@@ -29,7 +29,6 @@ namespace HealthIntelligence.Services
         private readonly Download _download;
         private readonly IAIAnalyzeService _iAIAnalayzeService;        
         private readonly IDocumentGeneratorService _documentGeneratorService;
-        private readonly AppSettings _appSettings;
         private readonly IWebHostEnvironment _env;
         public AIComputationService(ApplicationDbContext context, IAppLogger appLogger,
             ICommonService commonService, 

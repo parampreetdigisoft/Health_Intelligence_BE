@@ -99,7 +99,21 @@ namespace HealthIntelligence.Controllers
         [Authorize]
         public async Task<IActionResult> ExportAssessment(int userCountryMappingID)
         {
-            var content = await _questionService.ExportAssessment(userCountryMappingID);
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");            
+
+
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                return Unauthorized("You Don't have access.");
+            }
+
+            var content = await _questionService.ExportAssessment(userCountryMappingID, userId.GetValueOrDefault(), userRole);
 
             return File(content.Item2 ?? new byte[1],
                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -110,7 +124,23 @@ namespace HealthIntelligence.Controllers
         [Authorize]
         public async Task<IActionResult> GetQuestionsHistoryByPillar([FromQuery] GetCountryPillarHistoryRequestDto requestDto)
         {
-            var content = await _questionService.GetQuestionsHistoryByPillar(requestDto);
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+            requestDto.UserID = userId.GetValueOrDefault();
+
+
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                return Unauthorized("You Don't have access.");
+            }
+
+            var content = await _questionService.GetQuestionsHistoryByPillar(requestDto, userRole);
 
             return Ok(content);
         }

@@ -114,7 +114,19 @@ namespace HealthIntelligence.Controllers
             if (file == null || file.Length == 0)
                 return BadRequest("No file uploaded.");
 
-            var content = await _responseService.ImportAssessmentAsync(file, userID);
+            var userId = GetUserIdFromClaims();
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+
+            var role = GetRoleFromClaims();
+            if (role == null)
+                return Unauthorized("You Don't have access.");
+
+            if (!Enum.TryParse<UserRole>(role, true, out var userRole))
+            {
+                return Unauthorized("You Don't have access.");
+            }
+            var content = await _responseService.ImportAssessmentAsync(file, userId.GetValueOrDefault());
             return Ok(content);
         }
         /// <summary>

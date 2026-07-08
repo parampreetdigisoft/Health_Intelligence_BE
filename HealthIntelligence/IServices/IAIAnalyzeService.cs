@@ -25,6 +25,7 @@ namespace HealthIntelligence.IServices
 
         Task RunEvery2HoursJob();
         Task RunDailyJob();
+        Task RunWeeklyJob();
         Task RunMonthlyJob();
     }
 }

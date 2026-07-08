@@ -144,6 +144,11 @@ namespace HealthIntelligence.Services
                     _context.Assessments.Add(assessment);
                 }
 
+                if(assessment.AssessmentPhase==AssessmentPhase.Completed && request.PillarID != 22)
+                {
+                    return ResultResponseDto<string>.Failure(new[] { "Need approval to edit this pillar" });
+                }
+
                 if (request.PillarID > 0)
                 {
                     var pillarAssessment = assessment.PillarAssessments
@@ -164,9 +169,6 @@ namespace HealthIntelligence.Services
                     
                     if (!request.IsAutoSave) // removed if entire assessement is update for all responses
                     {
-                        var pillar = (await _commonService.GetPillars()).OrderByDescending(x => x.DisplayOrder).FirstOrDefault();
-                        assessment.AssessmentPhase = pillar?.PillarID == request.PillarID ? AssessmentPhase.Completed : AssessmentPhase.InProgress;
-
                         var requestResponseIds = request.Responses
                             .Where(r => r.QuestionID > 0)
                             .Select(r => r.QuestionID)
@@ -195,7 +197,8 @@ namespace HealthIntelligence.Services
                                 QuestionOptionID = response.QuestionOptionID,
                                 Justification = response.Justification,
                                 Source = response.Source,
-                                Score = response.Score
+                                Score = response.Score,
+                                UpdatedAt = now
                             });
                         }
                         else if(existing !=null)
@@ -206,6 +209,7 @@ namespace HealthIntelligence.Services
                             existing.Justification = response.Justification;
                             existing.Score = response.Score;
                             existing.Source = response.Source;
+                            existing.UpdatedAt = now;
                         }
                     }
                     if (request.IsFinalized)

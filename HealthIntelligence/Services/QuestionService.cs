@@ -10,6 +10,7 @@ using HealthIntelligence.Common.Interface;
 using HealthIntelligence.Dtos.QuestionDto;
 using HealthIntelligence.Dtos.AssessmentDto;
 using HealthIntelligence.Common.Implementation;
+using System.Linq.Expressions;
 
 namespace HealthIntelligence.Services
 {
@@ -18,6 +19,7 @@ namespace HealthIntelligence.Services
         private readonly ApplicationDbContext _context;
         private readonly IAppLogger _appLogger;
         private readonly ICommonService _commonService;
+        int ROSEWPillarID = 22;
         public QuestionService(ApplicationDbContext context, IAppLogger appLogger, ICommonService commonService)
         {
             _context = context;
@@ -313,8 +315,11 @@ namespace HealthIntelligence.Services
                     {
                         request.PillarID = assessment.PillarAssessments.First().PillarID;
                     }
-
-                    if (!request.PillarID.HasValue)
+                    if (assessment?.AssessmentPhase == AssessmentPhase.Completed)
+                    {
+                        request.PillarID = ROSEWPillarID;
+                    }
+                    else if (!request.PillarID.HasValue)
                     {
                         if (answeredPillarIds.Any())
                         {
@@ -402,15 +407,15 @@ namespace HealthIntelligence.Services
                 return ResultResponseDto<GetPillarQuestionByCountryResponse>.Failure(new string[] { "There is an error please try later" });
             }
         }
-        public async Task<Tuple<string, byte[]>> ExportAssessment(int userCountryMappingID)
+        public async Task<Tuple<string, byte[]>> ExportAssessment(int userCountryMappingID, int userId, UserRole role)
         {
             try
             {
 
-                var fileName = (from m in _context.UserCountryMappings
+                var fileName = (from m in _context.UserCountryMappings.Where(us=>us.UserID == userId)
                                 join c in _context.Countries on m.CountryID equals c.CountryID
-                                join u in _context.Users on m.UserID equals u.UserID
-                                where m.UserCountryMappingID == userCountryMappingID
+                                join u in _context.Users.Where(x=>x.UserID == userId && !x.IsDeleted) on m.UserID equals u.UserID  
+                                where m.UserCountryMappingID == userCountryMappingID 
                                 select new
                                 {
                                     CountryName = c.CountryName,
@@ -419,19 +424,28 @@ namespace HealthIntelligence.Services
 
                 var sheetName = fileName?.CountryName + "_" + fileName?.FullName;
 
+
+                var year = DateTime.Now.Year;
+
+
+                var assessment = await _context.Assessments
+                    .Include(x => x.PillarAssessments)
+                    .ThenInclude(x => x.Responses)
+                    .Where(a => a.UserCountryMappingID == userCountryMappingID && a.IsActive && a.UpdatedAt.Year == year).FirstOrDefaultAsync();
+
+                var isAssessmentCompeleted = AssessmentPhase.Completed == assessment?.AssessmentPhase;
+
+                var pillarAssessments = (isAssessmentCompeleted ?
+                    assessment?.PillarAssessments?.Where(x => x.PillarID == ROSEWPillarID).ToList()
+                    : assessment?.PillarAssessments?.ToList()) ?? new List<PillarAssessment>();
+                    
                 // Get next unanswered pillar
                 var nextPillars = await _context.Pillars
-                    .Where(x => x.IsActive && !x.IsDeleted)
                     .Include(p => p.Questions.Where(x => !x.IsDeleted))
                         .ThenInclude(q => q.QuestionOptions)
+                    .Where(x => x.IsActive && !x.IsDeleted && (!isAssessmentCompeleted || x.PillarID == ROSEWPillarID ))
                     .OrderBy(p => p.DisplayOrder)
                     .ToListAsync();
-                var year = DateTime.Now.Year;
-                var pillarAssessments = _context.Assessments
-                    .Include(x=>x.PillarAssessments)
-                    .ThenInclude(x=>x.Responses)
-                    .Where(a => a.UserCountryMappingID == userCountryMappingID && a.IsActive && a.UpdatedAt.Year == year)
-                    .SelectMany(x => x.PillarAssessments).ToList();
 
                 var byteArray = MakePillarSheetClientReadable_Updated(nextPillars, pillarAssessments, userCountryMappingID, fileName);
 
@@ -853,21 +867,11 @@ namespace HealthIntelligence.Services
 
             return safeName;
         }
-        public async Task<ResultResponseDto<List<QuestionsByUserPillarsResponsetDto>>> GetQuestionsHistoryByPillar(GetCountryPillarHistoryRequestDto requestDto)
+        public async Task<ResultResponseDto<List<QuestionsByUserPillarsResponsetDto>>> GetQuestionsHistoryByPillar(GetCountryPillarHistoryRequestDto requestDto, UserRole userRole)
         {
             try
             {
                 var year = requestDto.UpdatedAt.Year;
-
-                var user = await _context.Users
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.UserID == requestDto.UserID);
-
-                if (!requestDto.PillarID.HasValue || user == null)
-                {
-                    return ResultResponseDto<List<QuestionsByUserPillarsResponsetDto>>
-                        .Failure(new[] { "Invalid request" });
-                }
 
                 // =========================
                 // 1. PILLAR + QUESTIONS
@@ -893,7 +897,7 @@ namespace HealthIntelligence.Services
                                 && !x.IsDeleted
                                 && (x.AssignedByUserId == requestDto.UserID
                                     || x.UserID == requestDto.UserID
-                                    || user.Role == UserRole.Admin))
+                                    || userRole == UserRole.Admin))
                     .AsNoTracking()
                     .ToListAsync();
 
@@ -1038,7 +1042,9 @@ namespace HealthIntelligence.Services
             CountryPillerRequestDto request, int userId)
         {
             try
-            {
+            {                
+                var year = DateTime.Now.Year;
+
                 var userCountryMappings = await _context.UserCountryMappings
                     .FirstOrDefaultAsync(x => x.UserCountryMappingID == request.UserCountryMappingID
                                            && x.UserID == userId
@@ -1046,35 +1052,35 @@ namespace HealthIntelligence.Services
 
                 if (userCountryMappings == null)
                     return ResultResponseDto<GetPillarQuestionByCountryResponse>.Failure(
-                        new[] { "User country mapping not found." });
+                        new[] { "Invalid request." });
 
-                var year = DateTime.Now.Year;
+                Expression<Func<Assessment, bool>> predicate = a =>
+                    a.UserCountryMappingID == request.UserCountryMappingID &&
+                    a.UpdatedAt.Year == year &&
+                    a.IsActive;
 
-                // Load assessment with related data
                 var assessment = await _context.Assessments
                     .Include(x => x.PillarAssessments)
                         .ThenInclude(x => x.Responses)
-                    .Where(a => a.UserCountryMappingID == request.UserCountryMappingID
-                             && a.UpdatedAt.Year == year
-                             && a.IsActive)
-                    .FirstOrDefaultAsync();
-                var sql = _context.Assessments
-                    .Include(x => x.PillarAssessments)
-                        .ThenInclude(x => x.Responses)
-                    .Where(a => a.UserCountryMappingID == request.UserCountryMappingID
-                             && a.UpdatedAt.Year == year
-                             && a.IsActive).ToQueryString();
+                    .FirstOrDefaultAsync(predicate);
 
-                var answeredPillarIds = assessment?.PillarAssessments
+                var answeredPillarIds =
+                    assessment?.PillarAssessments
                      .OrderByDescending(r => r.Responses
                      .Select(resp => (DateTime?)resp.UpdatedAt).Max())
                      .Select(r => r.PillarID)
                      .ToList() ?? new List<int>();
 
+
                 int pillarCount = (await _commonService.GetPillars()).Count;
 
-                if (assessment != null && answeredPillarIds.Count == pillarCount && !request.PillarID.HasValue)
+                if(assessment?.AssessmentPhase == AssessmentPhase.Completed)
+                {
+                    request.PillarID = ROSEWPillarID;
+                }
+                else if (assessment != null && answeredPillarIds.Count == pillarCount && !request.PillarID.HasValue)
                     request.PillarID = assessment.PillarAssessments.First().PillarID;
+
                 if (!request.PillarID.HasValue)
                 {
                     if (answeredPillarIds.Any())
