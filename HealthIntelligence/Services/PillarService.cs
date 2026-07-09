@@ -941,6 +941,7 @@ namespace HealthIntelligence.Services
                         // ? Insert AI row (always)
                         if (aiData.TryGetValue(p.PillarID, out var aiPillar))
                         {
+                            aiPillar.TotalQuestion = p.TotalQuestion;
                             users.Insert(0, aiPillar);
                         }
                         else

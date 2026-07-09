@@ -545,7 +545,7 @@ namespace HealthIntelligence.Common.Implementation
         {
             container
                 .Background(ReportThemeColors.White)
-                .Border(1).BorderColor(ReportThemeColors.BorderBlue)
+                .Border(1).BorderColor(ReportThemeColors.BorderGreen)
                 .Padding(4)
                 .Column(col =>
                 {
@@ -710,7 +710,7 @@ namespace HealthIntelligence.Common.Implementation
         {
             container
                 .Background(ReportThemeColors.White)
-                .Border(1).BorderColor(ReportThemeColors.BorderBlue)
+                .Border(1).BorderColor(ReportThemeColors.BorderGreen)
                 .Padding(10)
                 .Column(col =>
                 {
@@ -762,7 +762,7 @@ namespace HealthIntelligence.Common.Implementation
 
             container
                 .Background(ReportThemeColors.White)
-                .Border(1).BorderColor(ReportThemeColors.BorderBlue)
+                .Border(1).BorderColor(ReportThemeColors.BorderGreen)
                 .Padding(10)
                 .Column(col =>
                 {

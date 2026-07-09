@@ -1518,10 +1518,14 @@ namespace HealthIntelligence.Services
 
                     _context.Assessments.Add(existingAssessment);
                 }
+                else if(existingAssessment.AssessmentPhase == AssessmentPhase.Completed)
+                {
+                    return ResultResponseDto<string>.Failure(new[] { "Permission from the Admin is required to edit this assessment." });
+                }
                 else
                 {
                     existingAssessment.UpdatedAt = currentDate;
-                    existingAssessment.AssessmentPhase =  AssessmentPhase.InProgress;
+                    existingAssessment.AssessmentPhase = AssessmentPhase.InProgress;
                 }
 
                 var questions = await _context.Questions.Include(x => x.QuestionOptions).ToDictionaryAsync(q => q.QuestionID, q => q);

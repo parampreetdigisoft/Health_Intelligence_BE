@@ -223,24 +223,30 @@ namespace HealthIntelligence.Services
             {
                 var newQuestions = new List<Question>();
 
+                var pillarQuestionsList = await _context.Questions
+                        .Where(x => payload.Questions.Select(q=>q.PillarID).Contains(x.PillarID) && !x.IsDeleted)
+                        .ToListAsync();
+
+                var i = 1;
+
                 foreach (var q in payload.Questions)
                 {
-                    var pillarQuestions = await _context.Questions
+                    var pillarQuestions = pillarQuestionsList
                         .Where(x => x.PillarID == q.PillarID && !x.IsDeleted)
-                        .ToListAsync();
+                        .ToList();
                     if (pillarQuestions.Any(x => x.QuestionText == q.QuestionText && x.PillarID == q.PillarID))
                     {
                         continue;
                     }
 
-                    var totalQuestions = pillarQuestions.Count;
+                    var displayOrder = pillarQuestions.Count + i++;
 
                     var question = new Question
                     {
                         IsDeleted = false,
                         QuestionText = q.QuestionText,
                         PillarID = q.PillarID,
-                        DisplayOrder = totalQuestions + 1,
+                        DisplayOrder = displayOrder,
                         QuestionOptions = new List<QuestionOption>()
                     };
 
