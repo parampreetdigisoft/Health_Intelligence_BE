@@ -295,14 +295,14 @@ namespace HealthIntelligence.Services
                                 .Distinct()
                                 .ToListAsync();
                 }
-                var pillars = await _context.Pillars.Where(x=>x.IsActive && !x.IsDeleted).Select(x=>new
+                var pillars = (await _commonService.GetPillars()).Select(x=>new
                 {
                     PillarID = x.PillarID,
                     PillarName = x.PillarName,
                     DisplayOrder = x.DisplayOrder,
                     ImagePath = x.ImagePath,
-                    TotalQuestions = x.Questions.Count(x=>!x.IsDeleted)
-                }).ToListAsync();
+                    TotalQuestions = x.QuestionCount
+                }).ToList();
 
                 var result = pillars
                 .GroupJoin(
@@ -546,6 +546,7 @@ namespace HealthIntelligence.Services
                         ScoreProgress = yearGroup.Average(x => x.AIProgress ?? 0),
 
                         Pillars = yearGroup
+                            .Where(x=>!x.Pillar.IsDeleted)
                             .GroupBy(p => new
                             {
                                 p.PillarID,

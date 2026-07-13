@@ -324,7 +324,7 @@ namespace HealthIntelligence.Services
                             (country.CountryID, pillar.PillarID),
                             out var score))
                         {
-                            country.ScoreProgress = score;
+                            country.ScoreProgress = Math.Round(score,2);
                         }
                     }
 
@@ -831,7 +831,7 @@ namespace HealthIntelligence.Services
 
                 var response = new ROSEWPublicDashboardDto
                 {
-                    Score = overAllScore ?? 0m,
+                    Score = Math.Round(overAllScore ?? 0m, 2),
                     UpdatedAt = spResults.Max(x => x.AiUpdatedAt),
                     OverallCondition = interpretations.FirstOrDefault(i => i.MaxRange >= (overAllScore ?? 0m) && i.MinRange <= (overAllScore ?? 0m))?.Condition ?? "Moderate Stress (Watch)",
                     Countries = countries,

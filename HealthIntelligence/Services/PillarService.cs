@@ -20,7 +20,7 @@ namespace HealthIntelligence.Services
         private readonly IAppLogger _appLogger;
         private readonly Download _download;
         private readonly ICommonService _commonService;
-
+        int ROSEWPillarID = 22;
         public PillarService(ApplicationDbContext context, IAppLogger appLogger, Download download, ICommonService commonService)
         {
             _context = context;
@@ -283,6 +283,10 @@ namespace HealthIntelligence.Services
         {
             try
             {
+                if(id == ROSEWPillarID)
+                {
+                    return ResultResponseDto<bool>.Failure(new[] { "You cannot delete the ROSEW pillar." });
+                }
                 var pillar = await _context.Pillars.FindAsync(id);
                 if (pillar == null)
                     return ResultResponseDto<bool>.Failure(new[] { "Pillar not found." });
