@@ -31,5 +31,9 @@ namespace HealthIntelligence.IServices
         Task<ResultResponseDto<List<GetCountryPillarDocumentResponseDto>>> GetAICountryPillarDocuments(AiCountryPillarDocumentRequestDto request,int userID, UserRole userRole);
         Task<ResultResponseDto<string>> DeleteDocument(DeleteCountryDocumentRequestDto request, int userID, UserRole userRole);
         Task<FileResult> DownloadDocument(int countryDocumentID, int userID, UserRole userRole);
+        Task<ResultResponseDto<bool>> UpdateAICountryScore(UpdateAICountryScoreDto dto, int userID, UserRole userRole);
+        Task<ResultResponseDto<bool>> UpdateAIPillarScore(UpdateAIPillarScoreDto dto, int userID, UserRole userRole);
+        Task<ResultResponseDto<bool>> UpdateAIDataSourceCitation(UpdateAIDataSourceCitationDto dto, int userID, UserRole userRole);
+        Task<ResultResponseDto<bool>> UpdateAIEstimatedQuestionScore(UpdateAIEstimatedQuestionScoreDto dto, int userID, UserRole userRole);
     }
 }

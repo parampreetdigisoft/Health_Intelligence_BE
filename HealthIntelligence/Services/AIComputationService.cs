@@ -98,7 +98,7 @@ namespace HealthIntelligence.Services
 
                 foreach (var c in result.Data)
                 {                 
-                    c.EvidenceSummary = CommonService.InitailLineOfExecutiveSummery(c.EvidenceSummary, c.ImmediateSituationSummary, c.AIProgress, c.CountryName, pillarCount, totalValidKpis);
+                    c.CountryScoreSummery = CommonService.CountryScoreSummery(c.AIProgress, c.CountryName, pillarCount, totalValidKpis);
                 }
 
                 if (userRole != UserRole.CountryUser)
@@ -1476,7 +1476,7 @@ namespace HealthIntelligence.Services
 
                     if (!validCity)
                     {
-                        return ResultResponseDto<string>.Failure(new[] { "This assessment can’t be imported because the selected user hasn’t been assigned to this country yet." });
+                        return ResultResponseDto<string>.Failure(new[] { "This assessment can't be imported because the selected user hasnï¿½t been assigned to this country yet." });
                     }
                 }
 
@@ -1495,7 +1495,7 @@ namespace HealthIntelligence.Services
                 var userCountryMapping = await _context.UserCountryMappings.FirstOrDefaultAsync(x => !x.IsDeleted && x.CountryID == r.CountryID && x.UserID == r.TransferToUserID);
 
                 if (userCountryMapping == null)
-                    return ResultResponseDto<string>.Failure(new[] { "This assessment can’t be imported because the selected user hasn’t been assigned to this country yet." });
+                    return ResultResponseDto<string>.Failure(new[] { "This assessment can't be imported because the selected user hasnï¿½t been assigned to this country yet." });
 
 
                 // Load existing assessment for that user/country/year (with pillars/responses)
@@ -1971,6 +1971,232 @@ namespace HealthIntelligence.Services
         }
 
         #endregion ai document
+
+        #region ai score manual edit
+
+        private async Task<bool> CanUserEditAiDataAsync(int userID, UserRole userRole, int countryID)
+        {
+            if (userRole == UserRole.Admin)
+                return true;
+
+            if (userRole == UserRole.Analyst)
+            {
+                return await _context.UserCountryMappings
+                    .AnyAsync(x => !x.IsDeleted && x.UserID == userID && x.CountryID == countryID);
+            }
+
+            return false;
+        }
+
+        private static decimal? CalculateDiscrepancy(decimal? evaluatorScore, decimal? aiProgress)
+        {
+            if (!evaluatorScore.HasValue && !aiProgress.HasValue)
+                return null;
+
+            return Math.Abs((evaluatorScore ?? 0) - (aiProgress ?? 0));
+        }
+
+        public async Task<ResultResponseDto<bool>> UpdateAICountryScore(UpdateAICountryScoreDto dto, int userID, UserRole userRole)
+        {
+            try
+            {
+                if (!await CanUserEditAiDataAsync(userID, userRole, dto.CountryID))
+                    return ResultResponseDto<bool>.Failure(new[] { "You do not have permission to edit this country data." });
+
+                var entity = await _context.AICountryScores
+                    .FirstOrDefaultAsync(x => x.CountryID == dto.CountryID && x.Year == dto.Year);
+
+                if (entity == null)
+                    return ResultResponseDto<bool>.Failure(new[] { "Country score record not found." });
+
+                entity.ConfidenceLevel = dto.ConfidenceLevel ?? entity.ConfidenceLevel;
+                entity.EvidenceSummary = dto.EvidenceSummary ?? entity.EvidenceSummary;
+                entity.ImmediateSituationSummary = dto.ImmediateSituationSummary ?? entity.ImmediateSituationSummary;
+                entity.KeyDevelopments = dto.KeyDevelopments;
+                entity.CriticalRisks = dto.CriticalRisks;
+                entity.Gaps = dto.Gaps;
+                entity.StructuralEvidence = dto.StructuralEvidence;
+                entity.OperationalEvidence = dto.OperationalEvidence;
+                entity.OutcomeEvidence = dto.OutcomeEvidence;
+                entity.PerceptionEvidence = dto.PerceptionEvidence;
+                entity.TemporalScope = dto.TemporalScope;
+                entity.DistortionScreening = dto.DistortionScreening;
+                entity.PoliticalShock = dto.PoliticalShock;
+                entity.EconomicShock = dto.EconomicShock;
+                entity.NarrativeShock = dto.NarrativeShock;
+                entity.StressScoreAdjustment = dto.StressScoreAdjustment;
+                entity.InequalityAdjustment = dto.InequalityAdjustment;
+                entity.OpacityRisk = dto.OpacityRisk;
+                entity.NonCompensationNote = dto.NonCompensationNote;
+                entity.RelationalIntegrity = dto.RelationalIntegrity;
+                entity.InstitutionalCapacity = dto.InstitutionalCapacity;
+                entity.PrimarySource = dto.PrimarySource;
+                entity.CrossPillarPatterns = dto.CrossPillarPatterns;
+                entity.EquityAssessment = dto.EquityAssessment;
+                entity.ConflictRiskOutlook = dto.ConflictRiskOutlook;
+                entity.StrategicRecommendation = dto.StrategicRecommendation;
+                entity.DataTransparencyNote = dto.DataTransparencyNote;
+                entity.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+                return ResultResponseDto<bool>.Success(true, new[] { "Country AI data updated successfully." });
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("Error in UpdateAICountryScore", ex);
+                return ResultResponseDto<bool>.Failure(new[] { "Failed to update country AI data." });
+            }
+        }
+
+        public async Task<ResultResponseDto<bool>> UpdateAIPillarScore(UpdateAIPillarScoreDto dto, int userID, UserRole userRole)
+        {
+            try
+            {
+                var entity = await _context.AIPillarScores
+                    .Include(x => x.DataSourceCitations)
+                    .FirstOrDefaultAsync(x => x.PillarScoreID == dto.PillarScoreID);
+
+                if (entity == null)
+                    return ResultResponseDto<bool>.Failure(new[] { "Pillar score record not found." });
+
+                if (!await CanUserEditAiDataAsync(userID, userRole, entity.CountryID))
+                    return ResultResponseDto<bool>.Failure(new[] { "You do not have permission to edit this pillar data." });
+
+                entity.ConfidenceLevel = dto.ConfidenceLevel;
+                entity.EvidenceSummary = dto.EvidenceSummary;
+                entity.StructuralEvidence = dto.StructuralEvidence;
+                entity.OperationalEvidence = dto.OperationalEvidence;
+                entity.OutcomeEvidence = dto.OutcomeEvidence;
+                entity.PerceptionEvidence = dto.PerceptionEvidence;
+                entity.TemporalScope = dto.TemporalScope;
+                entity.DistortionScreening = dto.DistortionScreening;
+                entity.RelationalIntegrity = dto.RelationalIntegrity;
+                entity.StressPoliticalShock = dto.StressPoliticalShock;
+                entity.StressEconomicShock = dto.StressEconomicShock;
+                entity.StressNarrativeShock = dto.StressNarrativeShock;
+                entity.StressScoreAdjustment = dto.StressScoreAdjustment;
+                entity.InequalityAdjustment = dto.InequalityAdjustment;
+                entity.OpacityRisk = dto.OpacityRisk;
+                entity.NonCompensationNote = dto.NonCompensationNote;
+                entity.GeographicEquityNote = dto.GeographicEquityNote;
+                entity.InstitutionalAssessment = dto.InstitutionalAssessment;
+                entity.DataGapAnalysis = dto.DataGapAnalysis;
+                entity.RedFlag = dto.RedFlag;
+                entity.UpdatedAt = DateTime.UtcNow;
+
+                if (dto.DataSourceCitations != null && entity.DataSourceCitations != null)
+                {
+                    foreach (var citationDto in dto.DataSourceCitations)
+                    {
+                        var citation = entity.DataSourceCitations.FirstOrDefault(x => x.CitationID == citationDto.CitationID);
+                        if (citation == null)
+                            continue;
+
+                        citation.SourceType = citationDto.SourceType ?? citation.SourceType;
+                        citation.SourceName = citationDto.SourceName ?? citation.SourceName;
+                        citation.SourceURL = citationDto.SourceURL ?? citation.SourceURL;
+                        citation.DataYear = citationDto.DataYear;
+                        citation.DataExtract = citationDto.DataExtract ?? citation.DataExtract;
+                        citation.TrustLevel = citationDto.TrustLevel;
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                return ResultResponseDto<bool>.Success(true, new[] { "Pillar AI data updated successfully." });
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("Error in UpdateAIPillarScore", ex);
+                return ResultResponseDto<bool>.Failure(new[] { "Failed to update pillar AI data." });
+            }
+        }
+
+        public async Task<ResultResponseDto<bool>> UpdateAIDataSourceCitation(UpdateAIDataSourceCitationDto dto, int userID, UserRole userRole)
+        {
+            try
+            {
+                var entity = await _context.AIDataSourceCitations
+                    .Include(x => x.PillarScore)
+                    .FirstOrDefaultAsync(x => x.CitationID == dto.CitationID);
+
+                if (entity?.PillarScore == null)
+                    return ResultResponseDto<bool>.Failure(new[] { "Citation record not found." });
+
+                if (!await CanUserEditAiDataAsync(userID, userRole, entity.PillarScore.CountryID))
+                    return ResultResponseDto<bool>.Failure(new[] { "You do not have permission to edit this citation." });
+
+                entity.SourceType = dto.SourceType ?? entity.SourceType;
+                entity.SourceName = dto.SourceName ?? entity.SourceName;
+                entity.SourceURL = dto.SourceURL ?? entity.SourceURL;
+                entity.DataYear = dto.DataYear;
+                entity.DataExtract = dto.DataExtract ?? entity.DataExtract;
+                entity.TrustLevel = dto.TrustLevel;
+
+                await _context.SaveChangesAsync();
+                return ResultResponseDto<bool>.Success(true, new[] { "Citation updated successfully." });
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("Error in UpdateAIDataSourceCitation", ex);
+                return ResultResponseDto<bool>.Failure(new[] { "Failed to update citation." });
+            }
+        }
+
+        public async Task<ResultResponseDto<bool>> UpdateAIEstimatedQuestionScore(UpdateAIEstimatedQuestionScoreDto dto, int userID, UserRole userRole)
+        {
+            try
+            {
+                if (!await CanUserEditAiDataAsync(userID, userRole, dto.CountryID))
+                    return ResultResponseDto<bool>.Failure(new[] { "You do not have permission to edit this question data." });
+
+                var entity = await _context.AIEstimatedQuestionScores
+                    .FirstOrDefaultAsync(x =>
+                        x.CountryID == dto.CountryID &&
+                        x.PillarID == dto.PillarID &&
+                        x.QuestionID == dto.QuestionID &&
+                        x.Year == dto.Year);
+
+                if (entity == null)
+                    return ResultResponseDto<bool>.Failure(new[] { "Question score record not found." });
+
+                entity.AIScore = dto.AIScore;
+                entity.Discrepancy = CalculateDiscrepancy(entity.EvaluatorScore, dto.AIScore);
+                entity.ConfidenceLevel = dto.ConfidenceLevel;
+                entity.SourcesConsulted = dto.SourcesConsulted;
+                entity.EvidenceSummary = dto.EvidenceSummary;
+                entity.StructuralEvidence = dto.StructuralEvidence;
+                entity.OperationalEvidence = dto.OperationalEvidence;
+                entity.OutcomeEvidence = dto.OutcomeEvidence;
+                entity.PerceptionEvidence = dto.PerceptionEvidence;
+                entity.TemporalScope = dto.TemporalScope;
+                entity.DistortionScreening = dto.DistortionScreening;
+                entity.RelationalDependencies = dto.RelationalDependencies;
+                entity.StressPoliticalShock = dto.StressPoliticalShock;
+                entity.StressEconomicShock = dto.StressEconomicShock;
+                entity.StressNarrativeShock = dto.StressNarrativeShock;
+                entity.StressOverallResilienceShock = dto.StressOverallResilienceShock;
+                entity.InequalityAdjustment = dto.InequalityAdjustment;
+                entity.OpacityRisk = dto.OpacityRisk;
+                entity.RedFlag = dto.RedFlag;
+                entity.SourceType = dto.SourceType;
+                entity.SourceName = dto.SourceName;
+                entity.SourceURL = dto.SourceURL;
+                entity.SourceDataYear = dto.SourceDataYear;
+                entity.SourceHierarchyLevel = dto.SourceHierarchyLevel;
+                entity.SourceDataExtract = dto.SourceDataExtract;
+                entity.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+                return ResultResponseDto<bool>.Success(true, new[] { "Question AI data updated successfully." });
+            }
+            catch (Exception ex)
+            {
+                await _appLogger.LogAsync("Error in UpdateAIEstimatedQuestionScore", ex);
+                return ResultResponseDto<bool>.Failure(new[] { "Failed to update question AI data." });
+            }
+        }
+
+        #endregion ai score manual edit
 
         #endregion
     }
