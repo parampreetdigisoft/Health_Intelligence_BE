@@ -343,12 +343,7 @@ namespace HealthIntelligence.Services
                    .Include(p => p.Questions.Where(x => !x.IsDeleted))
                    .ThenInclude(q => q.QuestionOptions)
                    .FirstOrDefaultAsync();
-
-                    var summitedPillar = (await _commonService.GetPillars())
-                        .Where(p => !answeredPillarIds.Contains(p.PillarID))
-                        .OrderBy(p => p.DisplayOrder)
-                        .FirstOrDefault();
-
+                    
                     if (selectPillar == null || selectPillar?.Questions == null)
                     {
                         return ResultResponseDto<GetPillarQuestionByCountryResponse>.Failure(new[] { "You have submitted assessment for this country" });
@@ -360,7 +355,8 @@ namespace HealthIntelligence.Services
                         editAssessmentResponse = assessment.PillarAssessments
                         .Where(a => a.PillarID == request.PillarID)
                         .SelectMany(x => x.Responses)
-                        .ToDictionary(x => x.QuestionID);
+                        .GroupBy(x=>x.QuestionID)
+                        .ToDictionary(x => x.Key , x=>x.First());
                     }
 
                     // Project questions
@@ -399,7 +395,7 @@ namespace HealthIntelligence.Services
                         PillarID = selectPillar.PillarID,
                         Description = selectPillar.Description,
                         DisplayOrder = selectPillar.DisplayOrder,
-                        SubmittedPillarDisplayOrder = answeredPillarIds.Count == pillarCount ? pillarCount : summitedPillar?.DisplayOrder ?? selectPillar.DisplayOrder,
+                        SubmittedPillarDisplayOrder = selectPillar.DisplayOrder,
                         Questions = questions
                     };
                     return ResultResponseDto<GetPillarQuestionByCountryResponse>.Success(result, new[] { "get questions successfully" });
