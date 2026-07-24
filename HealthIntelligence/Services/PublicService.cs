@@ -684,7 +684,7 @@ namespace HealthIntelligence.Services
                         cachedResult,
                         new List<string>
                         {
-                            "Pillar live signals fetched successfully from cache."
+                            "Domain live signals fetched successfully from cache."
                         }
                     );
                 }
@@ -707,7 +707,7 @@ namespace HealthIntelligence.Services
                 foreach (var pillarCard in result.Result.Pillars)
                 {
                     var matched = pillarLookup.FirstOrDefault(p => p.PillarID == pillarCard.PillarId);
-                    pillarCard.PillarName = matched?.PillarName ?? $"Pillar {pillarCard.PillarId}";
+                    pillarCard.PillarName = matched?.PillarName ?? $"Domain {pillarCard.PillarId}";
                     pillarCard.ImagePath = matched?.ImagePath ?? "";
                 }
 
@@ -734,7 +734,7 @@ namespace HealthIntelligence.Services
                     result.Result,
                     new List<string>
                     {
-                        "Pillar live signals fetched successfully."
+                        "Domain live signals fetched successfully."
                     }
                 );
             }

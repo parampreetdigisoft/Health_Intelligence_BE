@@ -39,10 +39,9 @@ namespace HealthIntelligence.Common.Implementation
 
         #endregion
 
-
         public static string CountryScoreSummery(decimal? progress,string? countryName = "The country", int pillarCount = 23, int kpiCount = 37)
         {
-            var evidenceSummaryStaringLine = $"{countryName ?? "The country"} records an overall AHI score of {progress ?? 0}, reflecting performance across {pillarCount} pillars and {kpiCount} KPIs.";
+            var evidenceSummaryStaringLine = $"{countryName ?? "The country"} records an overall AHI score of {progress ?? 0}, reflecting performance across {pillarCount} domains and {kpiCount} KPIs.";
 
             return evidenceSummaryStaringLine;
         }
@@ -55,7 +54,7 @@ namespace HealthIntelligence.Common.Implementation
         {
             immediateSituationSummary = immediateSituationSummary ?? "";
 
-            var evidenceSummaryStaringLine= $"{countryName ?? "The country"} records an overall AHI score of {progress ?? 0}, reflecting performance across {pillarCount} pillars and {kpiCount} KPIs.";
+            var evidenceSummaryStaringLine= $"{countryName ?? "The country"} records an overall AHI score of {progress ?? 0}, reflecting performance across {pillarCount} domains and {kpiCount} KPIs.";
 
             return immediateSituationSummary + "\n\n " + evidenceSummaryStaringLine + " " + evidenceSummary;
         }

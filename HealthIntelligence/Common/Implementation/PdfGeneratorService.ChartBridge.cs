@@ -130,7 +130,7 @@ namespace HealthIntelligence.Common.Implementation
             float avg   = (float)data.Average(x => x.Value ?? 0);
 
             using var title = new SKPaint { Color = SKColor.Parse(ReportThemeColors.Text), TextSize = 10f, IsAntialias = true, TextAlign = SKTextAlign.Center, FakeBoldText = true };
-            c.DrawText("Pillar Performance", cx, 14f, title);
+            c.DrawText("Domain Performance", cx, 14f, title);
 
             for (int i = 0; i < data.Count; i++)
             {
@@ -278,7 +278,7 @@ namespace HealthIntelligence.Common.Implementation
             foreach (var pt in mainPts) c.DrawCircle(pt.X, pt.Y, 4f, new SKPaint { Color = SKColor.Parse(pal[0]), IsAntialias = true });
         }
 
-        // ── Pillar line chart ─────────────────────────────────────────────────
+        // ── Domain line chart ─────────────────────────────────────────────────
         internal static void DrawPillarLineChartCanvas(
             SKCanvas c, QPDF.Size s,
             List<int> years, List<PeerCountryYearHistoryDto> history,

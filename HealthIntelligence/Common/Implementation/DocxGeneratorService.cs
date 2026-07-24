@@ -209,10 +209,10 @@ namespace HealthIntelligence.Common.Implementation
             AppendCountryHeader(mainPart, countryDetails, null);          
             AddCountrySummarySection(body, mainPart, countryDetails, userRole);
 
-            // ── 3. Pillar Radial Overview ────────────────────────────────────────────
+            // ── 3. Domain Radial Overview ────────────────────────────────────────────
             if (pillars.Any())
             {
-                AppendCountryHeader(mainPart, countryDetails, "Pillar Performance Overview");
+                AppendCountryHeader(mainPart, countryDetails, "Domain Performance Overview");
                 AddPillarOverviewSection(body, mainPart, pillarChartItems);
             }
 
@@ -223,7 +223,7 @@ namespace HealthIntelligence.Common.Implementation
                 AddPerformanceTrendSections(body, mainPart, peerCountries, countryDetails, userRole);
             }
 
-            // ── 5. Per-Pillar Detail ─────────────────────────────────────────────────
+            // ── 5. Per-Domain Detail ─────────────────────────────────────────────────
             var accessiblePillars = pillars.Where(x =>
                 (x.IsAccess && userRole == UserRole.CountryUser) || userRole != UserRole.CountryUser).ToList();
 
@@ -438,7 +438,7 @@ namespace HealthIntelligence.Common.Implementation
             }
 
             // ─────────────────────────────────────────────
-            // Worst Pillar + Region Rank
+            // Worst Domain + Region Rank
             // ─────────────────────────────────────────────
             if (worst != null)
             {
@@ -584,7 +584,7 @@ namespace HealthIntelligence.Common.Implementation
                 new Shading { Val = ShadingPatternValues.Clear, Color = "auto", Fill = "FFFFFF" }));
 
             // ── Heading ──
-            cell.Append(CenteredBoldPara("Pillar Performance Radar", "003D44", "20"));
+            cell.Append(CenteredBoldPara("Domain Performance Radar", "003D44", "20"));
 
             // ── Radar image ──
             cell.Append(EmbedImage(mainPart, radarPng, imgEmuW, imgEmuH));
@@ -627,7 +627,7 @@ namespace HealthIntelligence.Common.Implementation
                         new InsideHorizontalBorder { Val = BorderValues.None },
                         new InsideVerticalBorder { Val = BorderValues.Single, Color = "E4E4E4", Size = 4 })),
                 new TableRow(
-                    CountCell(pillarCount.ToString(), "Pillars"),
+                    CountCell(pillarCount.ToString(), "Domains"),
                     CountCell(kpiCount.ToString(), "KPIs")));
         }
 
@@ -643,31 +643,7 @@ namespace HealthIntelligence.Common.Implementation
                         new FontSize { Val = halfPtSize }),
                     new Text(text)));
 
-
-        /// Colored badge paragraph (best / worst pillars)
-        private static Paragraph BadgePara(
-            string text, string bgHex, string arrowHex, string textHex)
-        {
-            var shading = new Shading
-            {
-                Val = ShadingPatternValues.Clear,
-                Color = "auto",
-                Fill = bgHex
-            };
-            return new Paragraph(
-                new ParagraphProperties(
-                    new SpacingBetweenLines { Before = "40", After = "0" },
-                    new Indentation { Left = "80", Right = "80" },
-                    shading),
-                new Run(new RunProperties(
-                        new Color { Val = arrowHex },
-                        new FontSize { Val = "16" }),
-                    new Text(text.Substring(0, 2))),
-                new Run(new RunProperties(
-                        new Color { Val = textHex },
-                        new FontSize { Val = "16" }),
-                    new Text(text.Substring(2)) { Space = SpaceProcessingModeValues.Preserve }));
-        }
+       
 
         /// TableCellBorders — all None
         private static TableCellBorders CellNoBorder()
@@ -762,7 +738,7 @@ namespace HealthIntelligence.Common.Implementation
             // =====================================================
             //body.AppendChild(PageBreak());
 
-            AppendContentSection(body, "Cross-Pillar System Dynamics", data.CrossPillarPatterns, "6e9688");
+            AppendContentSection(body, "Cross-Domain System Dynamics", data.CrossPillarPatterns, "6e9688");
             AppendContentSection(body, "Institutional Capacity Assessment", data.InstitutionalCapacity, "0d8057");
 
             //body.AppendChild(PageBreak());
@@ -1987,7 +1963,7 @@ namespace HealthIntelligence.Common.Implementation
                 new LeftBorder { Val = BorderValues.None },
                 new RightBorder { Val = BorderValues.None });
 
-        // ── Pillar footer band (avg, best, worst) ────────────────────────────
+        // ── Domain footer band (avg, best, worst) ────────────────────────────
 
         private static Table CreatePillarFooterTable(List<PillarChartItem> data)
         {
@@ -2072,8 +2048,8 @@ namespace HealthIntelligence.Common.Implementation
 
             body.AppendChild(PageBreak());
 
-            // Pillar trend
-            AppendCountryHeader(mainPart, countryDetails, "Pillar-Level Trend Analysis");
+            // Domain trend
+            AppendCountryHeader(mainPart, countryDetails, "Domain-Level Trend Analysis");
             if (main != null)
             {
                 var pillars = (main.CountryHistory ?? new())
@@ -2604,7 +2580,7 @@ namespace HealthIntelligence.Common.Implementation
             return table;
         }
 
-        // ── Pillar heatmap table ──────────────────────────────────────────────
+        // ── Domain heatmap table ──────────────────────────────────────────────
 
         private static Table CreatePillarHeatmapTable(
             List<int> allYears,
@@ -2623,7 +2599,7 @@ namespace HealthIntelligence.Common.Implementation
                     new Shading { Val = ShadingPatternValues.Clear, Fill = "003D44" }),
                 new Paragraph(new Run(
                     new RunProperties(new Bold(), new Color { Val = White }, new FontSize { Val = "16" }),
-                    new Text("Pillar")))));
+                    new Text("Domain")))));
             foreach (var yr in allYears)
                 hRow.AppendChild(new TableCell(
                     new TableCellProperties(

@@ -227,7 +227,7 @@ namespace HealthIntelligence.Services
                     _download.InsertAnalyticalLayerResults(assessment.UserCountryMapping.CountryID);
                 }
 
-                return ResultResponseDto<string>.Success("", new[] { "Pillar saved successfully" }, 1);
+                return ResultResponseDto<string>.Success("", new[] { "Domain saved successfully" }, 1);
             }
             catch (Exception ex)
             {

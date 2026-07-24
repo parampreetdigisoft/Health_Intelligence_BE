@@ -512,7 +512,7 @@ namespace HealthIntelligence.Services
                 title.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
                 ws.Row(1).Height = 26;
 
-                // -- Row 2 : Pillar name -------------------------------
+                // -- Row 2 : Domain name -------------------------------
                 var pillarTitle = ws.Range("A2:D2").Merge();
                 pillarTitle.Value = $"Pillar: {pillar.PillarName}";
                 pillarTitle.Style.Font.Bold = true;
@@ -543,7 +543,7 @@ namespace HealthIntelligence.Services
                 // -- Row 5 : thin gap ----------------------------------
                 ws.Row(5).Height = 4;
 
-                // -- Row 6 : Pillar description -------------------------
+                // -- Row 6 : Domain description -------------------------
                 var desc = ws.Range("A6:D6").Merge();
                 desc.Value = CleanHtml(pillar.Description);
                 desc.Style.Fill.BackgroundColor = ColDescBg;
@@ -888,7 +888,7 @@ namespace HealthIntelligence.Services
                 if (pillar == null)
                 {
                     return ResultResponseDto<List<QuestionsByUserPillarsResponsetDto>>
-                        .Failure(new[] { "Pillar not found" });
+                        .Failure(new[] { "Domain not found" });
                 }
 
                 // =========================

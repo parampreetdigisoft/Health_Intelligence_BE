@@ -1053,11 +1053,11 @@ namespace HealthIntelligence.Services
             }
             else
             {
-                ws.Cell(row, 5).Value = "Pillar Name";
+                ws.Cell(row, 5).Value = "Domain Name";
                 ws.Cell(row, 6).Value = "Total Score";
                 ws.Cell(row, 7).Value = "Total Answers";
-                ws.Cell(row, 8).Value = "Evaluated Pillar Score";
-                ws.Cell(row, 9).Value = "AI Pillar Score";
+                ws.Cell(row, 8).Value = "Evaluated Domain Score";
+                ws.Cell(row, 9).Value = "AI Domain Score";
                 ws.Cell(row, 10).Value = "Evaluated - AI Country Score";
             }
 

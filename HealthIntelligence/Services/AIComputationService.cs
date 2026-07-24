@@ -53,7 +53,7 @@ namespace HealthIntelligence.Services
         {
             var r = await _context.AITrustLevels.ToListAsync();
 
-            return ResultResponseDto<List<AITrustLevel>>.Success(r, new[] { "Pillar get successfully" });
+            return ResultResponseDto<List<AITrustLevel>>.Success(r, new[] { "Domain get successfully" });
 
         }
         public async Task<PaginationResponse<AiCountrySummeryDto>> GetAICountries(AiCountrySummeryRequestDto request, int userID, UserRole userRole)
@@ -400,7 +400,7 @@ namespace HealthIntelligence.Services
                     Pillars = result
                 };
 
-                var resposne = ResultResponseDto<AiCountryPillarResponseDto>.Success(finalResutl, new[] { "Pillar get successfully", });
+                var resposne = ResultResponseDto<AiCountryPillarResponseDto>.Success(finalResutl, new[] { "Domain get successfully", });
 
                 return resposne;
             }
@@ -598,7 +598,7 @@ namespace HealthIntelligence.Services
                                          .DefaultIfEmpty(0)
                                          .Sum()/pillarCount, 2),
 
-                            // Pillar level score
+                            // Domain level score
                             Pillars = pillars
                                 .Select(p => new PeerCountryPillarHistoryReportDto
                                 {
@@ -694,7 +694,7 @@ namespace HealthIntelligence.Services
                     .Where(x => CountryIDs.CountryIDs.Contains(x.CountryID))
                     .ToListAsync();
 
-                // Pillar access based on role
+                // Domain access based on role
                 List<int> pillarIds = new();
                 if (userRole == UserRole.CountryUser)
                 {
@@ -2057,7 +2057,7 @@ namespace HealthIntelligence.Services
                     .FirstOrDefaultAsync(x => x.PillarScoreID == dto.PillarScoreID);
 
                 if (entity == null)
-                    return ResultResponseDto<bool>.Failure(new[] { "Pillar score record not found." });
+                    return ResultResponseDto<bool>.Failure(new[] { "Domain score record not found." });
 
                 if (!await CanUserEditAiDataAsync(userID, userRole, entity.CountryID))
                     return ResultResponseDto<bool>.Failure(new[] { "You do not have permission to edit this pillar data." });
@@ -2102,7 +2102,7 @@ namespace HealthIntelligence.Services
                 }
 
                 await _context.SaveChangesAsync();
-                return ResultResponseDto<bool>.Success(true, new[] { "Pillar AI data updated successfully." });
+                return ResultResponseDto<bool>.Success(true, new[] { "Domain AI data updated successfully." });
             }
             catch (Exception ex)
             {

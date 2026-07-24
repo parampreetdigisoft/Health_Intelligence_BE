@@ -1091,7 +1091,7 @@ namespace HealthIntelligence.Services
                     Pillars = result
                 };
 
-                var resposne = ResultResponseDto<AiCountryPillarResponseDto>.Success(finalResutl, new[] { "Pillar get successfully", });
+                var resposne = ResultResponseDto<AiCountryPillarResponseDto>.Success(finalResutl, new[] { "Domain get successfully", });
 
                 return resposne;
             }

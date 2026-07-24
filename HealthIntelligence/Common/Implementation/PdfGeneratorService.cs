@@ -139,16 +139,16 @@ namespace HealthIntelligence.Common.Implementation
                 });
                 PageFooter(page);
             });
+                
 
-
-            // -- Section 3 : Pillar Radial Overview ---------------------------
+            // -- Section 3 : Domain Radial Overview ---------------------------
             if (pillars.Any())
             {
                 container.Page(page =>
                 {
                     ApplyPageDefaults(page);
                     page.Header().Element(x =>
-                        CountryComposeHeader(x, countryDetails, userRole, "Pillar Performance Overview"));
+                        CountryComposeHeader(x, countryDetails, userRole, "Domain Performance Overview"));
                     page.Content().Element(content =>
                         PillarLineChartPage(content, pillarChartItems));
                     PageFooter(page);
@@ -162,7 +162,7 @@ namespace HealthIntelligence.Common.Implementation
                 AddPerformanceTrendsSection(container, peerCountries, countryDetails, userRole);
             }
 
-            // -- Section 4+ : Per-Pillar Detail ------------------------------
+            // -- Section 4+ : Per-Domain Detail ------------------------------
             var accessiblePillars = pillars.Where(x => x.IsAccess && UserRole.CountryUser == userRole || UserRole.CountryUser != userRole).ToList();
             foreach (var p in accessiblePillars)
             {
@@ -260,7 +260,7 @@ namespace HealthIntelligence.Common.Implementation
             {
                 col.Spacing(10);
 
-                // -- Row 1 : Score Donut (left)  +  Pillar Radar (right) ----------
+                // -- Row 1 : Score Donut (left)  +  Domain Radar (right) ----------
                 col.Item().Height(280).Row(row =>
                 {
                     row.RelativeItem(5).Element(x =>
@@ -373,7 +373,7 @@ namespace HealthIntelligence.Common.Implementation
 
                                     c.Item()
                                         .AlignCenter()
-                                        .Text("Pillars")
+                                        .Text("Domains")
                                         .FontSize(8)
                                         .FontColor(ReportThemeColors.Gray650);
                                 });
@@ -403,7 +403,7 @@ namespace HealthIntelligence.Common.Implementation
                         });
 
                     // ---------------------------------------------
-                    // Best Pillar + Continent Rank
+                    // Best Domain + Continent Rank
                     // ---------------------------------------------
                     if (best != null)
                     {
@@ -436,7 +436,7 @@ namespace HealthIntelligence.Common.Implementation
                     }
 
                     // ---------------------------------------------
-                    // Worst Pillar + Region Rank
+                    // Worst Domain + Region Rank
                     // ---------------------------------------------
                     if (worst != null)
                     {
@@ -538,7 +538,7 @@ namespace HealthIntelligence.Common.Implementation
         }
 
         // -----------------------------------------------------------------------------
-        //  DASHBOARD WIDGET . Pillar Radar / Spider Card
+        //  DASHBOARD WIDGET . Domain Radar / Spider Card
         // -----------------------------------------------------------------------------
 
         void RenderPillarRadarCard(IContainer container, List<PillarChartItem> pillars)
@@ -550,7 +550,7 @@ namespace HealthIntelligence.Common.Implementation
                 .Column(col =>
                 {
                     col.Item().AlignCenter()
-                        .Text("Pillar Performance Radar")
+                        .Text("Domain Performance Radar")
                         .FontSize(10).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
 
                     col.Item().Height(230).Canvas((canvas, size) =>
@@ -1334,7 +1334,7 @@ namespace HealthIntelligence.Common.Implementation
                 .Column(col =>
                 {
                     col.Item().PaddingBottom(8)
-                        .Text("Pillar Overview").FontSize(11).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
+                        .Text("Domain Overview").FontSize(11).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
 
                     col.Spacing(6);
                     int index = 1;
@@ -1345,7 +1345,7 @@ namespace HealthIntelligence.Common.Implementation
 
                         col.Item().Row(row =>
                         {
-                            // Pillar label
+                            // Domain label
                             row.ConstantItem(102).AlignMiddle()
                                 .Text(Shorten(item.Name ?? item.ShortName ?? ".", 18))
                                 .FontSize(8).FontColor(ReportThemeColors.BlueGray);
@@ -1455,7 +1455,7 @@ namespace HealthIntelligence.Common.Implementation
 
         void DrawPillarsRadialChart(IContainer container, List<PillarChartItem> pillars)
         {
-            var data = pillars.Where(p => p.Value.HasValue).ToList();
+            var data = pillars.Where(p => p.Value.HasValue).OrderByDescending(x=>x.Value).ToList();
             if (!data.Any()) return;
 
             float avg = (float)data.Average(x => x.Value ?? 0);
@@ -1484,7 +1484,7 @@ namespace HealthIntelligence.Common.Implementation
                         TextAlign = SKTextAlign.Center,
                         FakeBoldText = true
                     };
-                    canvas.DrawText("Pillar Performance", cx, 14f, titlePaint);
+                    canvas.DrawText("Domain Performance", cx, 14f, titlePaint);
 
                     for (int i = 0; i < n; i++)
                     {
@@ -1827,7 +1827,7 @@ namespace HealthIntelligence.Common.Implementation
                 //    .FontSize(16).Bold();
 
                 column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Cross-Pillar System Dynamics", SanitizeText(data.CrossPillarPatterns), ReportThemeColors.AccentCrossPillar));
+                    PillarContentSection(c, "Cross-Domain System Dynamics", SanitizeText(data.CrossPillarPatterns), ReportThemeColors.AccentCrossPillar));
 
                 column.Item().PaddingTop(8).Element(c =>
                     PillarContentSection(c, "Institutional Capacity Assessment", SanitizeText(data.InstitutionalCapacity), ReportThemeColors.DeepTeal));
@@ -2058,7 +2058,7 @@ namespace HealthIntelligence.Common.Implementation
                 .Padding(18)
                 .Column(column =>
                 {
-                    column.Item().Text(isCity ? "Total Overview" : "Pillar Score")
+                    column.Item().Text(isCity ? "Total Overview" : "Domain Score")
                         .FontSize(16)
                         .SemiBold()
                         .FontColor(ReportThemeColors.GrayTailwind800);
@@ -2282,7 +2282,7 @@ namespace HealthIntelligence.Common.Implementation
         // Palette: index 0 = selected country (gold), 1-5 = peer countries
         private static readonly string[] CountryPalette = ReportThemeColors.CountryChartPalette;
 
-        // Pillar palette (up to 14 distinct colours)
+        // Domain palette (up to 14 distinct colours)
         private static readonly string[] PillarPalette = ReportThemeColors.PillarChartPalette;
 
         // --------------------------------------------------------------------------
@@ -2378,7 +2378,7 @@ namespace HealthIntelligence.Common.Implementation
             {
                 ApplyPageDefaults(page);
                 page.Header().Element(x =>
-                    CountryComposeHeader(x, countryDetails, userRole, "Pillar-Level Trend Analysis"));
+                    CountryComposeHeader(x, countryDetails, userRole, "Domain-Level Trend Analysis"));
                 page.Content().Element(c =>
                     PillarTrendPage(c, main, countryDetails));
                 PageFooter(page);
@@ -2989,22 +2989,22 @@ namespace HealthIntelligence.Common.Implementation
                 col.Spacing(12);
 
                 col.Item().Element(x => DrawInsightBand(x,
-                    $"{pillars.Count} pillar(s)  |  {allYears.Count} year(s)  |  Country: {mainCountry.CountryName}"));
+                    $"{pillars.Count} Domain(s)  |  {allYears.Count} year(s)  |  Country: {mainCountry.CountryName}"));
 
-                col.Item().Text("Pillar Score Trajectory Over Time")
+                col.Item().Text("Domain Score Trajectory Over Time")
                     .FontSize(11).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
 
                 col.Item().Height(200).Canvas((canvas, size) =>
                     DrawPillarLineChart(canvas, size, allYears, history, pillars));
 
-                //// Pillar colour legend
+                //// Domain colour legend
                 col.Item().Element(x => DrawLegend(x,
                     pillars.Select((p, i) =>
                         (PillarPalette[i % PillarPalette.Length], p.PillarName)).ToArray(), 10));
 
-                // -- Pillar heatmap table --------------------------------------
+                // -- Domain heatmap table --------------------------------------
                 col.Item().PaddingTop(4)
-                    .Text("Pillar Score Heatmap  (darker = higher score)")
+                    .Text("Domain Score Heatmap  (darker = higher score)")
                     .FontSize(11).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
 
                 col.Item().Table(table =>
@@ -3016,7 +3016,7 @@ namespace HealthIntelligence.Common.Implementation
                     });
 
                     table.Cell().Background(ReportThemeColors.PdfDarkGreen).Padding(5)
-                        .Text("Pillar").FontSize(8).Bold().FontColor(ReportThemeColors.White);
+                        .Text("Domain").FontSize(8).Bold().FontColor(ReportThemeColors.White);
                     foreach (var yr in allYears)
                         table.Cell().Background(ReportThemeColors.PdfDarkGreen).Padding(5).AlignCenter()
                             .Text(yr.ToString()).FontSize(8).Bold().FontColor(ReportThemeColors.White);
@@ -3052,7 +3052,7 @@ namespace HealthIntelligence.Common.Implementation
                 if (allYears.Count >= 2 && pillars.Any())
                 {
                     col.Item().PaddingTop(6)
-                        .Text("Pillar Trend Highlights").FontSize(11).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
+                        .Text("Domain Trend Highlights").FontSize(11).Bold().FontColor(ReportThemeColors.PdfDarkGreen);
 
                     var pillarDeltas = pillars.Select(p =>
                     {

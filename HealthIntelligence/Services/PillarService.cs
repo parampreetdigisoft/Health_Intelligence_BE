@@ -105,7 +105,7 @@ namespace HealthIntelligence.Services
             try
             {
                 if (string.IsNullOrWhiteSpace(pillar.PillarName))
-                    return ResultResponseDto<Pillar>.Failure(new[] { "Pillar name is required." });
+                    return ResultResponseDto<Pillar>.Failure(new[] { "Domain name is required." });
 
                 if (string.IsNullOrWhiteSpace(pillar.Description))
                     return ResultResponseDto<Pillar>.Failure(new[] { "Description is required." });
@@ -143,7 +143,7 @@ namespace HealthIntelligence.Services
                 await SyncPillarKpiMappingsAsync(newPillar.PillarID, pillar.KpiLayerIds);
                 await _context.SaveChangesAsync();
 
-                return ResultResponseDto<Pillar>.Success(newPillar, new[] { "Pillar created successfully." });
+                return ResultResponseDto<Pillar>.Success(newPillar, new[] { "Domain created successfully." });
             }
             catch (Exception ex)
             {
@@ -212,7 +212,7 @@ namespace HealthIntelligence.Services
             {
                 var pillarExists = await _context.Pillars.AnyAsync(p => p.PillarID == pillarId && p.IsActive && !p.IsDeleted);
                 if (!pillarExists)
-                    return ResultResponseDto<List<PillarKpiMappingDto>>.Failure(new[] { "Pillar not found." });
+                    return ResultResponseDto<List<PillarKpiMappingDto>>.Failure(new[] { "Domain not found." });
 
                 var mappings = await (
                     from map in _context.AnalyticalLayerPillarMappings
@@ -289,10 +289,10 @@ namespace HealthIntelligence.Services
                 }
                 var pillar = await _context.Pillars.FindAsync(id);
                 if (pillar == null)
-                    return ResultResponseDto<bool>.Failure(new[] { "Pillar not found." });
+                    return ResultResponseDto<bool>.Failure(new[] { "Domain not found." });
 
                 if (pillar.IsDeleted)
-                    return ResultResponseDto<bool>.Failure(new[] { "Pillar already deleted." });
+                    return ResultResponseDto<bool>.Failure(new[] { "Domain already deleted." });
 
                 pillar.IsDeleted = true;
                 _context.Pillars.Update(pillar);
@@ -311,8 +311,8 @@ namespace HealthIntelligence.Services
                 await _context.SaveChangesAsync();
 
                 var message = questions.Count > 0
-                    ? $"Pillar deleted successfully. {questions.Count} associated question(s) have also been deleted."
-                    : "Pillar deleted successfully.";
+                    ? $"Domain deleted successfully. {questions.Count} associated question(s) have also been deleted."
+                    : "Domain deleted successfully.";
 
                 return ResultResponseDto<bool>.Success(true, new[] { message });
             }
@@ -710,7 +710,7 @@ namespace HealthIntelligence.Services
                     ++row;
                     c = 1;
 
-                    // Pillar row
+                    // Domain row
                     ws.Cell(row, c++).Value = pillarCounter++; // pillar serial number
                     ws.Cell(row, c++).Value = pillar.PillarName;
                     ws.Cell(row, 2).Style.Font.Bold = true;
