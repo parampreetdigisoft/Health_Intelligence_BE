@@ -2234,19 +2234,20 @@ namespace HealthIntelligence.Common.Implementation
 
         static SKColor GetColor(float value)
         {
-            if (value >= 80) return SKColor.Parse(ReportThemeColors.DangerRed);
-            else if (value >= 60) return SKColor.Parse(ReportThemeColors.BarOrangeMid);
-            else if(value >= 40) return SKColor.Parse(ReportThemeColors.WarningAmber);
-            else if(value >= 20) return SKColor.Parse(ReportThemeColors.BarGreenLow);
-            return SKColor.Parse(ReportThemeColors.SuccessGreen);
+            if (value >= 80) return SKColor.Parse(ReportThemeColors.SuccessGreen);
+            else if (value >= 60) return SKColor.Parse(ReportThemeColors.BarGreenLow);
+            else if (value >= 40) return SKColor.Parse(ReportThemeColors.WarningAmber);
+            else if (value >= 20) return SKColor.Parse(ReportThemeColors.BarOrangeMid);
+            return SKColor.Parse(ReportThemeColors.DangerRed);
         }
+
         static string GetBarColor(float value)
         {
-            if (value >= 80) return ReportThemeColors.DangerRed;
-            else if (value >= 60) return ReportThemeColors.BarOrangeMid;
+            if (value >= 80) return ReportThemeColors.SuccessGreen;
+            else if (value >= 60) return ReportThemeColors.BarGreenLow;
             else if (value >= 40) return ReportThemeColors.WarningAmber;
-            else if (value >= 20) return ReportThemeColors.BarGreenLow;
-            return ReportThemeColors.SuccessGreen;
+            else if (value >= 20) return ReportThemeColors.BarOrangeMid;
+            return ReportThemeColors.DangerRed;
         }
 
         static string GetSourceTypeBadgeColor(string sourceType) => sourceType?.ToLower() switch
