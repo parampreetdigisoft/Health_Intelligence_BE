@@ -153,6 +153,8 @@ namespace HealthIntelligence.Common.Implementation
         public const string AccentKeyDevelopments = "#1f4e79";
         public const string AccentCriticalRisks = "#2e75b6";
         public const string AccentGaps = "#5b9bd5";
+        public const string AccentKeyFindings = "#0d47a1";
+        public const string AccentRecommendations = "#00695c";
         public const string AccentStructuralEvidence = "#e6ccff";
         public const string AccentOperationalEvidence = "#c2f0f0";
         public const string AccentOutcomeEvidence = "#ffe6cc";

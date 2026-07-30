@@ -268,7 +268,9 @@ namespace HealthIntelligence.Services
                     ImmediateSituationSummary = score != null ? score.ImmediateSituationSummary : null,
                     KeyDevelopments = score != null ? score.KeyDevelopments : null,
                     CriticalRisks = score != null ? score.CriticalRisks : null,
-                    Gaps = score != null ? score.Gaps : null
+                    Gaps = score != null ? score.Gaps : null,
+                    KeyFindings = score != null ? score.KeyFindings : null,
+                    Recommendations = score != null ? score.Recommendations : null
                 };
             return query;
         }
@@ -2015,6 +2017,8 @@ namespace HealthIntelligence.Services
                 entity.KeyDevelopments = dto.KeyDevelopments;
                 entity.CriticalRisks = dto.CriticalRisks;
                 entity.Gaps = dto.Gaps;
+                entity.KeyFindings = dto.KeyFindings;
+                entity.Recommendations = dto.Recommendations;
                 entity.StructuralEvidence = dto.StructuralEvidence;
                 entity.OperationalEvidence = dto.OperationalEvidence;
                 entity.OutcomeEvidence = dto.OutcomeEvidence;

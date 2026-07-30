@@ -1729,6 +1729,14 @@ namespace HealthIntelligence.Common.Implementation
                 // =====================================================
                 // Current situation
                 // =====================================================
+                if (!string.IsNullOrEmpty(data.KeyFindings))
+                    column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Key Findings", SanitizeText(data.KeyFindings), ReportThemeColors.AccentKeyFindings));
+
+                if (!string.IsNullOrEmpty(data.Recommendations))
+                    column.Item().PaddingTop(8).Element(c =>
+                    PillarContentSection(c, "Recommendations", SanitizeText(data.Recommendations), ReportThemeColors.AccentRecommendations));
+
                 if(!string.IsNullOrEmpty(data.KeyDevelopments))
                 column.Item().PaddingTop(8).Element(c =>
                     PillarContentSection(c, "Key Developments", SanitizeText(data.KeyDevelopments), ReportThemeColors.AccentKeyDevelopments));

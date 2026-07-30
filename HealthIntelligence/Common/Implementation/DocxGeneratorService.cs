@@ -686,6 +686,8 @@ namespace HealthIntelligence.Common.Implementation
             // =====================================================
             // current situation
             // =====================================================
+            AppendContentSection(body, "Key Findings", data.KeyFindings, "bbdefb");
+            AppendContentSection(body, "Recommendations", data.Recommendations, "b2dfdb");
             AppendContentSection(body, "Key Developments", data.KeyDevelopments, "e6ccff");
             AppendContentSection(body, "Critical Risks", data.CriticalRisks, "c2f0f0");
             AppendContentSection(body, "Gaps", data.Gaps, "ffe6cc");

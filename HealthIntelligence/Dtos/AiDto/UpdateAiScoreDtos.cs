@@ -12,6 +12,8 @@ namespace HealthIntelligence.Dtos.AiDto
         public string? KeyDevelopments { get; set; }
         public string? CriticalRisks { get; set; }
         public string? Gaps { get; set; }
+        public string? KeyFindings { get; set; }
+        public string? Recommendations { get; set; }
         public string? StructuralEvidence { get; set; }
         public string? OperationalEvidence { get; set; }
         public string? OutcomeEvidence { get; set; }

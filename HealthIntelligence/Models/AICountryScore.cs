@@ -45,6 +45,8 @@ namespace HealthIntelligence.Models
         public string? KeyDevelopments { get; set; }
         public string? CriticalRisks { get; set; }
         public string? Gaps { get; set; }
+        public string? KeyFindings { get; set; }
+        public string? Recommendations { get; set; }
 
     }
 
