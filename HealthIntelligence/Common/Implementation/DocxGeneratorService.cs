@@ -1371,6 +1371,7 @@ namespace HealthIntelligence.Common.Implementation
             if (string.IsNullOrWhiteSpace(content)) return;
 
             var paragraphs = content
+                .Replace("||", "\n")
                 .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
 
             // ─────────────────────────────────────────

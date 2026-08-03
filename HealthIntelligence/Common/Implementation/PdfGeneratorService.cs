@@ -2127,9 +2127,20 @@ namespace HealthIntelligence.Common.Implementation
                     .Background(ReportThemeColors.White)
                     .Border(1).BorderColor(ReportThemeColors.Gray350)
                     .Padding(18)
-                    .Text(content)
+                    .Text(NormalizeListLineBreaks(content))
                     .FontSize(10).LineHeight(1.6f).FontColor(textcolor);
             });
+        }
+
+        /// <summary>Turn legacy "||" / mid-line "2)" markers into newlines for readable PDF lines.</summary>
+        static string NormalizeListLineBreaks(string content)
+        {
+            if (string.IsNullOrEmpty(content)) return content;
+            var text = content.Replace("\r\n", "\n").Replace("\r", "\n");
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"\s*\|\|\s*", "\n");
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"\s+(?=\d+\))", "\n");
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"\n{2,}", "\n");
+            return text.Trim();
         }
 
         void DataSourcesSection(IContainer container, List<AIDataSourceCitation> sources)
