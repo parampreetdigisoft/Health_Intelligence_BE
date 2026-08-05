@@ -111,15 +111,14 @@ namespace HealthIntelligence.Common.Implementation
         public void AddCountryDetailsPdf(IDocumentContainer container, AiCountrySummeryDto countryDetails, List<AiCountryPillarResponse> pillars, List<KpiChartItem> kpis,
             List<PeerCountryHistoryReportDto> peerCountries, UserRole userRole, bool isAllCountries = false)
         {
-            var kpiChartItems = kpis.ToList();
+            var kpiChartItems = kpis.OrderByDescending(x=>x.Value).ToList();
 
             // Build pillar chart items (max 14)
             var pillarChartItems = pillars.Select(p => new PillarChartItem( SanitizeText(p.PillarName)?.Length > 20   ? SanitizeText(p.PillarName)[..20]
                   : SanitizeText(p.PillarName) ?? "-",  SanitizeText(p.PillarName) ?? "-", p.AIProgress)).ToList();
 
             // -- Section 1 : Global Dashboard ---------------------------------
-            if (!isAllCountries)
-                AddGlobalDashboardPage(container, countryDetails, pillarChartItems, kpis, userRole);
+             AddGlobalDashboardPage(container, countryDetails, pillarChartItems, kpis, userRole);
 
 
             // -- Section 2 : Country Summary -------------------------------------
@@ -134,7 +133,7 @@ namespace HealthIntelligence.Common.Implementation
                     {
                         column.Spacing(10);
                         column.Item().Element(x =>
-                            CountrySummeryComposeContent(x, countryDetails, userRole));
+                            CountrySummeryComposeContent(x, countryDetails, userRole, isAllCountries));
                     });
                 });
                 PageFooter(page);
@@ -162,31 +161,34 @@ namespace HealthIntelligence.Common.Implementation
                 AddPerformanceTrendsSection(container, peerCountries, countryDetails, userRole);
             }
 
-            // -- Section 4+ : Per-Domain Detail ------------------------------
-            var accessiblePillars = pillars.Where(x => x.IsAccess && UserRole.CountryUser == userRole || UserRole.CountryUser != userRole).ToList();
-            foreach (var p in accessiblePillars)
+            if (!isAllCountries)
             {
-                container.Page(page =>
+                // -- Section 4+ : Per-Domain Detail ------------------------------
+                var accessiblePillars = pillars.Where(x => x.IsAccess && UserRole.CountryUser == userRole || UserRole.CountryUser != userRole).ToList();
+                foreach (var p in accessiblePillars)
                 {
-                    ApplyPageDefaults(page);
-                    page.Header().Element(x =>
-                        CountryComposeHeader(x, countryDetails, userRole, SanitizeText(p.PillarName)));
-                    page.Content().Element(content =>
+                    container.Page(page =>
                     {
-                        content.Column(column =>
+                        ApplyPageDefaults(page);
+                        page.Header().Element(x =>
+                            CountryComposeHeader(x, countryDetails, userRole, SanitizeText(p.PillarName)));
+                        page.Content().Element(content =>
                         {
-                            column.Spacing(10);
-                            column.Item().Element(x =>
-                                PillarComposeContent(x, p, userRole));
+                            content.Column(column =>
+                            {
+                                column.Spacing(10);
+                                column.Item().Element(x =>
+                                    PillarComposeContent(x, p, userRole));
+                            });
                         });
+                        PageFooter(page);
                     });
-                    PageFooter(page);
-                });
+                }
             }
 
 
             // -- Section 5 : KPI Dashboard ------------------------------------
-            if (kpiChartItems.Any() || !isAllCountries)
+            if (kpiChartItems.Any())
             {
                 container.Page(page =>
                 {
@@ -194,7 +196,7 @@ namespace HealthIntelligence.Common.Implementation
                     page.Header().Element(x =>
                         CountryComposeHeader(x, countryDetails, userRole, "KPI Dashboard"));
                     page.Content().Element(content =>
-                        KpiDashboardPage(content, kpiChartItems));
+                        KpiDashboardPage(content, kpiChartItems, isAllCountries));
                     PageFooter(page);
                 });
             }
@@ -875,7 +877,7 @@ namespace HealthIntelligence.Common.Implementation
         //  KPI DASHBOARD PAGE  .  numbered bar chart + full-name reference tables
         // -----------------------------------------------------------------------------
 
-        void KpiDashboardPage(IContainer container, List<KpiChartItem> kpis)
+        void KpiDashboardPage(IContainer container, List<KpiChartItem> kpis, bool isAllCountries =false)
         {
             
             if (!kpis.Any()) return;
@@ -911,7 +913,7 @@ namespace HealthIntelligence.Common.Implementation
                 foreach (var group in groups.Where(g => g.Any()))
                 {
                     int localOffset = offset;          // capture for lambda
-                    col.Item().Element(x => DrawKpiGroupSection(x, group, localOffset));
+                    col.Item().Element(x => DrawKpiGroupSection(x, group, localOffset, isAllCountries));
                     offset += group.Count;
                 }
             });
@@ -949,20 +951,23 @@ namespace HealthIntelligence.Common.Implementation
         //  GROUP SECTION  .  bar chart on top, two-column legend table below
         // -----------------------------------------------------------------------------
 
-        void DrawKpiGroupSection(IContainer container, List<KpiChartItem> group, int offset)
+        void DrawKpiGroupSection(IContainer container, List<KpiChartItem> group, int offset, bool isAllCountries = false)
         {
             container
                 .Border(1).BorderColor(ReportThemeColors.BorderGreenMid)
                 .Column(col =>
                 {
                     // bar chart . numbers printed below each bar
-                    col.Item().Height(148).Element(x => DrawKpiBarChart(x, group, offset));
+                    col.Item().Height(148).Element(x => DrawKpiBarChart(x, group, offset, isAllCountries));
 
-                    // hairline separator between chart and table
-                    col.Item().Height(1).Background(ReportThemeColors.BorderGreenMid);
+                    if (!isAllCountries)
+                    {
+                        // hairline separator between chart and table
+                        col.Item().Height(1).Background(ReportThemeColors.BorderGreenMid);
 
-                    // two-column reference table
-                    col.Item().Padding(6).Element(x => DrawKpiReferenceTable(x, group, offset));
+                        // two-column reference table
+                        col.Item().Padding(6).Element(x => DrawKpiReferenceTable(x, group, offset));
+                    }
                 });
         }
 
@@ -970,7 +975,7 @@ namespace HealthIntelligence.Common.Implementation
         // -----------------------------------------------------------------------------
         //  BAR CHART  .  sequential index numbers below each bar (not cryptic codes)
         // -----------------------------------------------------------------------------
-        void DrawKpiBarChart(IContainer container, List<KpiChartItem> data, int offset)
+        void DrawKpiBarChart(IContainer container, List<KpiChartItem> data, int offset, bool isAllCountries = false)
         {
             container
                 .Background(ReportThemeColors.White)
@@ -1038,6 +1043,7 @@ namespace HealthIntelligence.Common.Implementation
                     for (int i = 0; i < n; i++)
                     {
                         float v = (float)(data[i].Value);
+                        var shortName = data[i].ShortName;
                         float bx = lp + i * barW + barGap;
                         float bh = v / 100f * chartH;
                         float by = tp + chartH - bh;
@@ -1081,7 +1087,7 @@ namespace HealthIntelligence.Common.Implementation
                         // -- sequential index number below bar (e.g. "1", "2", .) --
                         // Users cross-reference this with the legend table below.
                         canvas.DrawText(
-                            $"{offset + i + 1}",
+                            $"{offset + i + 1}. " + shortName,
                             bx + innerW / 2f,
                             size.Height - 6f,
                             numLblPaint);
@@ -1709,7 +1715,7 @@ namespace HealthIntelligence.Common.Implementation
                 .Normalize(NormalizationForm.FormKC);
         }
 
-        void CountrySummeryComposeContent(IContainer container, AiCountrySummeryDto data, UserRole userRole)
+        void CountrySummeryComposeContent(IContainer container, AiCountrySummeryDto data, UserRole userRole, bool isAllCountries = false)
         {
             container.PaddingTop(4).Column(column =>
             {
@@ -1726,137 +1732,115 @@ namespace HealthIntelligence.Common.Implementation
                 column.Item().PaddingTop(10).Element(c =>
                     PillarContentSection(c, "Executive Summary", SanitizeText(data.EvidenceSummary), ReportThemeColors.AccentExecutiveSummary));
 
-                // =====================================================
-                // Current situation
-                // =====================================================
-                if (!string.IsNullOrEmpty(data.KeyFindings))
+                if (!isAllCountries)
+                {
+                    // =====================================================
+                    // Current situation
+                    // =====================================================
+                    if (!string.IsNullOrEmpty(data.KeyFindings))
+                        column.Item().PaddingTop(8).Element(c =>
+                        PillarContentSection(c, "Key Findings", SanitizeText(data.KeyFindings), ReportThemeColors.AccentKeyFindings));
+
+                    if (!string.IsNullOrEmpty(data.Recommendations))
+                        column.Item().PaddingTop(8).Element(c =>
+                        PillarContentSection(c, "Recommendations", SanitizeText(data.Recommendations), ReportThemeColors.AccentRecommendations));
+
+                    if (!string.IsNullOrEmpty(data.KeyDevelopments))
+                        column.Item().PaddingTop(8).Element(c =>
+                            PillarContentSection(c, "Key Developments", SanitizeText(data.KeyDevelopments), ReportThemeColors.AccentKeyDevelopments));
+                    if (!string.IsNullOrEmpty(data.CriticalRisks))
+                        column.Item().PaddingTop(8).Element(c =>
+                        PillarContentSection(c, "Critical Risks", SanitizeText(data.CriticalRisks), ReportThemeColors.AccentCriticalRisks));
+                    if (!string.IsNullOrEmpty(data.Gaps))
+                        column.Item().PaddingTop(8).Element(c =>
+                        PillarContentSection(c, "Gaps", SanitizeText(data.Gaps), ReportThemeColors.AccentGaps));
+
+
+
+
+
+                    // =====================================================
+                    // EVIDENCE SECTION
+                    // =====================================================              
+
+
                     column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Key Findings", SanitizeText(data.KeyFindings), ReportThemeColors.AccentKeyFindings));
+                        PillarContentSection(c, "Structural Evidence", SanitizeText(data.StructuralEvidence), ReportThemeColors.AccentStructuralEvidence));
 
-                if (!string.IsNullOrEmpty(data.Recommendations))
                     column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Recommendations", SanitizeText(data.Recommendations), ReportThemeColors.AccentRecommendations));
+                        PillarContentSection(c, "Operational Evidence", SanitizeText(data.OperationalEvidence), ReportThemeColors.AccentOperationalEvidence));
 
-                if(!string.IsNullOrEmpty(data.KeyDevelopments))
-                column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Key Developments", SanitizeText(data.KeyDevelopments), ReportThemeColors.AccentKeyDevelopments));
-                if (!string.IsNullOrEmpty(data.CriticalRisks))
                     column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Critical Risks", SanitizeText(data.CriticalRisks), ReportThemeColors.AccentCriticalRisks));
-                if (!string.IsNullOrEmpty(data.Gaps))
+                        PillarContentSection(c, "Outcome Evidence", SanitizeText(data.OutcomeEvidence), ReportThemeColors.AccentOutcomeEvidence));
+
                     column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Gaps", SanitizeText(data.Gaps), ReportThemeColors.AccentGaps));
+                        PillarContentSection(c, "Perception Evidence", SanitizeText(data.PerceptionEvidence), ReportThemeColors.AccentPerceptionEvidence));
 
 
+                    //column.Item().PaddingTop(15).Text("Integrity Checks")
+                    //    .FontSize(16).Bold();
+
+                    column.Item().PaddingTop(8).Element(c =>
+                        PillarContentSection(c, "Temporal Scope", SanitizeText(data.TemporalScope), ReportThemeColors.AccentTemporalScope));
+
+                    column.Item().PaddingTop(8).Element(c =>
+                        PillarContentSection(c, "Distortion Screening", SanitizeText(data.DistortionScreening), ReportThemeColors.AccentDistortionScreening));
+
+                    column.Item().PaddingTop(8).Element(c =>
+                        PillarContentSection(c, "Relational Integrity", SanitizeText(data.RelationalIntegrity), ReportThemeColors.AccentRelationalIntegrity));
 
 
+                    column.Item().PaddingTop(8).Element(c =>
+                        PillarContentSection(c, "Political Shock", SanitizeText(data.PoliticalShock), ReportThemeColors.AccentPoliticalShock));
 
-                // =====================================================
-                // EVIDENCE SECTION
-                // =====================================================              
+                    column.Item().PaddingTop(8).Element(c =>
+                        PillarContentSection(c, "Economic Shock", SanitizeText(data.EconomicShock), ReportThemeColors.AccentEconomicShock));
+
+                    column.Item().PaddingTop(8).Element(c =>
+                        PillarContentSection(c, "Narrative Shock", SanitizeText(data.NarrativeShock), ReportThemeColors.AccentNarrativeShock));
+                    //column.Item().PageBreak();
+
+                    //column.Item().PaddingTop(8).Element(c =>
+                    //    PillarContentSection(c, "Overall Stress Resilience", SanitizeText(data.OverallStressResilience), ReportThemeColors.AccentStressResilience));
+
+                    column.Item().PaddingTop(8).Element(c =>
+                        PillarContentSection(c, "Stress Score Adjustment", SanitizeText(data.StressScoreAdjustment), ReportThemeColors.AccentStressAdjustment));
 
 
-                column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Structural Evidence", SanitizeText(data.StructuralEvidence), ReportThemeColors.AccentStructuralEvidence));
+                    column.Item().PaddingTop(8).Element(c =>
+                        PillarContentSection(c, "Inequality Adjustment", SanitizeText(data.InequalityAdjustment), ReportThemeColors.AccentInequalityAdj));
 
-                column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Operational Evidence", SanitizeText(data.OperationalEvidence), ReportThemeColors.AccentOperationalEvidence));
+                    column.Item().PaddingTop(8).Element(c =>
+                        PillarContentSection(c, "Opacity Risk", SanitizeText(data.OpacityRisk), ReportThemeColors.AccentOpacityRisk));
 
-                column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Outcome Evidence", SanitizeText(data.OutcomeEvidence), ReportThemeColors.AccentOutcomeEvidence));
+                    column.Item().PaddingTop(8).Element(c =>
+                        PillarContentSection(c, "Non Compensation Note", SanitizeText(data.NonCompensationNote), ReportThemeColors.AccentNonCompensation));
 
-                column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Perception Evidence", SanitizeText(data.PerceptionEvidence), ReportThemeColors.AccentPerceptionEvidence));
+                    column.Item().PaddingTop(8).Element(c =>
+                        PillarContentSection(c, "Cross-Domain System Dynamics", SanitizeText(data.CrossPillarPatterns), ReportThemeColors.AccentCrossPillar));
 
-                // =====================================================
-                // INTEGRITY CHECKS
-                // =====================================================
-                //column.Item().PageBreak();
+                    column.Item().PaddingTop(8).Element(c =>
+                        PillarContentSection(c, "Institutional Capacity Assessment", SanitizeText(data.InstitutionalCapacity), ReportThemeColors.DeepTeal));
 
-                //column.Item().PaddingTop(15).Text("Integrity Checks")
-                //    .FontSize(16).Bold();
+                    column.Item().PaddingTop(8).Element(c =>
+                        PillarContentSection(c, "Equity Assessment", SanitizeText(data.EquityAssessment), ReportThemeColors.AccentEquityAssessment));
 
-                column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Temporal Scope", SanitizeText(data.TemporalScope), ReportThemeColors.AccentTemporalScope));
+                    //column.Item().PageBreak();
+                    column.Item().PaddingTop(8).Element(c =>
+                        PillarContentSection(c, "Conflict Risk Outlook", SanitizeText(data.ConflictRiskOutlook), ReportThemeColors.AccentConflictRisk));
 
-                column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Distortion Screening", SanitizeText(data.DistortionScreening), ReportThemeColors.AccentDistortionScreening));
+                    // =====================================================
+                    // STRATEGIC OUTPUT
+                    // =====================================================
+                    //column.Item().PageBreak();                
 
-                column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Relational Integrity", SanitizeText(data.RelationalIntegrity), ReportThemeColors.AccentRelationalIntegrity));
+                    column.Item().PaddingTop(8).Element(c =>
+                        PillarContentSection(c, "Strategic Policy Priorities", SanitizeText(data.StrategicRecommendation), ReportThemeColors.AccentStrategicPolicy));
 
-                // =====================================================
-                // STRESS TESTS
-                // =====================================================
-                //column.Item().PageBreak();
+                    column.Item().PaddingTop(8).Element(c =>
+                        PillarContentSection(c, "Why This Assessment Matters", SanitizeText(data.DataTransparencyNote), ReportThemeColors.AccentDataTransparency));
 
-                //column.Item().PaddingTop(15).Text("Stress Tests")
-                //    .FontSize(16).Bold();
-
-                column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Political Shock", SanitizeText(data.PoliticalShock), ReportThemeColors.AccentPoliticalShock));
-
-                column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Economic Shock", SanitizeText(data.EconomicShock), ReportThemeColors.AccentEconomicShock));
-
-                column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Narrative Shock", SanitizeText(data.NarrativeShock), ReportThemeColors.AccentNarrativeShock));
-                //column.Item().PageBreak();
-
-                //column.Item().PaddingTop(8).Element(c =>
-                //    PillarContentSection(c, "Overall Stress Resilience", SanitizeText(data.OverallStressResilience), ReportThemeColors.AccentStressResilience));
-
-                column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Stress Score Adjustment", SanitizeText(data.StressScoreAdjustment), ReportThemeColors.AccentStressAdjustment));
-
-                // =====================================================
-                // GOVERNANCE ADJUSTMENTS
-                // =====================================================
-                //column.Item().PageBreak();
-
-                //column.Item().PaddingTop(15).Text("Governance Adjustments")
-                //    .FontSize(16).Bold();
-
-                column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Inequality Adjustment", SanitizeText(data.InequalityAdjustment), ReportThemeColors.AccentInequalityAdj));
-
-                column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Opacity Risk", SanitizeText(data.OpacityRisk), ReportThemeColors.AccentOpacityRisk));
-
-                column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Non Compensation Note", SanitizeText(data.NonCompensationNote), ReportThemeColors.AccentNonCompensation));
-
-                // =====================================================
-                // SYSTEM ANALYSIS
-                // =====================================================
-                //column.Item().PageBreak();
-
-                //column.Item().PaddingTop(15).Text("System Analysis")
-                //    .FontSize(16).Bold();
-
-                column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Cross-Domain System Dynamics", SanitizeText(data.CrossPillarPatterns), ReportThemeColors.AccentCrossPillar));
-
-                column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Institutional Capacity Assessment", SanitizeText(data.InstitutionalCapacity), ReportThemeColors.DeepTeal));
-
-                column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Equity Assessment", SanitizeText(data.EquityAssessment), ReportThemeColors.AccentEquityAssessment));
-
-                //column.Item().PageBreak();
-                column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Conflict Risk Outlook", SanitizeText(data.ConflictRiskOutlook), ReportThemeColors.AccentConflictRisk));
-
-                // =====================================================
-                // STRATEGIC OUTPUT
-                // =====================================================
-                //column.Item().PageBreak();                
-
-                column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Strategic Policy Priorities", SanitizeText(data.StrategicRecommendation), ReportThemeColors.AccentStrategicPolicy));
-
-                column.Item().PaddingTop(8).Element(c =>
-                    PillarContentSection(c, "Why This Assessment Matters", SanitizeText(data.DataTransparencyNote), ReportThemeColors.AccentDataTransparency));
+                }
             });
         }
 

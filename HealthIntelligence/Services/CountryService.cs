@@ -1023,14 +1023,14 @@ namespace HealthIntelligence.Services
             IEnumerable<IGrouping<(int CountryID, string CountryName, string Continent), GetCountriesProgressAdminDto>> cityGroups)
         {
             using var workbook = new XLWorkbook();
-            var ws = workbook.Worksheets.Add("Countries Progress Report");
+            var ws = workbook.Worksheets.Add("Countries Score Report");
 
             bool isRanking = request.IsRanking == true;
 
             // ---------------- Header ----------------
             int totalColumns = isRanking ? 5 : 10;
 
-            ws.Range(1, 1, 1, totalColumns).Merge().Value = "Countries Progress Report";
+            ws.Range(1, 1, 1, totalColumns).Merge().Value = "Countries Score Report";
             ws.Range(2, 1, 2, totalColumns).Merge().Value = $"Report Year: {DateTime.UtcNow.Year}";
             ws.Range(3, 1, 3, totalColumns).Merge().Value = $"Generated On: {DateTime.UtcNow:dd-MMM-yyyy HH:mm}";
 

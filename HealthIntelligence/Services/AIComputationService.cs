@@ -1551,7 +1551,10 @@ namespace HealthIntelligence.Services
             {
                 var pillars = await GetAllCountriesAIPillars(userID, userRole, year);
 
-                var kpis = new List<KpiChartItem>();
+                var kpis = await GetAccessKpis(userID, userRole, null, year);
+
+
+                //var kpis = new List<KpiChartItem>();
 
                 var recordAvailable = pillars.Result.Any(x => countriesDetails.Select(x => x.CountryID).Contains(x.Key));
                 if (recordAvailable)
