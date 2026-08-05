@@ -37,6 +37,7 @@ namespace HealthIntelligence.Common.DI
             services.AddScoped<IPublicService, PublicService>();
             services.AddScoped<IKpiService, KpiService>();
             services.AddScoped<IAIComputationService, AIComputationService>();
+            services.AddScoped<IAIEditService, AIEditService>();
             services.AddScoped<ICommonService, CommonService>();
             services.AddScoped<Interface.IPdfGeneratorService, Implementation.PdfGeneratorService>();
             services.AddScoped<IDocxGeneratorService, DocxGeneratorService>();

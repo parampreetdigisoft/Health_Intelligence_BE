@@ -15,6 +15,7 @@ using HealthIntelligence.IServices;
 using HealthIntelligence.Models;
 using System.Linq.Expressions;
 using System.Net;
+using System.Reflection;
 using System.Text.RegularExpressions;
 
 namespace HealthIntelligence.Services
@@ -40,7 +41,7 @@ namespace HealthIntelligence.Services
             _appLogger = appLogger;
             _commonService = commonService;
             _download = download;
-            _iAIAnalayzeService = iAIAnalayzeService;          
+            _iAIAnalayzeService = iAIAnalayzeService;
             _documentGeneratorService = documentGeneratorService;
             _env = env;
         }
@@ -128,6 +129,13 @@ namespace HealthIntelligence.Services
                         c.Discrepancy = Math.Abs(countryScore - (c.AIProgress ?? 0));
                         c.AICompletionRate = answeredQuestions.FirstOrDefault(x=>x.CountryID == c.CountryID)?.CompletionRate;                         
                     }
+                }
+
+                // Analyst draft mode: overlay unpublished Draft session fields onto this page only.
+                // Live AI tables stay unchanged; Submitted/Approved sessions are not applied here.
+                if (userRole == UserRole.Analyst && result.Data != null && result.Data.Any())
+                {
+                    await ApplyAnalystCountryDraftsAsync(result.Data, userID, request.Year);
                 }
 
                 return result;
@@ -396,6 +404,12 @@ namespace HealthIntelligence.Services
                     c.AICompletionRate = totalQuestions == 0 ? 0 :answeredQuestion * 100.0M / totalQuestions;
                 }
 
+                // Analyst draft mode: overlay unpublished Draft session fields (pillar + citations).
+                if (userRole == UserRole.Analyst && result.Count > 0)
+                {
+                    await ApplyAnalystPillarDraftsAsync(result, userID, CountryID, currentYear);
+                }
+
                 var finalResutl = new AiCountryPillarResponseDto
                 {
 
@@ -484,6 +498,20 @@ namespace HealthIntelligence.Services
                     };
 
                 var r = await res.ApplyPaginationAsync(request);
+
+                // Analyst draft mode: overlay unpublished Draft session question fields onto this page.
+                if (userRole == UserRole.Analyst
+                    && request.CountryID.HasValue
+                    && r.Data != null
+                    && r.Data.Any())
+                {
+                    await ApplyAnalystQuestionDraftsAsync(
+                        r.Data,
+                        userID,
+                        request.CountryID.Value,
+                        request.PillarID,
+                        request.Year);
+                }
 
                 return r;
             }
@@ -908,6 +936,9 @@ namespace HealthIntelligence.Services
                     msglist.Add(msg);
                 }
                 await _context.SaveChangesAsync();
+
+                await _commonService.RevokeCountriesPermission(new List<int> { dto.CountryID }, userID, DateTime.UtcNow.Year);
+
                 return ResultResponseDto<bool>.Success(true, msglist);
             }
             catch (Exception ex)
@@ -1051,6 +1082,256 @@ namespace HealthIntelligence.Services
 
             }
             return countryDetails ?? new AiCountrySummeryDto();
+        }
+
+        /// <summary>
+        /// For the current analyst only: replace live country summary fields with the latest
+        /// values from open Draft sessions (not Submitted). Does not mutate live AI tables.
+        /// </summary>
+        private async Task ApplyAnalystCountryDraftsAsync(IEnumerable<AiCountrySummeryDto> countries, int userID, int year)
+        {
+            var countryList = countries as IList<AiCountrySummeryDto> ?? countries.ToList();
+            if (countryList.Count == 0)
+                return;
+
+            var countryIds = countryList.Select(c => c.CountryID).Distinct().ToList();
+
+            var draftLogs = await GetAnalystDraftLogsAsync(
+                userID, year, countryIds, AIEditEntityType.Country);
+
+            if (draftLogs.Count == 0)
+                return;
+
+            var latestByCountry = draftLogs
+                .GroupBy(x => x.CountryID)
+                .ToDictionary(
+                    g => g.Key,
+                    g => ToLatestFieldMap(g));
+
+            foreach (var country in countryList)
+            {
+                if (!latestByCountry.TryGetValue(country.CountryID, out var fields))
+                    continue;
+
+                ApplyDraftFields(country, fields);
+            }
+        }
+
+        /// <summary>
+        /// Overlay Draft pillar (+ citation) field changes for this analyst onto pillar responses.
+        /// </summary>
+        private async Task ApplyAnalystPillarDraftsAsync(
+            IList<AiCountryPillarResponse> pillars,
+            int userID,
+            int countryID,
+            int year)
+        {
+            if (pillars.Count == 0)
+                return;
+
+            var draftLogs = await GetAnalystDraftLogsAsync(
+                userID, year, new[] { countryID },
+                AIEditEntityType.Pillar, AIEditEntityType.Citation);
+
+            if (draftLogs.Count == 0)
+                return;
+
+            var pillarLogs = draftLogs
+                .Where(x => x.EntityType == AIEditEntityType.Pillar)
+                .ToList();
+
+            var latestByPillar = pillarLogs
+                .GroupBy(x => x.PillarID ?? 0)
+                .Where(g => g.Key > 0)
+                .ToDictionary(g => g.Key, g => ToLatestFieldMap(g));
+
+            // Fallback: match by PillarScoreID when PillarID was not stored on older rows
+            var latestByPillarScoreId = pillarLogs
+                .GroupBy(x => x.EntityRecordID)
+                .ToDictionary(g => g.Key, g => ToLatestFieldMap(g));
+
+            foreach (var pillar in pillars)
+            {
+                Dictionary<string, string?>? fields = null;
+                if (pillar.PillarID > 0 && latestByPillar.TryGetValue(pillar.PillarID, out fields))
+                {
+                    ApplyDraftFields(pillar, fields);
+                }
+                else if (pillar.PillarScoreID > 0 && latestByPillarScoreId.TryGetValue(pillar.PillarScoreID, out fields))
+                {
+                    ApplyDraftFields(pillar, fields);
+                }
+
+                if (pillar.DataSourceCitations == null || pillar.DataSourceCitations.Count == 0)
+                    continue;
+
+                var citationLogs = draftLogs
+                    .Where(x => x.EntityType == AIEditEntityType.Citation
+                                && (!x.PillarID.HasValue || x.PillarID == pillar.PillarID))
+                    .GroupBy(x => x.EntityRecordID)
+                    .ToDictionary(g => g.Key, g => ToLatestFieldMap(g));
+
+                if (citationLogs.Count == 0)
+                    continue;
+
+                foreach (var citation in pillar.DataSourceCitations)
+                {
+                    if (!citationLogs.TryGetValue(citation.CitationID, out var citationFields))
+                        continue;
+                    ApplyDraftFields(citation, citationFields);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Overlay Draft question field changes for this analyst onto the paginated question page.
+        /// </summary>
+        private async Task ApplyAnalystQuestionDraftsAsync(
+            IEnumerable<AIEstimatedQuestionScoreDto> questions,
+            int userID,
+            int countryID,
+            int? pillarID,
+            int year)
+        {
+            var questionList = questions as IList<AIEstimatedQuestionScoreDto> ?? questions.ToList();
+            if (questionList.Count == 0)
+                return;
+
+            var draftLogs = await GetAnalystDraftLogsAsync(
+                userID, year, new[] { countryID }, AIEditEntityType.Question);
+
+            if (pillarID.HasValue)
+                draftLogs = draftLogs.Where(x => !x.PillarID.HasValue || x.PillarID == pillarID.Value).ToList();
+
+            if (draftLogs.Count == 0)
+                return;
+
+            var latestByQuestion = draftLogs
+                .Where(x => x.QuestionID.HasValue)
+                .GroupBy(x => x.QuestionID!.Value)
+                .ToDictionary(g => g.Key, g => ToLatestFieldMap(g));
+
+            foreach (var question in questionList)
+            {
+                if (!latestByQuestion.TryGetValue(question.QuestionID, out var fields))
+                    continue;
+
+                ApplyDraftFields(question, fields);
+
+                if (fields.ContainsKey(nameof(AIEstimatedQuestionScoreDto.AIScore)))
+                {
+                    question.Discrepancy = Math.Abs((question.EvaluatorScore ?? 0) - (question.AIScore ?? 0));
+                }
+            }
+        }
+
+        private async Task<List<AnalystDraftLogRow>> GetAnalystDraftLogsAsync(
+            int userID,
+            int year,
+            IEnumerable<int> countryIds,
+            params AIEditEntityType[] entityTypes)
+        {
+            var ids = countryIds.Distinct().ToList();
+            if (ids.Count == 0 || entityTypes.Length == 0)
+                return new List<AnalystDraftLogRow>();
+            var query = from log in _context.AIEditChangeLogs
+                        join session in _context.AIEditSessions
+                            on log.SessionID equals session.SessionID
+                        join per in _context.AIEditPermissions
+                              on session.PermissionID equals per.PermissionID
+                        where session.UserID == userID
+                              && session.Status == AIEditSessionStatus.Draft
+                              && session.Year == year
+                              && ids.Contains(session.CountryID)
+                              && entityTypes.Contains(log.EntityType)
+                              && log.Year == year
+                              && per.Status == AIEditPermissionStatus.Active
+                              && ids.Contains(log.CountryID)
+                              && !log.IsPublished
+                              && log.ChangedBy == userID
+                              && !log.FieldName.StartsWith("__")
+                        select new AnalystDraftLogRow
+                        {
+                            CountryID = log.CountryID,
+                            EntityType = log.EntityType,
+                            EntityRecordID = log.EntityRecordID,
+                            PillarID = log.PillarID,
+                            QuestionID = log.QuestionID,
+                            FieldName = log.FieldName,
+                            NewValue = log.NewValue,
+                            ChangedAt = log.ChangedAt
+                        };
+
+            return await (
+                query
+            ).ToListAsync();
+        }
+
+        private static Dictionary<string, string?> ToLatestFieldMap(IEnumerable<AnalystDraftLogRow> rows)
+        {
+            return rows
+                .GroupBy(x => x.FieldName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    fg => fg.Key,
+                    fg => fg.OrderByDescending(x => x.ChangedAt).First().NewValue,
+                    StringComparer.OrdinalIgnoreCase);
+        }
+
+        private sealed class AnalystDraftLogRow
+        {
+            public int CountryID { get; set; }
+            public AIEditEntityType EntityType { get; set; }
+            public int EntityRecordID { get; set; }
+            public int? PillarID { get; set; }
+            public int? QuestionID { get; set; }
+            public string FieldName { get; set; } = string.Empty;
+            public string? NewValue { get; set; }
+            public DateTime ChangedAt { get; set; }
+        }
+
+        private static void ApplyDraftFields(object target, Dictionary<string, string?> fields)
+        {
+            var type = target.GetType();
+            foreach (var kv in fields)
+            {
+                if (kv.Key.StartsWith("__", StringComparison.Ordinal))
+                    continue;
+
+                var prop = type.GetProperty(kv.Key, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+                if (prop == null || !prop.CanWrite)
+                    continue;
+
+                try
+                {
+                    var targetType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+                    if (kv.Value == null)
+                    {
+                        if (Nullable.GetUnderlyingType(prop.PropertyType) != null || !targetType.IsValueType)
+                            prop.SetValue(target, null);
+                        continue;
+                    }
+
+                    object? converted;
+                    if (targetType == typeof(string))
+                        converted = kv.Value;
+                    else if (targetType == typeof(decimal))
+                        converted = decimal.Parse(kv.Value);
+                    else if (targetType == typeof(int))
+                        converted = int.Parse(kv.Value);
+                    else if (targetType == typeof(bool))
+                        converted = bool.Parse(kv.Value);
+                    else if (targetType == typeof(DateTime))
+                        converted = DateTime.Parse(kv.Value);
+                    else
+                        converted = Convert.ChangeType(kv.Value, targetType);
+
+                    prop.SetValue(target, converted);
+                }
+                catch
+                {
+                    // Skip invalid conversion for a single field rather than failing the whole page.
+                }
+            }
         }
 
         private void ApplyCountryRanking(List<AiCountrySummeryDto> countriesDetails, List<dynamic> countryRanks, string reportType = "AI", int? totalCountryCount = 0)
@@ -1974,233 +2255,6 @@ namespace HealthIntelligence.Services
 
         #endregion ai document
 
-        #region ai score manual edit
-
-        private async Task<bool> CanUserEditAiDataAsync(int userID, UserRole userRole, int countryID)
-        {
-            if (userRole == UserRole.Admin)
-                return true;
-
-            if (userRole == UserRole.Analyst)
-            {
-                return await _context.UserCountryMappings
-                    .AnyAsync(x => !x.IsDeleted && x.UserID == userID && x.CountryID == countryID);
-            }
-
-            return false;
-        }
-
-        private static decimal? CalculateDiscrepancy(decimal? evaluatorScore, decimal? aiProgress)
-        {
-            if (!evaluatorScore.HasValue && !aiProgress.HasValue)
-                return null;
-
-            return Math.Abs((evaluatorScore ?? 0) - (aiProgress ?? 0));
-        }
-
-        public async Task<ResultResponseDto<bool>> UpdateAICountryScore(UpdateAICountryScoreDto dto, int userID, UserRole userRole)
-        {
-            try
-            {
-                if (!await CanUserEditAiDataAsync(userID, userRole, dto.CountryID))
-                    return ResultResponseDto<bool>.Failure(new[] { "You do not have permission to edit this country data." });
-
-                var entity = await _context.AICountryScores
-                    .FirstOrDefaultAsync(x => x.CountryID == dto.CountryID && x.Year == dto.Year);
-
-                if (entity == null)
-                    return ResultResponseDto<bool>.Failure(new[] { "Country score record not found." });
-
-                entity.ConfidenceLevel = dto.ConfidenceLevel ?? entity.ConfidenceLevel;
-                entity.EvidenceSummary = dto.EvidenceSummary ?? entity.EvidenceSummary;
-                entity.ImmediateSituationSummary = dto.ImmediateSituationSummary ?? entity.ImmediateSituationSummary;
-                entity.KeyDevelopments = dto.KeyDevelopments;
-                entity.CriticalRisks = dto.CriticalRisks;
-                entity.Gaps = dto.Gaps;
-                entity.KeyFindings = dto.KeyFindings;
-                entity.Recommendations = dto.Recommendations;
-                entity.StructuralEvidence = dto.StructuralEvidence;
-                entity.OperationalEvidence = dto.OperationalEvidence;
-                entity.OutcomeEvidence = dto.OutcomeEvidence;
-                entity.PerceptionEvidence = dto.PerceptionEvidence;
-                entity.TemporalScope = dto.TemporalScope;
-                entity.DistortionScreening = dto.DistortionScreening;
-                entity.PoliticalShock = dto.PoliticalShock;
-                entity.EconomicShock = dto.EconomicShock;
-                entity.NarrativeShock = dto.NarrativeShock;
-                entity.StressScoreAdjustment = dto.StressScoreAdjustment;
-                entity.InequalityAdjustment = dto.InequalityAdjustment;
-                entity.OpacityRisk = dto.OpacityRisk;
-                entity.NonCompensationNote = dto.NonCompensationNote;
-                entity.RelationalIntegrity = dto.RelationalIntegrity;
-                entity.InstitutionalCapacity = dto.InstitutionalCapacity;
-                entity.PrimarySource = dto.PrimarySource;
-                entity.CrossPillarPatterns = dto.CrossPillarPatterns;
-                entity.EquityAssessment = dto.EquityAssessment;
-                entity.ConflictRiskOutlook = dto.ConflictRiskOutlook;
-                entity.StrategicRecommendation = dto.StrategicRecommendation;
-                entity.DataTransparencyNote = dto.DataTransparencyNote;
-                entity.UpdatedAt = DateTime.UtcNow;
-
-                await _context.SaveChangesAsync();
-                return ResultResponseDto<bool>.Success(true, new[] { "Country AI data updated successfully." });
-            }
-            catch (Exception ex)
-            {
-                await _appLogger.LogAsync("Error in UpdateAICountryScore", ex);
-                return ResultResponseDto<bool>.Failure(new[] { "Failed to update country AI data." });
-            }
-        }
-
-        public async Task<ResultResponseDto<bool>> UpdateAIPillarScore(UpdateAIPillarScoreDto dto, int userID, UserRole userRole)
-        {
-            try
-            {
-                var entity = await _context.AIPillarScores
-                    .Include(x => x.DataSourceCitations)
-                    .FirstOrDefaultAsync(x => x.PillarScoreID == dto.PillarScoreID);
-
-                if (entity == null)
-                    return ResultResponseDto<bool>.Failure(new[] { "Domain score record not found." });
-
-                if (!await CanUserEditAiDataAsync(userID, userRole, entity.CountryID))
-                    return ResultResponseDto<bool>.Failure(new[] { "You do not have permission to edit this pillar data." });
-
-                entity.ConfidenceLevel = dto.ConfidenceLevel;
-                entity.EvidenceSummary = dto.EvidenceSummary;
-                entity.StructuralEvidence = dto.StructuralEvidence;
-                entity.OperationalEvidence = dto.OperationalEvidence;
-                entity.OutcomeEvidence = dto.OutcomeEvidence;
-                entity.PerceptionEvidence = dto.PerceptionEvidence;
-                entity.TemporalScope = dto.TemporalScope;
-                entity.DistortionScreening = dto.DistortionScreening;
-                entity.RelationalIntegrity = dto.RelationalIntegrity;
-                entity.StressPoliticalShock = dto.StressPoliticalShock;
-                entity.StressEconomicShock = dto.StressEconomicShock;
-                entity.StressNarrativeShock = dto.StressNarrativeShock;
-                entity.StressScoreAdjustment = dto.StressScoreAdjustment;
-                entity.InequalityAdjustment = dto.InequalityAdjustment;
-                entity.OpacityRisk = dto.OpacityRisk;
-                entity.NonCompensationNote = dto.NonCompensationNote;
-                entity.GeographicEquityNote = dto.GeographicEquityNote;
-                entity.InstitutionalAssessment = dto.InstitutionalAssessment;
-                entity.DataGapAnalysis = dto.DataGapAnalysis;
-                entity.RedFlag = dto.RedFlag;
-                entity.UpdatedAt = DateTime.UtcNow;
-
-                if (dto.DataSourceCitations != null && entity.DataSourceCitations != null)
-                {
-                    foreach (var citationDto in dto.DataSourceCitations)
-                    {
-                        var citation = entity.DataSourceCitations.FirstOrDefault(x => x.CitationID == citationDto.CitationID);
-                        if (citation == null)
-                            continue;
-
-                        citation.SourceType = citationDto.SourceType ?? citation.SourceType;
-                        citation.SourceName = citationDto.SourceName ?? citation.SourceName;
-                        citation.SourceURL = citationDto.SourceURL ?? citation.SourceURL;
-                        citation.DataYear = citationDto.DataYear;
-                        citation.DataExtract = citationDto.DataExtract ?? citation.DataExtract;
-                        citation.TrustLevel = citationDto.TrustLevel;
-                    }
-                }
-
-                await _context.SaveChangesAsync();
-                return ResultResponseDto<bool>.Success(true, new[] { "Domain AI data updated successfully." });
-            }
-            catch (Exception ex)
-            {
-                await _appLogger.LogAsync("Error in UpdateAIPillarScore", ex);
-                return ResultResponseDto<bool>.Failure(new[] { "Failed to update pillar AI data." });
-            }
-        }
-
-        public async Task<ResultResponseDto<bool>> UpdateAIDataSourceCitation(UpdateAIDataSourceCitationDto dto, int userID, UserRole userRole)
-        {
-            try
-            {
-                var entity = await _context.AIDataSourceCitations
-                    .Include(x => x.PillarScore)
-                    .FirstOrDefaultAsync(x => x.CitationID == dto.CitationID);
-
-                if (entity?.PillarScore == null)
-                    return ResultResponseDto<bool>.Failure(new[] { "Citation record not found." });
-
-                if (!await CanUserEditAiDataAsync(userID, userRole, entity.PillarScore.CountryID))
-                    return ResultResponseDto<bool>.Failure(new[] { "You do not have permission to edit this citation." });
-
-                entity.SourceType = dto.SourceType ?? entity.SourceType;
-                entity.SourceName = dto.SourceName ?? entity.SourceName;
-                entity.SourceURL = dto.SourceURL ?? entity.SourceURL;
-                entity.DataYear = dto.DataYear;
-                entity.DataExtract = dto.DataExtract ?? entity.DataExtract;
-                entity.TrustLevel = dto.TrustLevel;
-
-                await _context.SaveChangesAsync();
-                return ResultResponseDto<bool>.Success(true, new[] { "Citation updated successfully." });
-            }
-            catch (Exception ex)
-            {
-                await _appLogger.LogAsync("Error in UpdateAIDataSourceCitation", ex);
-                return ResultResponseDto<bool>.Failure(new[] { "Failed to update citation." });
-            }
-        }
-
-        public async Task<ResultResponseDto<bool>> UpdateAIEstimatedQuestionScore(UpdateAIEstimatedQuestionScoreDto dto, int userID, UserRole userRole)
-        {
-            try
-            {
-                if (!await CanUserEditAiDataAsync(userID, userRole, dto.CountryID))
-                    return ResultResponseDto<bool>.Failure(new[] { "You do not have permission to edit this question data." });
-
-                var entity = await _context.AIEstimatedQuestionScores
-                    .FirstOrDefaultAsync(x =>
-                        x.CountryID == dto.CountryID &&
-                        x.PillarID == dto.PillarID &&
-                        x.QuestionID == dto.QuestionID &&
-                        x.Year == dto.Year);
-
-                if (entity == null)
-                    return ResultResponseDto<bool>.Failure(new[] { "Question score record not found." });
-
-                entity.AIScore = dto.AIScore;
-                entity.Discrepancy = CalculateDiscrepancy(entity.EvaluatorScore, dto.AIScore);
-                entity.ConfidenceLevel = dto.ConfidenceLevel;
-                entity.SourcesConsulted = dto.SourcesConsulted;
-                entity.EvidenceSummary = dto.EvidenceSummary;
-                entity.StructuralEvidence = dto.StructuralEvidence;
-                entity.OperationalEvidence = dto.OperationalEvidence;
-                entity.OutcomeEvidence = dto.OutcomeEvidence;
-                entity.PerceptionEvidence = dto.PerceptionEvidence;
-                entity.TemporalScope = dto.TemporalScope;
-                entity.DistortionScreening = dto.DistortionScreening;
-                entity.RelationalDependencies = dto.RelationalDependencies;
-                entity.StressPoliticalShock = dto.StressPoliticalShock;
-                entity.StressEconomicShock = dto.StressEconomicShock;
-                entity.StressNarrativeShock = dto.StressNarrativeShock;
-                entity.StressOverallResilienceShock = dto.StressOverallResilienceShock;
-                entity.InequalityAdjustment = dto.InequalityAdjustment;
-                entity.OpacityRisk = dto.OpacityRisk;
-                entity.RedFlag = dto.RedFlag;
-                entity.SourceType = dto.SourceType;
-                entity.SourceName = dto.SourceName;
-                entity.SourceURL = dto.SourceURL;
-                entity.SourceDataYear = dto.SourceDataYear;
-                entity.SourceHierarchyLevel = dto.SourceHierarchyLevel;
-                entity.SourceDataExtract = dto.SourceDataExtract;
-                entity.UpdatedAt = DateTime.UtcNow;
-
-                await _context.SaveChangesAsync();
-                return ResultResponseDto<bool>.Success(true, new[] { "Question AI data updated successfully." });
-            }
-            catch (Exception ex)
-            {
-                await _appLogger.LogAsync("Error in UpdateAIEstimatedQuestionScore", ex);
-                return ResultResponseDto<bool>.Failure(new[] { "Failed to update question AI data." });
-            }
-        }
-
-        #endregion ai score manual edit
 
         #endregion
     }

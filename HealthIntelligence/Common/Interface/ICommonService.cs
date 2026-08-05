@@ -1,3 +1,4 @@
+using HealthIntelligence.Common.Models;
 using HealthIntelligence.Common.Models.views;
 using HealthIntelligence.Dtos.CountryDto;
 using HealthIntelligence.Dtos.PillarDto;
@@ -14,5 +15,6 @@ namespace HealthIntelligence.Common.Interface
         Task<List<GetPillarDto>> GetPillars();
         void ClearPillarCache();
         Task<List<GetDashboardModeResult>> GetDashboardModeResults(int userId, int role, int dashboardModeID, int countryID = 0);
+        Task<ResultResponseDto<bool>> RevokeCountriesPermission(List<int> countryIds, int userID, int year);
     }
 }

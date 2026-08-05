@@ -50,6 +50,9 @@ namespace HealthIntelligence.Data
         public DbSet<DashboardModeKPIMapping> DashboardModeKPIMappings { get; set; } = default!;
         public DbSet<GetDashboardModeResult> GetDashboardModeResults { get; set; } = default!;
         public DbSet<DashboardInterpretation> DashboardInterpretations { get; set; } = default!;
+        public DbSet<AIEditPermission> AIEditPermissions { get; set; } = default!;
+        public DbSet<AIEditSession> AIEditSessions { get; set; } = default!;
+        public DbSet<AIEditChangeLog> AIEditChangeLogs { get; set; } = default!;
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -200,6 +203,35 @@ namespace HealthIntelligence.Data
             modelBuilder.Entity<DashboardInterpretation>(entity =>
             {
                 entity.HasKey(al => al.DashboardInterpretationID);
+            });
+
+            modelBuilder.Entity<AIEditPermission>(entity =>
+            {
+                entity.HasKey(e => e.PermissionID);
+                entity.ToTable("AIEditPermissions");
+                entity.Property(e => e.Status).HasConversion<byte>();
+            });
+
+            modelBuilder.Entity<AIEditSession>(entity =>
+            {
+                entity.HasKey(e => e.SessionID);
+                entity.ToTable("AIEditSessions");
+                entity.Property(e => e.Status).HasConversion<byte>();
+                entity.HasOne(e => e.Permission)
+                    .WithMany()
+                    .HasForeignKey(e => e.PermissionID)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<AIEditChangeLog>(entity =>
+            {
+                entity.HasKey(e => e.ChangeLogID);
+                entity.ToTable("AIEditChangeLogs");
+                entity.Property(e => e.EntityType).HasConversion<byte>();
+                entity.HasOne(e => e.Session)
+                    .WithMany(s => s.ChangeLogs)
+                    .HasForeignKey(e => e.SessionID)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             base.OnModelCreating(modelBuilder);
