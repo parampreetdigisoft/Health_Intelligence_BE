@@ -337,6 +337,11 @@ namespace HealthIntelligence.Controllers
                 
                 if (countryDetails.Count > 0)
                 {
+                    if(request.CountryIDs?.Count > 0)
+                    {
+                        countryDetails = countryDetails.Where(x => request.CountryIDs.Contains(x.CountryID)).ToList();
+                    }
+
                     string fileName;
                     string contentType;
                     var pdfBytes = await _aIComputationService.GenerateAllCountryDetailsReport(countryDetails, userRole, userId.GetValueOrDefault(), year, request.Format);
