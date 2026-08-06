@@ -268,6 +268,13 @@ namespace HealthIntelligence.Services
 
             return result;
         }
+
+        public async Task<KpiSummaryAiResponse?> SummarizeKpiPerformance(KpiSummaryAiRequest request)
+        {
+            var url = aiUrl + AiEndpoints.KpiSummary();
+            return await _httpService.SendAsync<KpiSummaryAiResponse>(HttpMethod.Post, url, request, headers);
+        }
+
         public async Task<ChatCountryExecutiveSlidesResponse?> GetCountrySlides(int countryId)
         {
             var url = aiUrl + AiEndpoints.CountrySlides();
@@ -354,6 +361,7 @@ namespace HealthIntelligence.Services
         public static string ChatCountryAsk() => $"{ChatPath}/country";
         public static string ChatGlobalAsk() => $"{ChatPath}/global";
         public static string CrossComparision() => $"{ChatPath}/cross-comparision";
+        public static string KpiSummary() => $"{ChatPath}/kpi-summary";
         public static string CountrySlides() => $"{ChatPath}/executive-slides";
         public static string EmergingTrendsAndIssues(int countryCount) =>
             $"{ChatPath}/emerging-trends-and-issues?countryCount={countryCount}";
@@ -397,6 +405,44 @@ namespace HealthIntelligence.Services
         public bool Success { get; set; }
         public string? Message { get; set; }
         public string? Result { get; set; }
+    }
+
+    public class KpiSummaryAiRequest
+    {
+        public string? CountryName { get; set; }
+        public string LayerName { get; set; } = string.Empty;
+        public string LayerCode { get; set; } = string.Empty;
+        public string? Purpose { get; set; }
+        public decimal? ManualScore { get; set; }
+        public decimal? AiScore { get; set; }
+        public string? ManualCondition { get; set; }
+        public string? AiCondition { get; set; }
+        public List<KpiInterpretationBandAiDto> InterpretationBands { get; set; } = new();
+        public string? CategoryDetails { get; set; }
+    }
+
+    public class KpiInterpretationBandAiDto
+    {
+        public decimal? MinRange { get; set; }
+        public decimal? MaxRange { get; set; }
+        public string? Condition { get; set; }
+        public string? Descriptor { get; set; }
+        public string? StrategicAction { get; set; }
+    }
+
+    public class KpiSummaryAiResponse
+    {
+        public bool Success { get; set; }
+        public string? Message { get; set; }
+        public KpiSummaryAiResultDto? Result { get; set; }
+    }
+
+    public class KpiSummaryAiResultDto
+    {
+        public string Summary { get; set; } = string.Empty;
+        public string? ScoreInterpretation { get; set; }
+        public List<string> KeyTakeaways { get; set; } = new();
+        public string? Outlook { get; set; }
     }
 
     #endregion

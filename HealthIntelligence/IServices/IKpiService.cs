@@ -15,5 +15,6 @@ namespace HealthIntelligence.IServices
 
         Task<Tuple<string, byte[]>> ExportCompareCountries(CompareCountryRequestDto request, int userId, UserRole role);
         Task<ResultResponseDto<GetMutiplekpiLayerResultsDto>> GetMutiplekpiLayerResults(GetMutiplekpiLayerRequestDto request, int userId, UserRole role, TieredAccessPlan userPlan = TieredAccessPlan.Pending);
+        Task<ResultResponseDto<SummarizeKpiResponseDto>> SummarizeKpiPerformance(SummarizeKpiRequestDto request, int userId, UserRole role);
     }
 }
