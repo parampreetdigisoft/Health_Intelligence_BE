@@ -1253,7 +1253,7 @@ namespace HealthIntelligence.Common.Implementation
                         string condFg = isHit ? ReportThemeColors.White : ReportThemeColors.Gray900;
 
                         string rangeStr = (interp.MinRange.HasValue && interp.MaxRange.HasValue)
-                            ? $"{Math.Round(interp.MinRange.Value, 0)}.{Math.Round(interp.MaxRange.Value, 0)}"
+                            ? $"{Math.Round(interp.MinRange.Value, 0)}-{Math.Round(interp.MaxRange.Value, 0)}"
                             : ".";
 
                         inner.Item()
