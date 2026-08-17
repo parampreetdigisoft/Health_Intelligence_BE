@@ -238,13 +238,21 @@ namespace HealthIntelligence.Common.Implementation
 
 
 
-            // ── 6. KPI Dashboard (LAST section) ─────────────────────────────────────
+            // ── 6. KPI Dashboard ────────────────────────────────────────────────────
             if (kpiChartItems.Any())
             {
                 AppendCountryHeader(mainPart, countryDetails, "KPI Dashboard");
                 AddKpiDashboardSection(body, mainPart, kpiChartItems, isAllCountries);
             }
 
+            // ── 7. Findings and Recommendations (LAST, after KPI) ───────────────────
+
+            if (!isAllCountries && !string.IsNullOrEmpty(countryDetails.Recommendations))
+            {
+                AppendCountryHeader(mainPart, countryDetails, "Recommendations");
+                AppendContentSection(body, "Recommendations", countryDetails.Recommendations, "b2dfdb");
+            }
+            
             FinalizeLastSection(mainPart);
         }
 
@@ -693,9 +701,6 @@ namespace HealthIntelligence.Common.Implementation
                 // =====================================================
                 // current situation
                 // =====================================================
-                AppendContentSection(body, "Key Findings", data.KeyFindings, "bbdefb");
-                AppendContentSection(body, "Recommendations", data.Recommendations, "b2dfdb");
-                AppendContentSection(body, "Key Developments", data.KeyDevelopments, "e6ccff");
                 AppendContentSection(body, "Critical Risks", data.CriticalRisks, "c2f0f0");
                 AppendContentSection(body, "Gaps", data.Gaps, "ffe6cc");
 
@@ -762,7 +767,9 @@ namespace HealthIntelligence.Common.Implementation
 
                 AppendContentSection(body, "Strategic Policy Priorities", data.StrategicRecommendation, "2e9975");
                 AppendContentSection(body, "Why This Assessment Matters", data.DataTransparencyNote, "63a68f");
-            }            
+                AppendContentSection(body, "Key Findings", data.KeyFindings, "bbdefb");
+
+            }
         }
 
         private static Paragraph CreateRankingHeader(string text)

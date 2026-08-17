@@ -200,6 +200,27 @@ namespace HealthIntelligence.Common.Implementation
                     PageFooter(page);
                 });
             }
+
+            if (!isAllCountries)
+            {
+                // -- Section 2 : Recommendations -------------------------------------
+                container.Page(page =>
+                {
+                    ApplyPageDefaults(page);
+                    page.Header().Element(x =>
+                        CountryComposeHeader(x, countryDetails, userRole, null));
+                    page.Content().Element(content =>
+                    {
+                        content.Column(column =>
+                        {
+                            column.Spacing(10);
+                            column.Item().Element(x =>
+                                AssessmentRecommendations(x, countryDetails, userRole));
+                        });
+                    });
+                    PageFooter(page);
+                });
+            }          
         }
 
         // -----------------------------------------------------------------------------
@@ -1737,14 +1758,7 @@ namespace HealthIntelligence.Common.Implementation
                     // =====================================================
                     // Current situation
                     // =====================================================
-                    if (!string.IsNullOrEmpty(data.KeyFindings))
-                        column.Item().PaddingTop(8).Element(c =>
-                        PillarContentSection(c, "Key Findings", SanitizeText(data.KeyFindings), ReportThemeColors.AccentKeyFindings));
-
-                    if (!string.IsNullOrEmpty(data.Recommendations))
-                        column.Item().PaddingTop(8).Element(c =>
-                        PillarContentSection(c, "Recommendations", SanitizeText(data.Recommendations), ReportThemeColors.AccentRecommendations));
-
+                   
                     if (!string.IsNullOrEmpty(data.KeyDevelopments))
                         column.Item().PaddingTop(8).Element(c =>
                             PillarContentSection(c, "Key Developments", SanitizeText(data.KeyDevelopments), ReportThemeColors.AccentKeyDevelopments));
@@ -1754,9 +1768,6 @@ namespace HealthIntelligence.Common.Implementation
                     if (!string.IsNullOrEmpty(data.Gaps))
                         column.Item().PaddingTop(8).Element(c =>
                         PillarContentSection(c, "Gaps", SanitizeText(data.Gaps), ReportThemeColors.AccentGaps));
-
-
-
 
 
                     // =====================================================
@@ -1840,6 +1851,23 @@ namespace HealthIntelligence.Common.Implementation
                     column.Item().PaddingTop(8).Element(c =>
                         PillarContentSection(c, "Why This Assessment Matters", SanitizeText(data.DataTransparencyNote), ReportThemeColors.AccentDataTransparency));
 
+                    if (!string.IsNullOrEmpty(data.KeyFindings))
+                        column.Item().PaddingTop(8).Element(c =>
+                        PillarContentSection(c, "Key Findings", SanitizeText(data.KeyFindings), ReportThemeColors.AccentKeyFindings));
+                }
+            });
+        }
+
+        void AssessmentRecommendations(IContainer container, AiCountrySummeryDto data, UserRole userRole, bool isAllCountries = false)
+        {
+            container.PaddingTop(4).Column(column =>
+            {
+                if (!isAllCountries)
+                {
+                    
+                    if (!string.IsNullOrEmpty(data.Recommendations))
+                        column.Item().PaddingTop(8).Element(c =>
+                        PillarContentSection(c, "Recommendations", SanitizeText(data.Recommendations), ReportThemeColors.AccentRecommendations));
                 }
             });
         }
