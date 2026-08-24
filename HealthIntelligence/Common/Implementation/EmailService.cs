@@ -33,11 +33,10 @@ namespace HealthIntelligence.Common.Implementation
             {
                 using var client = new SmtpClient(_smtpSettings.Host, _smtpSettings.Port)
                 {
-                    UseDefaultCredentials=false,
+                    UseDefaultCredentials = false,
                     Credentials = new NetworkCredential(_smtpSettings.Username, _smtpSettings.Password),
                     EnableSsl = _smtpSettings.EnableSsl,
-                    DeliveryMethod = SmtpDeliveryMethod.Network,
-                    TargetName = "STARTTLS/"+ _smtpSettings.Host
+                    DeliveryMethod = SmtpDeliveryMethod.Network
                 };
                 var htmlContent = await RenderRazorViewToStringAsync(viewNamePath, model);
                 var mailMessage = new MailMessage

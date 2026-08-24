@@ -40,7 +40,7 @@ namespace HealthIntelligence.Common.Implementation
 
         #endregion
 
-        public static string CountryScoreSummery(decimal? progress,string? countryName = "The country", int pillarCount = 23, int kpiCount = 37)
+        public static string CountryScoreSummery(decimal? progress, int pillarCount, int kpiCount, string? countryName = "The country")
         {
             var evidenceSummaryStaringLine = $"{countryName ?? "The country"} records an overall AHI score of {progress ?? 0}, reflecting performance across {pillarCount} domains and {kpiCount} KPIs.";
 
@@ -49,9 +49,10 @@ namespace HealthIntelligence.Common.Implementation
 
         public static string InitailLineOfExecutiveSummery(
             string evidenceSummary,
+            int pillarCount, int kpiCount,
             string? immediateSituationSummary,
             decimal? progress,
-            string? countryName = "The country", int pillarCount = 23, int kpiCount = 37)
+            string? countryName = "The country")
         {
             immediateSituationSummary = immediateSituationSummary ?? "";
 

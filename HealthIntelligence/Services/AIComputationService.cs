@@ -99,7 +99,7 @@ namespace HealthIntelligence.Services
 
                 foreach (var c in result.Data)
                 {                 
-                    c.CountryScoreSummery = CommonService.CountryScoreSummery(c.AIProgress, c.CountryName, pillarCount, totalValidKpis);
+                    c.CountryScoreSummery = CommonService.CountryScoreSummery(c.AIProgress, pillarCount, totalValidKpis, c.CountryName);
                 }
 
                 if (userRole != UserRole.CountryUser)
@@ -1078,8 +1078,7 @@ namespace HealthIntelligence.Services
                         score = countryDetails.EvaluatorScore;
                     }
                 }
-                countryDetails.EvidenceSummary = CommonService.InitailLineOfExecutiveSummery(countryDetails.EvidenceSummary, countryDetails.ImmediateSituationSummary, score, countryDetails.CountryName, pillarCount, totalValidKpis);
-
+                countryDetails.EvidenceSummary = CommonService.InitailLineOfExecutiveSummery(countryDetails.EvidenceSummary, pillarCount, totalValidKpis, countryDetails.ImmediateSituationSummary, score, countryDetails.CountryName);
             }
             return countryDetails ?? new AiCountrySummeryDto();
         }
@@ -1521,8 +1520,7 @@ namespace HealthIntelligence.Services
 
             foreach (var countryDetails in countriesDetails)
             {
-                countryDetails.EvidenceSummary = CommonService.InitailLineOfExecutiveSummery(countryDetails.EvidenceSummary, 
-                    countryDetails.ImmediateSituationSummary, countryDetails.AIProgress, countryDetails.CountryName, pillarCount,totalValidKpis);
+                countryDetails.EvidenceSummary = CommonService.InitailLineOfExecutiveSummery(countryDetails.EvidenceSummary, pillarCount, totalValidKpis, countryDetails.ImmediateSituationSummary, countryDetails.AIProgress, countryDetails.CountryName);
 
                 if (userRole != UserRole.CountryUser)
                 {

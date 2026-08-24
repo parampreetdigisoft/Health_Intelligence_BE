@@ -42,7 +42,7 @@ namespace HealthIntelligence.Services
                     UserRole.Admin => x => !x.IsDeleted && (request.GetUserRole.HasValue
                                         ? x.Role == request.GetUserRole
                                         : (x.Role == UserRole.Evaluator)),
-                    _ => x => !x.IsDeleted && x.Role == UserRole.Evaluator
+                    _ => x => !x.IsDeleted && x.Role == UserRole.Evaluator && x.CreatedBy == userid
                 };
 
                 var query =
