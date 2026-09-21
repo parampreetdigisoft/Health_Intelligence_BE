@@ -356,7 +356,7 @@ namespace HealthIntelligence.Services
                         r.OptionText == "Unknown");
 
                     // ? Step 1: Calculate per-pillar score
-                    // PillarScore = SUM(Score) / (TotalAnswered � 100) � 100
+                    // PillarScore = SUM(Score) / (TotalAnswered * 100) * 100
                     var pillarScores = scoredResponses
                         .GroupBy(r => r.PillarAssessmentID)
                         .Select(g =>
@@ -499,7 +499,7 @@ namespace HealthIntelligence.Services
                     int pillarID = ws.Cell(11, 12).GetValue<int>();
 
                     if (userCountryMappingID == 0 || pillarID == 0)
-                        continue; // empty or corrupt sheet � skip
+                        continue; // empty or corrupt sheet - skip
 
                     // Validate that the file belongs to the uploading user
                     if (!_context.UserCountryMappings.Any(x =>
@@ -827,7 +827,7 @@ namespace HealthIntelligence.Services
                                               x.UserID == r.TransferToUserID);
 
                 if (countryAssigned == null)
-                    return ResultResponseDto<string>.Failure(new[] { "This assessment can�t be imported because the selected user hasn�t been assigned to this country yet." });
+                    return ResultResponseDto<string>.Failure(new[] { "This assessment can't be imported because the selected user hasn't been assigned to this country yet." });
 
                 // Load existing assessment for that user/country/year (with pillars/responses)
                 var existingAssessment = await _context.Assessments
